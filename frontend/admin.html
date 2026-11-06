@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Proprietário - Gestão Completa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="api.js" defer></script>
+    <script src="vitrine-admin.js" defer></script>
+</head>
+<body id="admin-page" class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12">
+
+    <!-- CABEÇALHO RESPONSIVO -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="brand-mark" aria-hidden="true">A+</span>
+                    <div>
+                        <span id="uiNomeEspaco" class="font-bold text-lg text-slate-900 block leading-none">Studio Bella</span>
+                        <span class="text-xs text-slate-500">Painel de gestão</span>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
+                <button onclick="irParaAba('agenda')" id="aba-btn-agenda" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-blue-600 text-white">1. Agenda & Clientes</button>
+                <button onclick="irParaAba('historico')" id="aba-btn-historico" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">2. Histórico & Categorias</button>
+                <button onclick="irParaAba('receita')" id="aba-btn-receita" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">3. Receita & Financeiro</button>
+                <button onclick="irParaAba('servicos')" id="aba-btn-servicos" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">4. Atividades</button>
+                <button onclick="irParaAba('perfil')" id="aba-btn-perfil" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">5. Perfil & Equipe</button>
+                <button onclick="irParaAba('vitrine')" id="aba-btn-vitrine" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">6. Vitrine (Site)</button>
+                <a href="assinatura.html" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">Plano e cobrança</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+
+        <!-- =============================================================== -->
+        <!-- ABA 1: AGENDA, CALENDÁRIO VISUAL COM PONTOS E BLOQUEIOS         -->
+        <!-- =============================================================== -->
+        <section id="sec-agenda" class="space-y-6">
+            <div class="section-intro">
+                <div>
+                    <span class="section-eyebrow">Visão geral</span>
+                    <h1>Seu negócio, em um só lugar.</h1>
+                    <p>Acompanhe a agenda, organize sua equipe e cuide da experiência dos seus clientes.</p>
+                </div>
+            </div>
+
+            <!-- Calendário Interativo -->
+            <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Minha Agenda de Atendimentos</h2>
+                        <p class="text-xs text-slate-500">Dias com compromissos ou bloqueios sinalizados no calendário</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="abrirModalBloqueio()" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            🔒 Trancar / Bloquear
+                        </button>
+                        <div class="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-semibold">
+                            <button onclick="mudarModoCalendario('mes')" id="cal-btn-mes" class="px-3 py-1.5 bg-blue-600 text-white">Mês</button>
+                            <button onclick="mudarModoCalendario('semana')" id="cal-btn-semana" class="px-3 py-1.5 bg-white text-slate-700 border-l">Semana</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+                        <span id="labelMesAnoCalendario">Outubro / Novembro 2026</span>
+                        <div class="flex gap-3 text-[11px]">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-500 rounded-full"></span> Compromisso</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-red-500 rounded-full"></span> Bloqueado / Fechado</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase">
+                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                    </div>
+                    <div id="gridCalendarioAdmin" class="grid grid-cols-7 gap-1.5">
+                        <!-- Gerado via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel Gerenciar Bloqueios -->
+            <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                <div class="flex items-center justify-between border-b pb-2">
+                    <h3 class="font-bold text-sm text-slate-900">⚙️ Gerenciar Dias e Horários Trancados (Liberar Agenda)</h3>
+                    <span class="text-xs text-slate-500">Edite as regras ou remova bloqueios para liberar horários</span>
+                </div>
+                <div id="listaBloqueiosAtivosAdmin" class="space-y-2 text-xs sm:text-sm"></div>
+            </div>
+
+            <!-- Lista de Clientes do Dia Selecionado -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-3">
+                <div class="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-bold text-base text-slate-900">Compromissos do Dia: <span id="labelDataSelecionada" class="text-blue-600">31/10/2026</span></h3>
+                        <p class="text-xs text-slate-500">Gerencie o status, conclua ou exclua atendimentos</p>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <select id="filtroProfissionalAgenda" onchange="renderizarTabelaAgenda()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
+                            <option value="">Todos os Profissionais</option>
+                        </select>
+                        <select id="filtroStatusAgenda" onchange="renderizarTabelaAgenda()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
+                            <option value="">Todos os Status</option>
+                            <option value="pago">Clientes Pagos</option>
+                            <option value="agendado">Clientes a Pagar</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto px-4 pb-4">
+                    <table class="w-full text-left border-collapse text-xs sm:text-sm min-w-[700px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b">
+                                <th class="py-3 px-4">Cliente</th>
+                                <th class="py-3 px-4">Horário</th>
+                                <th class="py-3 px-4">Serviço</th>
+                                <th class="py-3 px-4">Profissional</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyAgendaAdmin" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- ABA 2: HISTÓRICO & CATEGORIAS                                   -->
+        <!-- =============================================================== -->
+        <section id="sec-historico" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 class="font-bold text-lg mb-4">Gráfico de Categorias e Histórico Geral</h3>
+                <div class="max-w-xs mx-auto"><canvas id="canvasGraficoCat"></canvas></div>
+            </div>
+            <div class="bg-white rounded-xl border shadow-sm p-4">
+                <table class="w-full text-left text-xs sm:text-sm">
+                    <thead><tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b"><th class="py-3 px-4">Cliente</th><th class="py-3 px-4">Data</th><th class="py-3 px-4">Serviço</th><th class="py-3 px-4">Profissional</th><th class="py-3 px-4">Valor</th></tr></thead>
+                    <tbody id="tbodyHistoricoAdmin" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- ABA 3: RECEITA E FINANCEIRO                                     -->
+        <!-- =============================================================== -->
+        <section id="sec-receita" class="hidden space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-xl border shadow-sm"><span class="text-xs text-slate-400 uppercase font-bold">Faturamento Bruto</span><p id="finGeral" class="text-2xl font-bold mt-1">R$ 0,00</p></div>
+                <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-200 shadow-sm"><span class="text-xs text-emerald-700 uppercase font-bold">Recebido (Pago)</span><p id="finPago" class="text-2xl font-bold text-emerald-600 mt-1">R$ 0,00</p></div>
+                <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 shadow-sm"><span class="text-xs text-blue-700 uppercase font-bold">Lucro da Empresa (Taxas)</span><p id="finLucroEmpresa" class="text-2xl font-bold text-blue-600 mt-1">R$ 0,00</p></div>
+            </div>
+            <div class="bg-white rounded-xl border overflow-hidden">
+                <div class="p-4 border-b font-bold text-base">Extrato e Repasse por Profissional</div>
+                <table class="w-full text-left text-xs sm:text-sm">
+                    <thead><tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b"><th class="py-3 px-4">Profissional</th><th class="py-3 px-4">Giro Total</th><th class="py-3 px-4">Taxa Loja</th><th class="py-3 px-4">Lucro Loja</th><th class="py-3 px-4 text-emerald-600">Líquido Prof.</th></tr></thead>
+                    <tbody id="tbodyFinanceiroAdmin" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- ABA 4: ATIVIDADES & SERVIÇOS                                    -->
+        <!-- =============================================================== -->
+        <section id="sec-servicos" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                <div class="flex justify-between items-center border-b pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Cadastro de Atividades</h2>
+                        <p class="text-xs text-slate-500">Cadastre serviços e atribua aos profissionais que os realizam</p>
+                    </div>
+                    <button onclick="abrirModalServico()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow">+ Nova Atividade</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs sm:text-sm min-w-[700px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b">
+                                <th class="py-3 px-4">Atividade</th>
+                                <th class="py-3 px-4">Categoria</th>
+                                <th class="py-3 px-4">Duração</th>
+                                <th class="py-3 px-4">Valor</th>
+                                <th class="py-3 px-4">Profissionais Habilitados</th>
+                                <th class="py-3 px-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyServicos" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- ABA 5: PERFIL, CÓDIGO DA LOJA E EQUIPE                          -->
+        <!-- =============================================================== -->
+        <section id="sec-perfil" class="hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <div class="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                    <h3 class="font-bold text-lg">Perfil do Estabelecimento</h3>
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between mb-4">
+                        <div>
+                            <span class="text-xs font-bold text-blue-800 uppercase block mb-1">Código Único da Loja</span>
+                            <span id="codigoLojaPerfil" class="text-xl font-mono font-bold text-blue-600 bg-white px-2 py-1 rounded border border-blue-100">LOJA-1234-BELLA</span>
+                        </div>
+                        <button onclick="navigator.clipboard.writeText(document.getElementById('codigoLojaPerfil').textContent); alert('Código copiado!')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow transition">Copiar Código</button>
+                    </div>
+                    <div><label class="block text-xs font-semibold mb-1">Nome da Loja</label><input type="text" id="perfilNomeLoja" value="Studio Bella" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="block text-xs font-semibold mb-1">Logo URL</label><input type="text" id="perfilLogo" placeholder="https://..." class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="block text-xs font-semibold mb-1">Chave PIX da Empresa (Recebedor Padrão)</label><input type="text" id="perfilPix" value="financeiro@studiobella.com" class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
+                    <button onclick="alert('Configurações salvas!')" class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold">Salvar Configurações</button>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                    <h3 class="font-bold text-lg">Equipe Vinculada</h3>
+                    <p class="text-xs text-slate-500">Profissionais que utilizaram seu Código de Loja. Defina a taxa retida.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs sm:text-sm">
+                            <thead><tr class="bg-slate-50 border-b text-[11px] uppercase text-slate-500"><th class="py-2 px-2">Profissional</th><th class="py-2 px-2">PIX Liberado?</th><th class="py-2 px-2">% Loja</th><th class="py-2 px-2 text-right">Ação</th></tr></thead>
+                            <tbody id="tbodyEquipeAdmin" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- =============================================================== -->
+        <!-- ABA 6: VITRINE (NOVA ABA PARA MODELAR A EXPOSIÇÃO DA LOJA)      -->
+        <!-- =============================================================== -->
+        <section id="sec-vitrine" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6 max-w-5xl mx-auto">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Configure sua Página de Apresentação (Vitrine)</h2>
+                    <p class="text-xs text-slate-500">Dê personalidade à sua página: use as cores da sua empresa e veja uma prévia enquanto edita.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <!-- Segmento de Atuação -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Segmento da Loja (Para aparecer nos filtros)</label>
+                        <select id="vitrineSegmento" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="salao">Salão de Beleza</option>
+                            <option value="barbearia">Barbearia</option>
+                            <option value="estetica">Estética Facial e Corporal</option>
+                            <option value="saude">Saúde, Fisioterapia & Bem-estar</option>
+                            <option value="tatuagem">Estúdio de Tatuagem</option>
+                            <option value="outros">Outro segmento</option>
+                        </select>
+                    </div>
+
+                    <!-- URL do Banner de Capa -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">URL da Imagem de Capa (Banner)</label>
+                            <input type="text" id="vitrineBanner" placeholder="https://exemplo.com/minha-capa.jpg" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <p class="text-[10px] text-slate-400 mt-1">Recomendado: 1200x400 pixels.</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">URL da Logo</label>
+                            <input type="url" id="vitrineLogo" placeholder="https://exemplo.com/logo.png" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+
+                        <!-- Descrição Sobre a Loja -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Descrição / Sobre a Loja</label>
+                            <textarea id="vitrineDesc" rows="4" placeholder="Fale um pouco sobre o espaço, especialidades e diferenciais..." class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                        </div>
+
+                        <div class="space-y-3 border-t border-slate-200 pt-4">
+                            <div>
+                                <h3 class="font-bold text-sm text-slate-900">Identidade visual</h3>
+                                <p class="text-xs text-slate-500 mt-1">Escolha qualquer cor da sua marca pelo seletor ou informe o código hexadecimal.</p>
+                            </div>
+                            <label class="block text-xs font-semibold text-slate-600">Cor principal</label>
+                            <div class="color-field">
+                                <input type="color" id="vitrineCorPrimariaPicker" aria-label="Selecionar cor principal">
+                                <input type="text" id="vitrineCorPrimaria" value="#1246A0" maxlength="7" aria-label="Código hexadecimal da cor principal" class="w-full border px-3 py-2 text-sm">
+                            </div>
+                            <label class="block text-xs font-semibold text-slate-600">Cor de destaque</label>
+                            <div class="color-field">
+                                <input type="color" id="vitrineCorDestaquePicker" aria-label="Selecionar cor de destaque">
+                                <input type="text" id="vitrineCorDestaque" value="#F97316" maxlength="7" aria-label="Código hexadecimal da cor de destaque" class="w-full border px-3 py-2 text-sm">
+                            </div>
+                            <label class="block text-xs font-semibold text-slate-600">Cor de fundo</label>
+                            <div class="color-field">
+                                <input type="color" id="vitrineCorFundoPicker" aria-label="Selecionar cor de fundo">
+                                <input type="text" id="vitrineCorFundo" value="#F3F6FB" maxlength="7" aria-label="Código hexadecimal da cor de fundo" class="w-full border px-3 py-2 text-sm">
+                            </div>
+                        </div>
+
+                        <!-- Botão de Ação -->
+                        <div class="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3 justify-end">
+                            <a id="linkVisualizarVitrine" href="vitrine.html?loja=1" target="_blank" rel="noopener" class="px-5 py-2.5 rounded-lg text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition w-full sm:w-auto text-center border border-blue-200">
+                                👁️ Visualizar minha Vitrine
+                            </a>
+                            <button type="button" id="salvarVitrineBtn" class="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition w-full sm:w-auto shadow-md shadow-blue-600/20">
+                                Salvar Configurações
+                            </button>
+                        </div>
+                        <p id="vitrineStatus" class="status-message" role="status" aria-live="polite"></p>
+                    </div>
+
+                    <aside>
+                        <h3 class="font-bold text-sm text-slate-900 mb-3">Prévia da sua marca</h3>
+                        <div class="theme-preview">
+                            <div class="theme-preview__header px-5 py-4">
+                                <span id="previewNomeLoja" class="font-bold">Studio Bella</span>
+                                <p class="text-xs text-white/75 mt-1">Uma experiência com a identidade da sua empresa</p>
+                            </div>
+                            <div class="p-5">
+                                <div class="rounded-xl p-4 bg-white shadow-sm">
+                                    <span id="previewSegmento" class="text-xs font-semibold uppercase tracking-wide text-blue-600">Salão de Beleza</span>
+                                    <p id="previewDescricao" class="text-sm text-slate-600 mt-2">Sua descrição aparece aqui para apresentar seu negócio aos clientes.</p>
+                                    <button type="button" class="theme-preview__button mt-4 px-4 py-2 rounded-lg text-sm">Agendar atendimento</button>
+                                    <span class="theme-preview__accent inline-block w-3 h-3 rounded-full ml-2 align-middle" aria-label="Cor de destaque"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-3">As alterações serão aplicadas à sua página pública depois de salvar.</p>
+                    </aside>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =============================================================== -->
+    <!-- MODAIS DO SISTEMA                                               -->
+    <!-- =============================================================== -->
+
+    <!-- MODAL BLOQUEIO / TRANCAR HORÁRIO -->
+    <div id="modalBloqueio" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-lg" id="tituloModalBloqueio">🔒 Trancar Dia ou Horário</h3>
+                <button onclick="fecharModais()" class="font-bold text-lg">&times;</button>
+            </div>
+            <input type="hidden" id="bloqEditIndex" value="-1">
+
+            <div class="space-y-4 text-xs sm:text-sm">
+                <div>
+                    <label class="font-semibold mb-1 block">Tipo de Bloqueio</label>
+                    <select id="bloqTipoAlvo" onchange="alternarCamposBloqueio()" class="w-full border rounded p-2">
+                        <option value="dia">Trancar Dia Inteiro</option>
+                        <option value="horario">Trancar Horário Específico</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-semibold mb-1 block">Regra de Recorrência</label>
+                    <select id="bloqTipoRecorrencia" onchange="alternarCamposBloqueio()" class="w-full border rounded p-2">
+                        <option value="especifico">Data Específica</option>
+                        <option value="semana_recorrente">Toda semana (Ex: Domingos)</option>
+                        <option value="diario_recorrente">Diariamente (Ex: Almoço)</option>
+                    </select>
+                </div>
+                
+                <div id="divBloqDataEspecifica"><label class="font-semibold mb-1 block">Data</label><input type="date" id="bloqDataInput" class="w-full border rounded p-2"></div>
+                
+                <div id="divBloqDiaSemana" class="hidden"><label class="font-semibold mb-1 block">Dia da Semana</label><select id="bloqDiaSemanaSelect" class="w-full border rounded p-2"><option value="0">Domingo</option><option value="1">Segunda</option><option value="2">Terça</option><option value="3">Quarta</option><option value="4">Quinta</option><option value="5">Sexta</option><option value="6">Sábado</option></select></div>
+                
+                <div id="divBloqHorarios" class="hidden grid grid-cols-2 gap-2">
+                    <div><label class="font-semibold mb-1 block">Hora Início</label><input type="time" id="bloqHoraInicio" value="18:00" class="w-full border rounded p-2"></div>
+                    <div><label class="font-semibold mb-1 block">Hora Fim</label><input type="time" id="bloqHoraFim" value="07:00" class="w-full border rounded p-2"></div>
+                </div>
+                
+                <div><label class="font-semibold mb-1 block">Motivo</label><input type="text" id="bloqMotivoInput" placeholder="Ex: Folga, Manutenção..." class="w-full border rounded p-2"></div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="fecharModais()" class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button>
+                <button onclick="salvarBloqueio()" class="px-4 py-2 rounded bg-red-600 text-white text-xs font-bold">Salvar Bloqueio</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SERVIÇO (ATIVIDADES) -->
+    <div id="modalServico" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 class="font-bold text-lg" id="tituloModalServico">Nova Atividade</h3>
+            <input type="hidden" id="servicoEditIndex" value="-1">
+            <div class="space-y-3 text-xs sm:text-sm">
+                <div><label class="font-semibold mb-1 block">Nome do Serviço</label><input type="text" id="servNome" class="w-full border rounded p-2"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="font-semibold mb-1 block">Categoria</label><input type="text" id="servCat" class="w-full border rounded p-2"></div>
+                    <div><label class="font-semibold mb-1 block">Duração (Min)</label><input type="number" id="servDur" class="w-full border rounded p-2"></div>
+                </div>
+                <div><label class="font-semibold mb-1 block">Preço (R$)</label><input type="number" step="0.01" id="servPreco" class="w-full border rounded p-2"></div>
+                <div>
+                    <label class="font-semibold mb-1 block">Atribuir a Profissionais</label>
+                    <div id="listaCheckboxProfissionais" class="space-y-1.5 border p-2 rounded max-h-32 overflow-y-auto"></div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="fecharModais()" class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button><button onclick="salvarServico()" class="px-4 py-2 rounded bg-blue-600 text-white text-xs font-bold">Salvar Atividade</button></div>
+        </div>
+    </div>
+
+    <script>
+        // ESTADO GLOBAL DO ADMIN (NÃO DUPLICADO)
+        let dataFiltroSelecionada = '2026-10-31';
+        let modoVisaoCalendario = 'mes';
+        let chartInstance = null;
+
+        // Base de Dados Simulada e Unificada
+        let atividades = [
+            { id: 1, nome: 'Corte Feminino', cat: 'Cabelo', duracao: 45, preco: 80.00, profs: [1] },
+            { id: 2, nome: 'Manicure', cat: 'Unhas', duracao: 30, preco: 35.00, profs: [1] },
+            { id: 3, nome: 'Barba e Cabelo', cat: 'Barbearia', duracao: 60, preco: 90.00, profs: [2] }
+        ];
+
+        let equipe = [
+            { id: 1, nome: 'Ana (Cabeleireira)', taxa: 30, pix: true },
+            { id: 2, nome: 'Marcos (Barbeiro)', taxa: 40, pix: false }
+        ];
+
+        let listaBloqueiosAdmin = [
+            { id: 1, tipoAlvo: 'dia', tipoRecorrencia: 'semana_recorrente', valor: '0', motivo: 'Domingo Fechado' }
+        ];
+
+        let agendamentosAdmin = [
+            { id: 101, cliente: 'Carlos Eduardo', tel: '63999998888', data: '2026-10-31', hora: '14:00', servico_id: 1, prof_id: 1, status: 'pago' },
+            { id: 102, cliente: 'Mariana Silva', tel: '63988887777', data: '2026-10-31', hora: '15:30', servico_id: 2, prof_id: 1, status: 'agendado' },
+            { id: 103, cliente: 'João Marcos', tel: '63977776666', data: '2026-10-31', hora: '10:00', servico_id: 3, prof_id: 2, status: 'pago' }
+        ];
+
+        let historicoAdmin = [
+            { id: 90, cliente: 'Patrícia Souza', data: '2026-10-25', servico_nome: 'Corte e Escova', prof_id: 1, valor: 120.00 }
+        ];
+
+        // Helpers
+        function getServico(id) { return atividades.find(a => a.id == id); }
+        function getProfissional(id) { return equipe.find(e => e.id == id); }
+
+        function irParaAba(aba) {
+            ['agenda', 'historico', 'receita', 'servicos', 'perfil', 'vitrine'].forEach(a => {
+                document.getElementById(`sec-${a}`).classList.add('hidden');
+                document.getElementById(`aba-btn-${a}`).className = 'whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100';
+            });
+            document.getElementById(`sec-${aba}`).classList.remove('hidden');
+            document.getElementById(`aba-btn-${aba}`).className = 'whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-blue-600 text-white';
+
+            if (aba === 'agenda') renderizarCalendarioAdmin();
+            if (aba === 'servicos') renderizarAbaServicos();
+            if (aba === 'perfil') renderizarAbaPerfil();
+            if (aba === 'historico' || aba === 'receita') renderizarDashboards();
+        }
+
+        // ==========================================================
+        // AGENDA E CALENDÁRIO COM PONTOS
+        // ==========================================================
+        function mudarModoCalendario(modo) {
+            modoVisaoCalendario = modo;
+            document.getElementById('cal-btn-mes').className = modo === 'mes' ? 'px-3 py-1.5 bg-blue-600 text-white' : 'px-3 py-1.5 bg-white text-slate-700';
+            document.getElementById('cal-btn-semana').className = modo === 'semana' ? 'px-3 py-1.5 bg-blue-600 text-white border-l' : 'px-3 py-1.5 bg-white text-slate-700 border-l';
+            renderizarCalendarioAdmin();
+        }
+
+        function selecionarDataEspecifica(dataIso) {
+            dataFiltroSelecionada = dataIso;
+            document.getElementById('labelDataSelecionada').textContent = dataIso.split('-').reverse().join('/');
+            renderizarCalendarioAdmin();
+        }
+
+        function renderizarCalendarioAdmin() {
+            const grade = document.getElementById('gridCalendarioAdmin');
+            grade.innerHTML = '';
+            const diasExibidos = modoVisaoCalendario === 'semana' ? 7 : 28;
+            const dataInicio = new Date(2026, 9, 25);
+
+            for (let i = 0; i < diasExibidos; i++) {
+                const d = new Date(dataInicio);
+                d.setDate(dataInicio.getDate() + i);
+                const iso = d.toISOString().split('T')[0];
+                const diaSemana = d.getDay();
+                
+                const bloqueado = listaBloqueiosAdmin.some(b => (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'especifico' && b.valor === iso) || (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana));
+                const temCompromisso = agendamentosAdmin.some(a => a.data === iso);
+                const selecionado = dataFiltroSelecionada === iso;
+
+                let estilo = 'bg-white hover:border-blue-500 text-slate-700';
+                if (bloqueado) estilo = 'bg-red-50 border-red-200 text-red-600';
+                if (selecionado) estilo = 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300';
+
+                let ponto = '';
+                if (bloqueado) ponto = '<span class="w-1.5 h-1.5 bg-red-500 rounded-full mt-1"></span>';
+                else if (temCompromisso) ponto = '<span class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1"></span>';
+                else ponto = '<span class="text-[9px] text-slate-300">Livre</span>';
+
+                grade.innerHTML += `<button type="button" onclick="selecionarDataEspecifica('${iso}')" class="p-2 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[48px] ${estilo}"><span class="text-xs font-bold">${d.getDate()}</span>${ponto}</button>`;
+            }
+            renderizarTabelaAgenda();
+            renderizarPainelBloqueiosAtivos();
+        }
+
+        function renderizarTabelaAgenda() {
+            const tbody = document.getElementById('tbodyAgendaAdmin');
+            tbody.innerHTML = '';
+            
+            const filtroStatus = document.getElementById('filtroStatusAgenda').value;
+            const filtroProf = document.getElementById('filtroProfissionalAgenda').value;
+
+            // Filtro centralizado que puxa APENAS a data clicada no calendário (dataFiltroSelecionada)
+            const filtrados = agendamentosAdmin.filter(a => {
+                if (a.data !== dataFiltroSelecionada) return false;
+                if (filtroStatus && a.status !== filtroStatus) return false;
+                if (filtroProf && a.prof_id != filtroProf) return false;
+                return true;
+            });
+
+            if (filtrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">Nenhum atendimento para esta data/filtro.</td></tr>`;
+                return;
+            }
+
+            filtrados.forEach(c => {
+                const serv = getServico(c.servico_id);
+                const prof = getProfissional(c.prof_id);
+                const badge = c.status === 'pago' ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✅ Pago</span>` : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ A Pagar</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 border-b">
+                        <td class="py-3 px-4 font-medium">${c.cliente}<div class="text-[10px] text-slate-400">${c.tel}</div></td>
+                        <td class="py-3 px-4">${c.hora}</td>
+                        <td class="py-3 px-4">${serv ? serv.nome : 'N/A'}<div class="text-[10px] text-slate-500">R$ ${serv ? serv.preco.toFixed(2) : 0}</div></td>
+                        <td class="py-3 px-4 text-slate-600">${prof ? prof.nome : 'N/A'}</td>
+                        <td class="py-3 px-4">${badge}</td>
+                        <td class="py-3 px-4 text-right space-x-1">
+                            <button onclick="concluirDaAgenda(${c.id})" class="px-2 py-1.5 rounded bg-blue-50 text-blue-600 text-xs font-semibold">✔ Concluir</button>
+                            <button onclick="excluirDaAgenda(${c.id})" class="px-2 py-1.5 rounded bg-red-50 text-red-600 text-xs font-semibold">Excluir</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function concluirDaAgenda(id) {
+            const index = agendamentosAdmin.findIndex(a => a.id === id);
+            if (index > -1) {
+                const conc = agendamentosAdmin.splice(index, 1)[0];
+                const s = getServico(conc.servico_id);
+                historicoAdmin.push({ id: Date.now(), cliente: conc.cliente, data: conc.data, servico_nome: s ? s.nome : '', prof_id: conc.prof_id, valor: s ? s.preco : 0 });
+                renderizarCalendarioAdmin();
+                alert('Atendimento concluído e movido para o histórico!');
+            }
+        }
+        function excluirDaAgenda(id) {
+            agendamentosAdmin = agendamentosAdmin.filter(a => a.id !== id);
+            renderizarCalendarioAdmin();
+        }
+
+        // ==========================================================
+        // GERENCIAR BLOQUEIOS
+        // ==========================================================
+        function alternarCamposBloqueio() {
+            const alvo = document.getElementById('bloqTipoAlvo').value;
+            const rec = document.getElementById('bloqTipoRecorrencia').value;
+            document.getElementById('divBloqHorarios').classList.toggle('hidden', alvo !== 'horario');
+            document.getElementById('divBloqDataEspecifica').classList.toggle('hidden', rec !== 'especifico');
+            document.getElementById('divBloqDiaSemana').classList.toggle('hidden', rec !== 'semana_recorrente');
+        }
+
+        function abrirModalBloqueio(index = -1) {
+            document.getElementById('bloqEditIndex').value = index;
+            if (index >= 0) {
+                const b = listaBloqueiosAdmin[index];
+                document.getElementById('tituloModalBloqueio').textContent = '✏️ Editar Bloqueio';
+                document.getElementById('bloqTipoAlvo').value = b.tipoAlvo;
+                document.getElementById('bloqTipoRecorrencia').value = b.tipoRecorrencia;
+                document.getElementById('bloqMotivoInput').value = b.motivo;
+                if (b.tipoRecorrencia === 'especifico') document.getElementById('bloqDataInput').value = b.valor;
+                if (b.tipoRecorrencia === 'semana_recorrente') document.getElementById('bloqDiaSemanaSelect').value = b.valor;
+                if (b.tipoAlvo === 'horario') { document.getElementById('bloqHoraInicio').value = b.horaInicio; document.getElementById('bloqHoraFim').value = b.horaFim; }
+            } else {
+                document.getElementById('tituloModalBloqueio').textContent = '🔒 Trancar Dia/Horário';
+                document.getElementById('bloqDataInput').value = dataFiltroSelecionada;
+                document.getElementById('bloqMotivoInput').value = '';
+            }
+            alternarCamposBloqueio();
+            document.getElementById('modalBloqueio').classList.remove('hidden');
+        }
+
+        function salvarBloqueio() {
+            const idx = Number(document.getElementById('bloqEditIndex').value);
+            const tipoAlvo = document.getElementById('bloqTipoAlvo').value;
+            const tipoRec = document.getElementById('bloqTipoRecorrencia').value;
+            const motivo = document.getElementById('bloqMotivoInput').value || 'Fechado';
+            
+            let valor = tipoRec === 'especifico' ? document.getElementById('bloqDataInput').value : (tipoRec === 'semana_recorrente' ? document.getElementById('bloqDiaSemanaSelect').value : 'todos');
+            
+            const obj = { id: idx >= 0 ? listaBloqueiosAdmin[idx].id : Date.now(), tipoAlvo, tipoRecorrencia: tipoRec, valor, motivo, horaInicio: tipoAlvo === 'horario' ? document.getElementById('bloqHoraInicio').value : null, horaFim: tipoAlvo === 'horario' ? document.getElementById('bloqHoraFim').value : null };
+            
+            if (idx >= 0) listaBloqueiosAdmin[idx] = obj; else listaBloqueiosAdmin.push(obj);
+            fecharModais();
+            renderizarCalendarioAdmin();
+        }
+
+        function renderizarPainelBloqueiosAtivos() {
+            const div = document.getElementById('listaBloqueiosAtivosAdmin');
+            div.innerHTML = '';
+            if (listaBloqueiosAdmin.length === 0) { div.innerHTML = '<p class="text-xs text-slate-400">Nenhum bloqueio ativo.</p>'; return; }
+
+            listaBloqueiosAdmin.forEach((b, i) => {
+                let regra = b.tipoRecorrencia === 'especifico' ? `Data: ${b.valor.split('-').reverse().join('/')}` : (b.tipoRecorrencia === 'semana_recorrente' ? `Toda semana (Dia ${b.valor})` : 'Diário');
+                if (b.tipoAlvo === 'horario') regra += ` | Horário: ${b.horaInicio} às ${b.horaFim}`;
+                
+                div.innerHTML += `
+                    <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50/70 shadow-sm">
+                        <div>
+                            <p class="font-bold text-slate-800">${b.motivo} <span class="text-[9px] uppercase bg-red-100 text-red-600 px-2 rounded ml-1 shadow-sm">${b.tipoAlvo}</span></p>
+                            <p class="text-[11px] text-slate-500 font-medium mt-0.5">Regra: ${regra}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="abrirModalBloqueio(${i})" class="text-xs font-semibold bg-white border px-3 py-1.5 rounded-lg hover:bg-slate-100 shadow-sm transition">✏️ Editar</button>
+                            <button onclick="listaBloqueiosAdmin.splice(${i},1); renderizarCalendarioAdmin();" class="text-xs font-semibold bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 shadow-sm transition">🗑️ Remover</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // ==========================================================
+        // ATIVIDADES E SERVIÇOS
+        // ==========================================================
+        function renderizarAbaServicos() {
+            const tbody = document.getElementById('tbodyServicos');
+            tbody.innerHTML = '';
+            atividades.forEach((s, idx) => {
+                const nomesProfs = s.profs.map(pid => { const p = getProfissional(pid); return p ? p.nome : ''; }).join(', ');
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 border-b">
+                        <td class="py-3 px-4 font-bold text-slate-900">${s.nome}</td>
+                        <td class="py-3 px-4 text-slate-600">${s.cat}</td>
+                        <td class="py-3 px-4">${s.duracao} min</td>
+                        <td class="py-3 px-4 font-semibold text-emerald-700">R$ ${s.preco.toFixed(2)}</td>
+                        <td class="py-3 px-4 text-xs text-slate-500">${nomesProfs || 'Nenhum'}</td>
+                        <td class="py-3 px-4 text-right space-x-1"><button onclick="abrirModalServico(${idx})" class="px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-semibold">Editar</button><button onclick="atividades.splice(${idx},1); renderizarAbaServicos()" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-semibold">Excluir</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function abrirModalServico(index = -1) {
+            document.getElementById('servicoEditIndex').value = index;
+            const divProfs = document.getElementById('listaCheckboxProfissionais');
+            divProfs.innerHTML = '';
+            
+            let pIds = [];
+            if (index >= 0) {
+                const s = atividades[index];
+                document.getElementById('tituloModalServico').textContent = '✏️ Editar Atividade';
+                document.getElementById('servNome').value = s.nome; document.getElementById('servCat').value = s.cat; document.getElementById('servDur').value = s.duracao; document.getElementById('servPreco').value = s.preco;
+                pIds = s.profs;
+            } else {
+                document.getElementById('tituloModalServico').textContent = 'Nova Atividade';
+                document.getElementById('servNome').value = ''; document.getElementById('servCat').value = ''; document.getElementById('servDur').value = '30'; document.getElementById('servPreco').value = '';
+            }
+
+            equipe.forEach(p => {
+                const chk = pIds.includes(p.id) ? 'checked' : '';
+                divProfs.innerHTML += `<label class="flex items-center gap-2 text-xs"><input type="checkbox" name="profCheck" value="${p.id}" ${chk} class="w-4 h-4 rounded text-blue-600"> ${p.nome}</label>`;
+            });
+            document.getElementById('modalServico').classList.remove('hidden');
+        }
+
+        function salvarServico() {
+            const idx = Number(document.getElementById('servicoEditIndex').value);
+            const nome = document.getElementById('servNome').value.trim();
+            const checks = document.querySelectorAll('input[name="profCheck"]:checked');
+            const profs = Array.from(checks).map(c => Number(c.value));
+            
+            if (!nome) return alert('Insira o nome!');
+            const obj = { id: idx >= 0 ? atividades[idx].id : Date.now(), nome, cat: document.getElementById('servCat').value || 'Geral', duracao: Number(document.getElementById('servDur').value || 30), preco: Number(document.getElementById('servPreco').value || 0), profs };
+            
+            if (idx >= 0) atividades[idx] = obj; else atividades.push(obj);
+            fecharModais();
+            renderizarAbaServicos();
+        }
+
+        // ==========================================================
+        // PERFIL E EQUIPE
+        // ==========================================================
+        function renderizarAbaPerfil() {
+            const tbody = document.getElementById('tbodyEquipeAdmin');
+            tbody.innerHTML = '';
+            const selFiltroProf = document.getElementById('filtroProfissionalAgenda');
+            selFiltroProf.innerHTML = '<option value="">Todos os Profissionais</option>';
+
+            equipe.forEach((e, idx) => {
+                selFiltroProf.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="py-3 px-2 font-bold">${e.nome}</td>
+                        <td class="py-3 px-2 text-xs"><input type="checkbox" ${e.pix ? 'checked' : ''} onchange="equipe[${idx}].pix = this.checked"></td>
+                        <td class="py-3 px-2"><input type="number" value="${e.taxa}" onchange="equipe[${idx}].taxa = Number(this.value)" class="w-16 border rounded px-2 py-1 text-xs text-center font-bold"> %</td>
+                        <td class="py-3 px-2 text-right"><button onclick="equipe.splice(${idx},1); renderizarAbaPerfil();" class="text-red-600 text-xs font-bold bg-red-50 px-2 py-1 rounded">Remover</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // ==========================================================
+        // RECEITA E HISTÓRICO
+        // ==========================================================
+        function renderizarDashboards() {
+            let bruto = 0, pago = 0, lucroLoja = 0;
+            const tbodyFinanceiro = document.getElementById('tbodyFinanceiroAdmin');
+            const tbodyHist = document.getElementById('tbodyHistoricoAdmin');
+            tbodyFinanceiro.innerHTML = '';
+            tbodyHist.innerHTML = '';
+
+            equipe.forEach(e => {
+                let giroProf = 0;
+                agendamentosAdmin.filter(a => a.prof_id === e.id).forEach(a => {
+                    const s = getServico(a.servico_id);
+                    if (s) {
+                        giroProf += s.preco;
+                        bruto += s.preco;
+                        if (a.status === 'pago') pago += s.preco;
+                    }
+                });
+                
+                const taxaCalc = giroProf * (e.taxa / 100);
+                lucroLoja += taxaCalc;
+                const liqProf = giroProf - taxaCalc;
+
+                if (giroProf > 0) {
+                    tbodyFinanceiro.innerHTML += `<tr class="border-b"><td class="py-3 px-4 font-bold">${e.nome}</td><td class="py-3 px-4 text-slate-600">R$ ${giroProf.toFixed(2)}</td><td class="py-3 px-4">${e.taxa}%</td><td class="py-3 px-4 text-blue-600 font-bold">R$ ${taxaCalc.toFixed(2)}</td><td class="py-3 px-4 text-emerald-600 font-bold">R$ ${liqProf.toFixed(2)}</td></tr>`;
+                }
+            });
+
+            historicoAdmin.forEach(h => {
+                const p = getProfissional(h.prof_id);
+                tbodyHist.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="py-3 px-4 font-bold">${h.cliente}</td><td class="py-3 px-4">${h.data.split('-').reverse().join('/')}</td><td class="py-3 px-4">${h.servico_nome}</td><td class="py-3 px-4">${p ? p.nome : ''}</td><td class="py-3 px-4 font-bold text-emerald-600">R$ ${h.valor.toFixed(2)}</td></tr>`;
+            });
+
+            document.getElementById('finGeral').textContent = `R$ ${bruto.toFixed(2)}`;
+            document.getElementById('finPago').textContent = `R$ ${pago.toFixed(2)}`;
+            document.getElementById('finLucroEmpresa').textContent = `R$ ${lucroLoja.toFixed(2)}`;
+
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(document.getElementById('canvasGraficoCat'), { type: 'doughnut', data: { labels: ['Cabelo', 'Unhas'], datasets: [{ data: [70, 30], backgroundColor: ['#2563eb', '#10b981'] }] } });
+        }
+
+        function fecharModais() {
+            document.getElementById('modalBloqueio').classList.add('hidden');
+            document.getElementById('modalServico').classList.add('hidden');
+        }
+
+        // INIT
+        renderizarAbaPerfil();
+        renderizarCalendarioAdmin();
+    </script>
+</body>
+</html>

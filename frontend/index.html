@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda+ | Acesso</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="api.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <!-- Container Principal -->
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+        
+        <!-- Cabeçalho (Logo) -->
+        <div class="bg-slate-900 text-white p-6 text-center">
+            <h1 class="text-2xl font-bold tracking-tight">Agenda<span class="text-orange-400">+</span></h1>
+            <p class="text-slate-400 text-xs mt-1 uppercase font-semibold">Seu negócio, no ritmo certo</p>
+        </div>
+
+        <!-- Abas de Navegação (Entrar / Cadastrar) -->
+        <div class="flex border-b border-slate-200">
+            <button onclick="mudarAbaAuth('login')" id="btnAbaLogin" class="flex-1 py-3 text-sm font-bold bg-white text-blue-600 border-b-2 border-blue-600 transition">Entrar</button>
+            <button onclick="mudarAbaAuth('cadastro')" id="btnAbaCadastro" class="flex-1 py-3 text-sm font-bold bg-slate-50 text-slate-500 hover:text-slate-700 transition border-b-2 border-transparent">Criar Conta</button>
+        </div>
+
+        <div class="px-6 pt-5">
+            <p class="text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Acesso para responsáveis por estabelecimentos</p>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- FORMULÁRIO DE LOGIN                                             -->
+        <!-- =============================================================== -->
+        <div id="formLogin" class="p-6 pt-2 space-y-4">
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label>
+                <input type="email" id="loginEmail" autocomplete="email" placeholder="seu@email.com" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+            </div>
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="block text-xs font-semibold uppercase text-slate-500">Senha</label>
+                </div>
+                <input type="password" id="loginSenha" autocomplete="current-password" placeholder="********" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+            </div>
+            <button onclick="realizarLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg text-sm font-bold shadow-sm transition mt-2">
+                Entrar no Sistema
+            </button>
+            <p id="authStatus" class="status-message" role="status" aria-live="polite"></p>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- FORMULÁRIO DE CADASTRO                                          -->
+        <!-- =============================================================== -->
+        <div id="formCadastro" class="hidden p-6 pt-2 space-y-4">
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome Completo</label>
+                <input type="text" id="cadNome" placeholder="Seu nome" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+            </div>
+            <div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label>
+                    <input type="email" id="cadEmail" autocomplete="email" placeholder="seu@email.com" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                </div>
+            </div>
+            
+            <!-- Campos Dinâmicos: Exibidos de acordo com o Tipo de Usuário -->
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome do Estabelecimento</label>
+                <input type="text" id="cadNomeLoja" maxlength="150" autocomplete="organization" placeholder="Ex: Studio Bella" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Criar Senha</label>
+                    <input type="password" id="cadSenha" autocomplete="new-password" placeholder="Mínimo de 10 caracteres" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Confirmar Senha</label>
+                    <input type="password" id="cadSenhaConfirma" autocomplete="new-password" placeholder="Repita a senha" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                </div>
+            </div>
+
+            <button onclick="realizarCadastro()" class="w-full bg-slate-900 hover:bg-black text-white py-3 rounded-lg text-sm font-bold shadow-sm transition mt-2">
+                Criar Minha Conta
+            </button>
+            <p id="cadastroStatus" class="status-message" role="status" aria-live="polite"></p>
+        </div>
+
+    </div>
+
+    <script>
+        let modoAbaAtual = 'login'; // login, cadastro
+
+        function mudarAbaAuth(aba) {
+            modoAbaAtual = aba;
+            
+            // Controle visual das abas
+            if (aba === 'login') {
+                document.getElementById('btnAbaLogin').className = 'flex-1 py-3 text-sm font-bold bg-white text-blue-600 border-b-2 border-blue-600 transition';
+                document.getElementById('btnAbaCadastro').className = 'flex-1 py-3 text-sm font-bold bg-slate-50 text-slate-500 hover:text-slate-700 transition border-b-2 border-transparent';
+                
+                document.getElementById('formLogin').classList.remove('hidden');
+                document.getElementById('formCadastro').classList.add('hidden');
+            } else {
+                document.getElementById('btnAbaLogin').className = 'flex-1 py-3 text-sm font-bold bg-slate-50 text-slate-500 hover:text-slate-700 transition border-b-2 border-transparent';
+                document.getElementById('btnAbaCadastro').className = 'flex-1 py-3 text-sm font-bold bg-white text-blue-600 border-b-2 border-blue-600 transition';
+                
+                document.getElementById('formLogin').classList.add('hidden');
+                document.getElementById('formCadastro').classList.remove('hidden');
+            }
+        }
+
+        function exibirStatusAuth(mensagem, erro = false) {
+            const elemento = document.getElementById(modoAbaAtual === 'login' ? 'authStatus' : 'cadastroStatus');
+            elemento.textContent = mensagem;
+            elemento.dataset.state = erro ? 'error' : '';
+        }
+
+        async function realizarLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const senha = document.getElementById('loginSenha').value;
+
+            if (!email || !senha) {
+                return alert('Por favor, preencha o e-mail e a senha.');
+            }
+
+            exibirStatusAuth('Validando seus dados...');
+            try {
+                await AppApi.request('/api/saas/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, senha })
+                });
+                window.location.href = 'assinatura.html';
+            } catch (error) {
+                exibirStatusAuth(error.message, true);
+            }
+        }
+
+        async function realizarCadastro() {
+            const nome = document.getElementById('cadNome').value;
+            const email = document.getElementById('cadEmail').value;
+            const senha = document.getElementById('cadSenha').value;
+            const senhaConf = document.getElementById('cadSenhaConfirma').value;
+
+            if (!nome || !email || !senha) {
+                return alert('Preencha os campos obrigatórios (Nome, E-mail, Senha).');
+            }
+
+            if (senha !== senhaConf) {
+                return alert('As senhas não conferem!');
+            }
+
+            if (!document.getElementById('cadNomeLoja').value.trim()) {
+                return alert('Informe o nome do seu estabelecimento.');
+            }
+
+            const button = document.querySelector('#formCadastro button[onclick="realizarCadastro()"]');
+            button.disabled = true;
+            exibirStatusAuth('Criando sua conta...');
+            try {
+                await AppApi.request('/api/saas/register', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        nome,
+                        email,
+                        senha,
+                        nome_loja: document.getElementById('cadNomeLoja').value.trim(),
+                        segmento: 'salao'
+                    })
+                });
+                window.location.href = 'assinatura.html';
+            } catch (error) {
+                exibirStatusAuth(error.message, true);
+            } finally {
+                button.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

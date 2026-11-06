@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encontre seu próximo atendimento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="api.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+
+    <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <a href="marketplace.html" class="font-bold text-xl tracking-tight">Agenda<span class="text-orange-400">+</span></a>
+            <a href="index.html" class="text-xs font-semibold bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition">Fazer Login</a>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-6 space-y-8">
+        
+        <!-- Busca e Filtros -->
+        <section class="store-hero rounded-3xl p-7 sm:p-10 text-white shadow-xl">
+            <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Agenda+</p>
+            <h2 class="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">Seu próximo momento começa aqui.</h2>
+            <p class="mt-3 max-w-2xl text-sm sm:text-base text-white/75">Descubra espaços, conheça os serviços e reserve um horário com quem combina com você.</p>
+            <label class="mt-6 block max-w-xl">
+                <span class="sr-only">Buscar estabelecimento</span>
+                <input id="buscaLojas" type="search" placeholder="Buscar por nome ou serviço..." class="w-full border-0 bg-white px-4 py-3 text-sm text-slate-900 shadow-lg">
+            </label>
+        </section>
+
+        <section class="marketplace-directory" aria-labelledby="marketplaceHeading">
+            <div class="marketplace-directory__heading">
+                <div>
+                    <p class="section-eyebrow">Explore espaços e profissionais</p>
+                    <h2 id="marketplaceHeading">Encontre o serviço ideal para você</h2>
+                    <p class="marketplace-directory__description">Filtre por categoria ou pesquise pelo nome do estabelecimento ou serviço.</p>
+                </div>
+                <span id="resultadoLojasResumo" class="marketplace-result-count" aria-live="polite"></span>
+            </div>
+
+            <div class="marketplace-filters" role="group" aria-label="Filtrar por categoria">
+                <button type="button" onclick="filtrarLojas('todos')" id="btn-cat-todos" data-category="todos" class="marketplace-filter is-active" aria-pressed="true">Todos</button>
+                <button type="button" onclick="filtrarLojas('estetica')" id="btn-cat-estetica" data-category="estetica" class="marketplace-filter" aria-pressed="false">Estética</button>
+                <button type="button" onclick="filtrarLojas('barbearia')" id="btn-cat-barbearia" data-category="barbearia" class="marketplace-filter" aria-pressed="false">Barbearia</button>
+                <button type="button" onclick="filtrarLojas('saude')" id="btn-cat-saude" data-category="saude" class="marketplace-filter" aria-pressed="false">Saúde & bem-estar</button>
+                <button type="button" onclick="filtrarLojas('salao')" id="btn-cat-salao" data-category="salao" class="marketplace-filter" aria-pressed="false">Salão de beleza</button>
+            </div>
+        </section>
+
+        <!-- Grade de Lojas -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="gradeLojas">
+            <div class="loading-state sm:col-span-2 lg:col-span-3">Carregando estabelecimentos...</div>
+        </div>
+
+    </main>
+
+    <script>
+        let lojasCadastradas = [];
+        let filtroAtual = 'todos';
+        let buscaAtual = '';
+
+        function urlImagemSegura(url) {
+            try {
+                const parsed = new URL(url);
+                return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+            } catch {
+                return '';
+            }
+        }
+
+        function normalizarSegmento(valor = '') {
+            const texto = valor.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (texto.includes('barbear')) return 'barbearia';
+            if (texto.includes('estet')) return 'estetica';
+            if (texto.includes('saude') || texto.includes('fisio')) return 'saude';
+            if (texto.includes('salao') || texto.includes('beleza')) return 'salao';
+            return texto;
+        }
+
+        function nomeSegmento(segmento) {
+            return ({
+                salao: 'Salão de Beleza',
+                barbearia: 'Barbearia',
+                estetica: 'Estética',
+                saude: 'Saúde & Bem-estar'
+            })[segmento] || segmento || 'Serviços';
+        }
+
+        function renderizarLojas(filtro = 'todos') {
+            const grade = document.getElementById('gradeLojas');
+            grade.innerHTML = '';
+            filtroAtual = filtro;
+            const resumo = document.getElementById('resultadoLojasResumo');
+            const botoes = document.querySelectorAll('.marketplace-filter');
+            botoes.forEach((botao) => {
+                const ativo = botao.dataset.category === filtro;
+                botao.classList.toggle('is-active', ativo);
+                botao.setAttribute('aria-pressed', String(ativo));
+            });
+            const filtradas = lojasCadastradas.filter((loja) => {
+                const segmento = normalizarSegmento(loja.segmento || loja.nicho);
+                const correspondeCategoria = filtro === 'todos' || segmento === filtro;
+                const textoBusca = `${loja.nome} ${loja.nicho || ''} ${loja.descricao || ''} ${loja.servicos || ''}`.toLowerCase();
+                return correspondeCategoria && textoBusca.includes(buscaAtual);
+            });
+
+            if (filtradas.length === 0) {
+                resumo.textContent = '0 estabelecimentos';
+                grade.innerHTML = '<div class="empty-state sm:col-span-2 lg:col-span-3">Nenhum estabelecimento encontrado para essa busca.</div>';
+                return;
+            }
+
+            resumo.textContent = `${filtradas.length} ${filtradas.length === 1 ? 'estabelecimento' : 'estabelecimentos'}`;
+            filtradas.forEach(loja => {
+                const segment = normalizarSegmento(loja.segmento || loja.nicho);
+                const banner = urlImagemSegura(loja.banner_url);
+                const logo = urlImagemSegura(loja.logo_url);
+                const logoMarkup = logo
+                    ? `<img src="${AppApi.escapeHtml(logo)}" alt="" class="store-card__logo absolute -top-8">`
+                    : '<span class="store-card__logo absolute -top-8 grid place-items-center text-xl font-bold text-blue-600">A+</span>';
+                grade.innerHTML += `
+                    <article class="store-card flex flex-col">
+                        <div class="store-card__cover"></div>
+                        <div class="p-5 relative flex-1 flex flex-col">
+                            ${logoMarkup}
+                            <div class="mt-6 flex-1">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded-full">${AppApi.escapeHtml(nomeSegmento(segment))}</span>
+                                <h3 class="font-bold text-lg text-slate-900 mt-3">${AppApi.escapeHtml(loja.nome)}</h3>
+                                <p class="text-sm text-slate-500 mt-2">${AppApi.escapeHtml(loja.descricao || 'Conheça nossos serviços e encontre um horário para você.')}</p>
+                            </div>
+                            <a href="vitrine.html?loja=${encodeURIComponent(loja.id)}" class="mt-5 block w-full text-center bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl text-sm transition">Conhecer estabelecimento</a>
+                        </div>
+                    </article>
+                `;
+                const cover = grade.lastElementChild.querySelector('.store-card__cover');
+                if (banner) cover.style.backgroundImage = `url("${banner.replace(/["\\]/g, '\\$&')}")`;
+            });
+        }
+
+        function filtrarLojas(categoria) {
+            renderizarLojas(categoria);
+        }
+
+        document.getElementById('buscaLojas').addEventListener('input', (event) => {
+            buscaAtual = event.target.value.trim().toLowerCase();
+            renderizarLojas(filtroAtual);
+        });
+
+        async function carregarLojas() {
+            const grade = document.getElementById('gradeLojas');
+            try {
+                lojasCadastradas = await AppApi.request('/espacos');
+                renderizarLojas();
+            } catch (error) {
+                grade.innerHTML = `<div class="empty-state sm:col-span-2 lg:col-span-3">${AppApi.escapeHtml(error.message)}<br><span class="text-xs">Verifique se o backend está em execução e tente novamente.</span></div>`;
+            }
+        }
+
+        carregarLojas();
+    </script>
+</body>
+</html>

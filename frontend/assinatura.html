@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#10244a">
+    <title>Plano e cobrança | Agenda+</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="api.js" defer></script>
+    <script src="assinatura.js" defer></script>
+</head>
+<body class="subscription-page">
+    <header class="subscription-header">
+        <a class="subscription-brand" href="index.html" aria-label="Agenda+ início">
+            <span class="brand-mark">A+</span>
+            <span>Agenda<span class="subscription-brand__accent">+</span></span>
+        </a>
+        <button id="logoutButton" class="subscription-quiet-button" type="button">Sair da conta</button>
+    </header>
+
+    <main class="subscription-main">
+        <section class="subscription-intro">
+            <span class="section-eyebrow">Conta do estabelecimento</span>
+            <h1>Seu plano, sem surpresas.</h1>
+            <p>Consulte o período de teste e gerencie sua assinatura em um só lugar.</p>
+        </section>
+
+        <section class="subscription-layout" aria-label="Detalhes do plano e da assinatura">
+            <article class="subscription-card subscription-plan">
+                <div class="subscription-plan__top">
+                    <div>
+                        <span class="subscription-kicker">Plano Agenda+</span>
+                        <h2>Mensal</h2>
+                    </div>
+                    <span class="subscription-plan__tag">Sem fidelidade</span>
+                </div>
+                <p class="subscription-price"><strong id="planPrice">—</strong><span>/ mês</span></p>
+                <p class="subscription-trial" id="planTrial">Carregando período de teste...</p>
+                <ul class="subscription-benefits">
+                    <li>Agenda e gestão do estabelecimento</li>
+                    <li>Personalização da vitrine</li>
+                    <li>Controle mensal, com cancelamento pelo painel</li>
+                </ul>
+                <button id="checkoutButton" class="subscription-primary-button" type="button" disabled>
+                    Carregando plano...
+                </button>
+                <p id="billingMessage" class="status-message" role="status" aria-live="polite"></p>
+            </article>
+
+            <article class="subscription-card subscription-account">
+                <span class="subscription-kicker">Sua assinatura</span>
+                <h2 id="accountStore">Carregando conta...</h2>
+                <p class="subscription-account__owner" id="accountOwner"></p>
+                <div class="subscription-status">
+                    <span>Status</span>
+                    <strong id="subscriptionStatus">Consultando...</strong>
+                </div>
+                <dl class="subscription-details">
+                    <div>
+                        <dt>Fim do teste</dt>
+                        <dd id="trialEnd">—</dd>
+                    </div>
+                    <div>
+                        <dt>Próxima cobrança</dt>
+                        <dd id="nextPayment">—</dd>
+                    </div>
+                </dl>
+                <a id="dashboardLink" class="subscription-secondary-button" href="admin.html" hidden>
+                    Acessar painel
+                </a>
+                <button id="cancelButton" class="subscription-danger-button" type="button" hidden>
+                    Cancelar assinatura
+                </button>
+            </article>
+        </section>
+
+        <p class="subscription-footnote">
+            A cobrança recorrente é processada pelo Mercado Pago. Os dados do cartão são informados diretamente na plataforma de pagamento.
+        </p>
+    </main>
+</body>
+</html>

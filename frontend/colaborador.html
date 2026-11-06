@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal do Colaborador - Gestão Profissional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body id="staff-page" class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12">
+
+    <!-- CABEÇALHO DO COLABORADOR COM SELETOR DE LOJAS -->
+    <header class="bg-slate-900 text-white sticky top-0 z-30">
+        <div
+            class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex flex-col sm:flex-row items-center justify-between gap-2 py-2 sm:py-0">
+            <div class="flex items-center gap-3">
+                <span class="brand-mark brand-mark--light" aria-hidden="true">A+</span>
+                <div>
+                    <span id="colabNomeHeader" class="font-bold text-sm block leading-tight">Ana (Cabeleireira)</span>
+                    <span class="text-[11px] text-slate-400">Loja ID Principal: <strong
+                            id="colabIdLojaHeader">#1</strong></span>
+                </div>
+            </div>
+
+            <!-- Seletor de Lojas Vinculadas -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400">Loja Ativa:</span>
+                <select id="selectLojaAtiva" onchange="mudarLojaAtiva(this.value)"
+                    class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-semibold">
+                    <option value="1">Studio Bella (#1)</option>
+                    <option value="2">Barbearia Central (#2)</option>
+                </select>
+            </div>
+
+            <nav class="flex gap-1 overflow-x-auto">
+                <button onclick="mudarAbaColab('agenda')" id="aba-btn-agenda"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white">Agenda</button>
+                <button onclick="mudarAbaColab('historico')" id="aba-btn-historico"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">Histórico</button>
+                <button onclick="mudarAbaColab('ganhos')" id="aba-btn-ganhos"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">Ganhos &
+                    Caixa</button>
+                <button onclick="mudarAbaColab('perfil')" id="aba-btn-perfil"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">Meu
+                    Perfil</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+        <!-- =============================================================== -->
+        <!-- ABA 1: AGENDA COM CALENDÁRIO VISUAL & GERENCIAR BLOQUEIOS        -->
+        <!-- =============================================================== -->
+        <section id="sec-agenda" class="space-y-6">
+            <div class="section-intro">
+                <div>
+                    <span class="section-eyebrow">Seu espaço de trabalho</span>
+                    <h1>Olá, <span id="colabNomeBoasVindas">Ana</span>. Vamos ao seu dia?</h1>
+                    <p>Consulte seus atendimentos e mantenha sua agenda sempre organizada.</p>
+                </div>
+            </div>
+            <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Minha Agenda de Atendimentos</h2>
+                        <p class="text-xs text-slate-500">Dias com compromissos ou bloqueios sinalizados no calendário
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="abrirModalTrancarAgenda()"
+                            class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            🔒 Trancar / Bloquear
+                        </button>
+                        <div
+                            class="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-semibold">
+                            <button onclick="mudarVisaoAgendaCalendario('mes')" id="btn-visao-mes"
+                                class="px-3 py-1.5 bg-blue-600 text-white">Mês</button>
+                            <button onclick="mudarVisaoAgendaCalendario('semana')" id="btn-visao-semana"
+                                class="px-3 py-1.5 bg-white text-slate-700 border-l">Semana</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendário Visual Interativo com Pontos -->
+                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+                        <span id="labelMesAnoCalendarioColab">Outubro / Novembro 2026</span>
+                        <div class="flex gap-3 text-[11px]">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                Compromisso</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                                Bloqueado / Fechado</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase">
+                        <div>Dom</div>
+                        <div>Seg</div>
+                        <div>Ter</div>
+                        <div>Qua</div>
+                        <div>Qui</div>
+                        <div>Sex</div>
+                        <div>Sáb</div>
+                    </div>
+                    <div id="gridCalendarioColab" class="grid grid-cols-7 gap-1.5">
+                        <!-- Gerado via JS -->
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Lista de Clientes do Dia Selecionado -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-3">
+                <div
+                    class="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-bold text-base text-slate-900">Compromissos do Dia: <span
+                                id="labelDataSelecionadaAgenda" class="text-blue-600">31/10/2026</span></h3>
+                        <p class="text-xs text-slate-500">Gerencie o status, remarque ou exclua atendimentos</p>
+                    </div>
+
+                    <select id="filtroStatusAgendaColab" onchange="renderizarListaAgendaColab()"
+                        class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
+                        <option value="">Todos os Status</option>
+                        <option value="pago">Clientes Pagos</option>
+                        <option value="agendado">Clientes a Pagar</option>
+                    </select>
+                </div>
+
+                <div class="overflow-x-auto px-4 pb-4">
+                    <table class="w-full text-left border-collapse text-xs sm:text-sm min-w-[700px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b">
+                                <th class="py-3 px-4">Cliente</th>
+                                <th class="py-3 px-4">Horário</th>
+                                <th class="py-3 px-4">Serviço</th>
+                                <th class="py-3 px-4">Valor</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyAgendaColab" class="divide-y divide-slate-200">
+                            <!-- Gerado via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+
+            </div>
+            <!-- PAINEL DE BLOQUEIOS ATIVOS (COM OPÇÃO DE EDITAR E LIBERAR) -->
+            <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                <div class="flex items-center justify-between border-b pb-2">
+                    <h3 class="font-bold text-sm text-slate-900">⚙️ Gerenciar Dias e Horários Trancados (Liberar Agenda)
+                    </h3>
+                    <span class="text-xs text-slate-500">Edite ou remova bloqueios para liberar horários</span>
+                </div>
+                <div id="listaBloqueiosAtivosColab" class="space-y-2 text-xs sm:text-sm">
+                    <!-- Gerado via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA 2: HISTÓRICO -->
+        <section id="sec-historico" class="hidden space-y-6">
+            <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-900">Meu Histórico de Atendimentos</h2>
+                <p class="text-xs text-slate-500">Serviços concluídos na loja ativa</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-4">
+                <table class="w-full text-left border-collapse text-xs sm:text-sm min-w-[650px]">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b">
+                            <th class="py-3 px-4">Cliente</th>
+                            <th class="py-3 px-4">Data & Hora</th>
+                            <th class="py-3 px-4">Serviço</th>
+                            <th class="py-3 px-4">Valor</th>
+                            <th class="py-3 px-4">Comissão</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyHistoricoColab" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ABA 3: GANHOS -->
+        <section id="sec-ganhos" class="hidden space-y-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <span class="section-eyebrow">Desempenho</span>
+                    <h2 class="font-bold text-xl text-slate-900">Seus ganhos e resultados</h2>
+                    <p class="text-xs text-slate-500 mt-1">Acompanhe seus valores por período e por loja.</p>
+                </div>
+                <div class="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-semibold">
+                    <button onclick="mudarPeriodoMetricas('dia')" id="metrica-btn-dia"
+                        class="px-3 py-1.5 bg-white">Dia</button>
+                    <button onclick="mudarPeriodoMetricas('semana')" id="metrica-btn-semana"
+                        class="px-3 py-1.5 bg-white border-l">Semana</button>
+                    <button onclick="mudarPeriodoMetricas('mes')" id="metrica-btn-mes"
+                        class="px-3 py-1.5 bg-blue-600 text-white border-l">Mês</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div onclick="abrirDetalhesMetrica('faturamento')"
+                    class="bg-white p-5 rounded-xl border shadow-sm cursor-pointer hover:border-blue-500 transition">
+                    <span class="text-xs text-slate-400 uppercase font-semibold">Faturamento (Detalhes)</span>
+                    <p id="ganhosFaturamentoMes" class="text-2xl font-bold text-slate-900 mt-1">R$ 0,00</p>
+                </div>
+                <div onclick="abrirDetalhesMetrica('recebido')"
+                    class="bg-white p-5 rounded-xl border border-emerald-200 bg-emerald-50/30 shadow-sm cursor-pointer hover:border-emerald-500 transition">
+                    <span class="text-xs text-emerald-700 uppercase font-semibold">Recebido Direto PIX</span>
+                    <p id="ganhosRecebidoPix" class="text-2xl font-bold text-emerald-600 mt-1">R$ 0,00</p>
+                </div>
+                <div onclick="abrirDetalhesMetrica('caixa_futuro')"
+                    class="bg-white p-5 rounded-xl border border-amber-200 bg-amber-50/30 shadow-sm cursor-pointer hover:border-amber-500 transition">
+                    <span class="text-xs text-amber-700 uppercase font-semibold">Caixa Futuro (A Receber)</span>
+                    <p id="ganhosCaixaFuturo" class="text-2xl font-bold text-amber-600 mt-1">R$ 0,00</p>
+                </div>
+                <div onclick="abrirDetalhesMetrica('taxa_empresa')"
+                    class="bg-white p-5 rounded-xl border border-blue-200 bg-blue-50/30 shadow-sm cursor-pointer hover:border-blue-500 transition">
+                    <span class="text-xs text-blue-700 uppercase font-semibold">A Pagar à Empresa</span>
+                    <p id="ganhosTaxaEmpresa" class="text-2xl font-bold text-blue-600 mt-1">R$ 0,00</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                <h3 class="font-bold text-base text-slate-900">Lucro Geral Consolidado (Todas as Lojas)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div class="max-w-[240px] mx-auto"><canvas id="canvasGanhosLojas"></canvas></div>
+                    <div id="detalhesLojasGanhos" class="space-y-3 text-xs sm:text-sm"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA 4: PERFIL -->
+        <section id="sec-perfil"
+            class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-xl mx-auto space-y-5">
+            <h3 class="font-bold text-lg text-slate-900">Meu Perfil & Vínculo de Lojas</h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome</label><input
+                        type="text" id="perfilNome" value="Ana (Cabeleireira)"
+                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label><input
+                        type="email" id="perfilEmail" value="ana@studiobella.com"
+                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Senha</label><input
+                        type="password" id="perfilSenha" value="********"
+                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Minha Chave
+                        PIX</label><input type="text" id="perfilChavePix" value="ana.pix@studiobella.com"
+                        class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
+            </div>
+
+            <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
+                <h4 class="font-bold text-xs text-blue-900 uppercase">Vincular Nova Loja por ID</h4>
+                <div class="flex gap-2">
+                    <input type="text" id="inputNovoIdLoja" placeholder="Digite o ID da Empresa (ex: 3)"
+                        class="flex-1 border rounded-lg px-3 py-2 text-sm bg-white font-mono">
+                    <button onclick="vincularNovaLojaPorId()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Vincular
+                        Loja</button>
+                </div>
+            </div>
+
+            <button onclick="alert('Perfil salvo com sucesso!')"
+                class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold">Salvar
+                Alterações</button>
+        </section>
+
+    </main>
+
+    <!-- =============================================================== -->
+    <!-- MODAL DE TRANCAR OU EDITAR BLOQUEIO                             -->
+    <!-- =============================================================== -->
+    <div id="modalTrancar" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-lg text-slate-900" id="tituloModalBloqueio">🔒 Trancar Dia ou Horário</h3>
+                <button onclick="fecharModais()" class="font-bold text-lg">&times;</button>
+            </div>
+
+            <input type="hidden" id="bloqEditIndex" value="-1">
+
+            <div class="space-y-4 text-xs sm:text-sm">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">O que deseja
+                        trancar?</label>
+                    <select id="bloqTipoAlvo" onchange="alternarCamposBloqueioColab()"
+                        class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                        <option value="dia">Trancar um Dia Inteiro</option>
+                        <option value="horario">Trancar um Horário Específico</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Regra de
+                        Recorrência</label>
+                    <select id="bloqTipoRecorrencia" onchange="alternarCamposBloqueioColab()"
+                        class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                        <option value="especifico">Apenas em uma data/dia específico</option>
+                        <option value="semana_recorrente">Repetir todo o dia da semana ao longo do ano (Ex: Todo
+                            domingo)</option>
+                        <option value="diario_recorrente">Repetir diariamente (Ex: Horário de expediente/almoço)
+                        </option>
+                    </select>
+                </div>
+
+                <div id="divBloqDataEspecifica">
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Data</label>
+                    <input type="date" id="bloqDataInput" class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+
+                <div id="divBloqDiaSemana" class="hidden">
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Escolha o Dia da
+                        Semana</label>
+                    <select id="bloqDiaSemanaSelect" class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                        <option value="0">Todos os Domingos</option>
+                        <option value="1">Todas as Segundas-feiras</option>
+                        <option value="2">Todas as Terças-feiras</option>
+                        <option value="3">Todas as Quartas-feiras</option>
+                        <option value="4">Todas as Quintas-feiras</option>
+                        <option value="5">Todas as Sextas-feiras</option>
+                        <option value="6">Todos os Sábados</option>
+                    </select>
+                </div>
+
+                <div id="divBloqHorarios" class="hidden grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Hora Início</label>
+                        <input type="time" id="bloqHoraInicio" value="18:00"
+                            class="w-full border rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Hora Fim</label>
+                        <input type="time" id="bloqHoraFim" value="07:00"
+                            class="w-full border rounded-lg px-3 py-2 text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Motivo do Bloqueio</label>
+                    <input type="text" id="bloqMotivoInput" placeholder="Ex: Almoço, Folga, Manutenção"
+                        class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="fecharModais()" class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button>
+                <button onclick="salvarBloqueioTrancamento()"
+                    class="px-4 py-2 rounded bg-red-600 text-white text-xs font-bold">Salvar Bloqueio</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAIS DE SUPORTE -->
+    <div id="modalMetricaDetalhes" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 id="modalMetricaTitulo" class="font-bold text-base text-slate-900">Detalhes</h3><button
+                    onclick="fecharModais()" class="font-bold text-lg">&times;</button>
+            </div>
+            <div id="modalMetricaConteudo" class="space-y-2 text-xs sm:text-sm max-h-60 overflow-y-auto"></div>
+            <div class="flex justify-end pt-2 border-t"><button onclick="fecharModais()"
+                    class="px-4 py-2 bg-slate-900 text-white rounded text-xs">Fechar</button></div>
+        </div>
+    </div>
+
+    <div id="modalRemarcar" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 class="font-bold text-lg">📅 Remarcar Atendimento</h3>
+            <p id="remarcarClienteNome" class="text-xs text-slate-600"></p>
+            <input type="date" id="remarcarNovaData" class="w-full border rounded-lg px-3 py-2 text-sm">
+            <input type="time" id="remarcarNovoHorario" value="14:00"
+                class="w-full border rounded-lg px-3 py-2 text-sm">
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="fecharModais()" class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button>
+                <button onclick="confirmarRemarcacaoColab()"
+                    class="px-4 py-2 rounded bg-blue-600 text-white text-xs font-bold">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lojaAtivaId = 1;
+        let dataSelecionadaColab = '2026-10-31';
+        let visaoCalendarioColab = 'mes';
+        let periodoMetricaAtual = 'mes';
+        let clienteEmRemarcacao = null;
+        let graficoGanhosLojasInstance = null;
+
+        // Lista de bloqueios ativos
+        let listaBloqueiosColab = [
+            { id: 1, tipoAlvo: 'dia', tipoRecorrencia: 'semana_recorrente', valor: '0', motivo: 'Domingo Fechado' },
+            { id: 2, tipoAlvo: 'horario', tipoRecorrencia: 'diario_recorrente', horaInicio: '18:00', horaFim: '07:00', motivo: 'Expediente Noturno' }
+        ];
+
+        const lojasColaboradorMap = {
+            1: { nome: 'Studio Bella', idLoja: '#1', taxa: 30, agenda: [{ id: 201, cliente: 'Carlos Eduardo', tel: '63999998888', data: '2026-10-31', hora: '14:00', servico: 'Corte', valor: 80.00, status: 'pago' }, { id: 202, cliente: 'Mariana Silva', tel: '63988887777', data: '2026-10-31', hora: '15:30', servico: 'Manicure', valor: 35.00, status: 'agendado' }], historico: [{ id: 301, cliente: 'Patrícia Souza', data: '2026-10-28', servico: 'Corte e Escova', valor: 120.00 }] },
+            2: { nome: 'Barbearia Central', idLoja: '#2', taxa: 40, agenda: [{ id: 203, cliente: 'João Marcos', tel: '63977776666', data: '2026-10-31', hora: '10:00', servico: 'Barba', valor: 90.00, status: 'pago' }], historico: [{ id: 302, cliente: 'Roberto Dias', data: '2026-10-27', servico: 'Degradê', valor: 60.00 }] }
+        };
+
+        function mudarAbaColab(aba) {
+            ['agenda', 'historico', 'ganhos', 'perfil'].forEach(a => {
+                document.getElementById(`sec-${a}`).classList.add('hidden');
+                document.getElementById(`aba-btn-${a}`).className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800';
+            });
+            document.getElementById(`sec-${aba}`).classList.remove('hidden');
+            document.getElementById(`aba-btn-${aba}`).className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white';
+
+            if (aba === 'agenda') renderizarCalendarioColab();
+            if (aba === 'historico') renderizarHistoricoColab();
+            if (aba === 'ganhos') renderizarGanhosColab();
+        }
+
+        function mudarLojaAtiva(lojaId) {
+            lojaAtivaId = Number(lojaId);
+            const loja = lojasColaboradorMap[lojaAtivaId];
+            document.getElementById('colabIdLojaHeader').textContent = loja.idLoja;
+            const nomeColaborador = document.getElementById('colabNomeHeader').textContent.trim().split(/[ (]/)[0];
+            document.getElementById('colabNomeBoasVindas').textContent = nomeColaborador;
+            renderizarCalendarioColab();
+        }
+
+        function vincularNovaLojaPorId() {
+            const novoId = document.getElementById('inputNovoIdLoja').value.trim();
+            if (!novoId) return alert('Digite o ID!');
+            lojasColaboradorMap[novoId] = { nome: `Empresa #${novoId}`, idLoja: `#${novoId}`, taxa: 35, agenda: [], historico: [] };
+            const select = document.getElementById('selectLojaAtiva');
+            const opt = document.createElement('option');
+            opt.value = novoId;
+            opt.textContent = `Empresa #${novoId}`;
+            select.appendChild(opt);
+            document.getElementById('inputNovoIdLoja').value = '';
+            alert(`🎉 Nova loja #${novoId} vinculada com sucesso!`);
+        }
+
+        // =========================================================================
+        // CALENDÁRIO COM PONTOS & BLOQUEIOS
+        // =========================================================================
+        function mudarVisaoAgendaCalendario(visao) {
+            visaoCalendarioColab = visao;
+            document.getElementById('btn-visao-mes').className = visao === 'mes' ? 'px-3 py-1.5 bg-blue-600 text-white' : 'px-3 py-1.5 bg-white text-slate-700';
+            document.getElementById('btn-visao-semana').className = visao === 'semana' ? 'px-3 py-1.5 bg-blue-600 text-white' : 'px-3 py-1.5 bg-white text-slate-700';
+            renderizarCalendarioColab();
+        }
+
+        function renderizarCalendarioColab() {
+            const grade = document.getElementById('gridCalendarioColab');
+            grade.innerHTML = '';
+            const loja = lojasColaboradorMap[lojaAtivaId];
+
+            const diasExibidos = visaoCalendarioColab === 'semana' ? 7 : 28;
+            const dataBase = new Date(2026, 9, 25);
+
+            for (let i = 0; i < diasExibidos; i++) {
+                const d = new Date(dataBase);
+                d.setDate(dataBase.getDate() + i);
+                const iso = d.toISOString().split('T')[0];
+                const diaSemana = d.getDay();
+                const numeroDia = d.getDate();
+
+                const bloqueado = listaBloqueiosColab.some(b =>
+                    (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'especifico' && b.valor === iso) ||
+                    (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana)
+                );
+
+                const temCompromisso = loja.agenda.some(a => a.data === iso);
+                const selecionado = dataSelecionadaColab === iso;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => selecionarDiaAgendaColab(iso);
+
+                let estilo = 'bg-white hover:border-blue-500 text-slate-700';
+                if (bloqueado) estilo = 'bg-red-50 border-red-200 text-red-600';
+                if (selecionado) estilo = 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300';
+
+                let pontoStatus = '';
+                if (bloqueado) pontoStatus = '<span class="w-1.5 h-1.5 bg-red-500 rounded-full mt-1" title="Trancado"></span>';
+                else if (temCompromisso) pontoStatus = '<span class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1" title="Compromisso"></span>';
+                else pontoStatus = '<span class="text-[9px] text-slate-300">Livre</span>';
+
+                btn.className = `p-2 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[48px] ${estilo}`;
+                btn.innerHTML = `<span class="text-xs font-bold">${numeroDia}</span>${pontoStatus}`;
+                grade.appendChild(btn);
+            }
+
+            renderizarListaAgendaColab();
+            renderizarPainelGerenciarBloqueios();
+        }
+
+        function selecionarDiaAgendaColab(dataIso) {
+            dataSelecionadaColab = dataIso;
+            document.getElementById('labelDataSelecionadaAgenda').textContent = dataIso.split('-').reverse().join('/');
+            renderizarCalendarioColab();
+        }
+
+        function renderizarListaAgendaColab() {
+            const tbody = document.getElementById('tbodyAgendaColab');
+            tbody.innerHTML = '';
+            const loja = lojasColaboradorMap[lojaAtivaId];
+            const fStatus = document.getElementById('filtroStatusAgendaColab').value;
+
+            const filtrados = loja.agenda.filter(a => {
+                if (a.data !== dataSelecionadaColab) return false;
+                if (fStatus && a.status !== fStatus) return false;
+                return true;
+            });
+
+            if (filtrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">Nenhum atendimento para esta data/filtro.</td></tr>`;
+                return;
+            }
+
+            filtrados.forEach(c => {
+                const badge = c.status === 'pago'
+                    ? `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">✅ Pago</span>`
+                    : `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">⏳ A Pagar</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-3 px-4 font-medium">${c.cliente}<div class="text-xs text-slate-400">${c.tel}</div></td>
+                        <td class="py-3 px-4">${c.hora}</td>
+                        <td class="py-3 px-4">${c.servico}</td>
+                        <td class="py-3 px-4 font-semibold">R$ ${c.valor.toFixed(2)}</td>
+                        <td class="py-3 px-4">${badge}</td>
+                        <td class="py-3 px-4 text-right space-x-1">
+                            <button onclick="abrirModalRemarcar(${c.id})" class="px-2.5 py-1 rounded bg-blue-50 text-blue-600 text-xs font-semibold">📅 Remarcar</button>
+                            <button onclick="excluirDaAgendaColab(${c.id})" class="px-2.5 py-1 rounded bg-red-50 text-red-600 text-xs font-semibold">🗑️ Excluir</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // =========================================================================
+        // PAINEL DE GERENCIAR BLOQUEIOS (COM BOTÃO DE EDITAR E LIBERAR)
+        // =========================================================================
+        function renderizarPainelGerenciarBloqueios() {
+            const container = document.getElementById('listaBloqueiosAtivosColab');
+            container.innerHTML = '';
+
+            if (listaBloqueiosColab.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400">Nenhum dia ou horário trancado no momento.</p>`;
+                return;
+            }
+
+            listaBloqueiosColab.forEach((b, idx) => {
+                let regraTxt = b.tipoRecorrencia === 'especifico' ? `Data: ${b.valor}` : (b.tipoRecorrencia === 'semana_recorrente' ? `Toda semana (Dia ${b.valor})` : `Diário (${b.horaInicio} às ${b.horaFim})`);
+
+                container.innerHTML += `
+                    <div class="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                        <div>
+                            <p class="font-bold text-slate-800">${b.motivo} <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase font-semibold">${b.tipoAlvo}</span></p>
+                            <p class="text-xs text-slate-500">Regra: ${regraTxt}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="abrirModalTrancarAgenda(${idx})" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded text-xs font-semibold">✏️ Editar</button>
+                            <button onclick="removerBloqueioColab(${idx})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">🔓 Liberar</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function removerBloqueioColab(index) {
+            listaBloqueiosColab.splice(index, 1);
+            renderizarCalendarioColab();
+            alert('🔓 Bloqueio removido! O dia/horário está livre novamente.');
+        }
+
+        // =========================================================================
+        // TRANCAR OU EDITAR DIAS E HORÁRIOS
+        // =========================================================================
+        function abrirModalTrancarAgenda(editIndex = -1) {
+            document.getElementById('bloqEditIndex').value = editIndex;
+            if (editIndex >= 0) {
+                const b = listaBloqueiosColab[editIndex];
+                document.getElementById('tituloModalBloqueio').textContent = '✏️ Editar Bloqueio';
+                document.getElementById('bloqTipoAlvo').value = b.tipoAlvo;
+                document.getElementById('bloqTipoRecorrencia').value = b.tipoRecorrencia;
+                document.getElementById('bloqMotivoInput').value = b.motivo;
+                if (b.tipoRecorrencia === 'especifico') document.getElementById('bloqDataInput').value = b.valor;
+                if (b.tipoRecorrencia === 'semana_recorrente') document.getElementById('bloqDiaSemanaSelect').value = b.valor;
+                if (b.tipoAlvo === 'horario') {
+                    document.getElementById('bloqHoraInicio').value = b.horaInicio || '18:00';
+                    document.getElementById('bloqHoraFim').value = b.horaFim || '07:00';
+                }
+            } else {
+                document.getElementById('tituloModalBloqueio').textContent = '🔒 Trancar Dia ou Horário';
+                document.getElementById('bloqEditIndex').value = -1;
+                document.getElementById('bloqDataInput').value = dataSelecionadaColab;
+                document.getElementById('bloqMotivoInput').value = '';
+            }
+            alternarCamposBloqueioColab();
+            document.getElementById('modalTrancar').classList.remove('hidden');
+        }
+
+        function alternarCamposBloqueioColab() {
+            const tipoAlvo = document.getElementById('bloqTipoAlvo').value;
+            const tipoRec = document.getElementById('bloqTipoRecorrencia').value;
+
+            document.getElementById('divBloqHorarios').classList.toggle('hidden', tipoAlvo !== 'horario');
+            document.getElementById('divBloqDataEspecifica').classList.toggle('hidden', tipoRec !== 'especifico');
+            document.getElementById('divBloqDiaSemana').classList.toggle('hidden', tipoRec !== 'semana_recorrente');
+        }
+
+        function salvarBloqueioTrancamento() {
+            const editIndex = Number(document.getElementById('bloqEditIndex').value);
+            const tipoAlvo = document.getElementById('bloqTipoAlvo').value;
+            const tipoRec = document.getElementById('bloqTipoRecorrencia').value;
+            const motivo = document.getElementById('bloqMotivoInput').value || 'Bloqueado';
+
+            let valor = '';
+            if (tipoRec === 'especifico') valor = document.getElementById('bloqDataInput').value;
+            else if (tipoRec === 'semana_recorrente') valor = document.getElementById('bloqDiaSemanaSelect').value;
+            else valor = 'todos_os_dias';
+
+            const dadosBloqueio = {
+                id: editIndex >= 0 ? listaBloqueiosColab[editIndex].id : Date.now(),
+                tipoAlvo,
+                tipoRecorrencia: tipoRec,
+                valor,
+                motivo,
+                horaInicio: tipoAlvo === 'horario' ? document.getElementById('bloqHoraInicio').value : null,
+                horaFim: tipoAlvo === 'horario' ? document.getElementById('bloqHoraFim').value : null
+            };
+
+            if (editIndex >= 0) {
+                listaBloqueiosColab[editIndex] = dadosBloqueio;
+            } else {
+                listaBloqueiosColab.push(dadosBloqueio);
+            }
+
+            fecharModais();
+            renderizarCalendarioColab();
+            alert('🔒 Bloqueio salvo com sucesso!');
+        }
+
+        function excluirDaAgendaColab(id) {
+            const loja = lojasColaboradorMap[lojaAtivaId];
+            loja.agenda = loja.agenda.filter(a => a.id !== id);
+            renderizarCalendarioColab();
+        }
+
+        function abrirModalRemarcar(id) {
+            const loja = lojasColaboradorMap[lojaAtivaId];
+            clienteEmRemarcacao = loja.agenda.find(a => a.id === id);
+            document.getElementById('remarcarClienteNome').textContent = `Cliente: ${clienteEmRemarcacao.cliente}`;
+            document.getElementById('remarcarNovaData').value = clienteEmRemarcacao.data;
+            document.getElementById('modalRemarcar').classList.remove('hidden');
+        }
+
+        function confirmarRemarcacaoColab() {
+            if (clienteEmRemarcacao) {
+                clienteEmRemarcacao.data = document.getElementById('remarcarNovaData').value;
+                clienteEmRemarcacao.hora = document.getElementById('remarcarNovoHorario').value;
+                alert('Remarcado!');
+                fecharModais();
+                renderizarCalendarioColab();
+            }
+        }
+
+        // GANHOS
+        function mudarPeriodoMetricas(periodo) {
+            periodoMetricaAtual = periodo;
+            ['dia', 'semana', 'mes'].forEach(p => document.getElementById(`metrica-btn-${p}`).className = 'px-3 py-1.5 bg-white');
+            document.getElementById(`metrica-btn-${periodo}`).className = 'px-3 py-1.5 bg-blue-600 text-white';
+            renderizarGanhosColab();
+        }
+
+        function renderizarGanhosColab() {
+            const loja = lojasColaboradorMap[lojaAtivaId];
+            let faturamento = 0, recebido = 0, pendente = 0;
+            loja.agenda.forEach(a => { faturamento += a.valor; if (a.status === 'pago') recebido += a.valor; else pendente += a.valor; });
+            loja.historico.forEach(h => faturamento += h.valor);
+            const taxaEmpresa = faturamento * (loja.taxa / 100);
+
+            document.getElementById('ganhosFaturamentoMes').textContent = `R$ ${faturamento.toFixed(2)}`;
+            document.getElementById('ganhosRecebidoPix').textContent = `R$ ${recebido.toFixed(2)}`;
+            document.getElementById('ganhosCaixaFuturo').textContent = `R$ ${pendente.toFixed(2)}`;
+            document.getElementById('ganhosTaxaEmpresa').textContent = `R$ ${taxaEmpresa.toFixed(2)}`;
+
+            const ctx = document.getElementById('canvasGanhosLojas');
+            if (graficoGanhosLojasInstance) graficoGanhosLojasInstance.destroy();
+            graficoGanhosLojasInstance = new Chart(ctx, { type: 'doughnut', data: { labels: ['Studio Bella', 'Barbearia Central'], datasets: [{ data: [155, 90], backgroundColor: ['#2563eb', '#10b981'] }] } });
+            document.getElementById('detalhesLojasGanhos').innerHTML = `<p><strong>Studio Bella:</strong> R$ 155,00</p><p><strong>Barbearia Central:</strong> R$ 90,00</p>`;
+        }
+
+        function abrirDetalhesMetrica(tipo) {
+            document.getElementById('modalMetricaTitulo').textContent = `Detalhes: ${tipo.toUpperCase()}`;
+            document.getElementById('modalMetricaConteudo').innerHTML = `<p>Relatório detalhado para ${periodoMetricaAtual}.</p>`;
+            document.getElementById('modalMetricaDetalhes').classList.remove('hidden');
+        }
+
+        function renderizarHistoricoColab() {
+            const tbody = document.getElementById('tbodyHistoricoColab');
+            tbody.innerHTML = '';
+            lojasColaboradorMap[lojaAtivaId].historico.forEach(h => {
+                tbody.innerHTML += `<tr><td class="py-3 px-4 font-bold">${h.cliente}</td><td class="py-3 px-4">${h.data}</td><td class="py-3 px-4">${h.servico}</td><td class="py-3 px-4 font-semibold">R$ ${h.valor.toFixed(2)}</td><td class="py-3 px-4 font-bold text-emerald-600">R$ ${(h.valor * 0.7).toFixed(2)}</td></tr>`;
+            });
+        }
+
+        function fecharModais() {
+            document.getElementById('modalTrancar').classList.add('hidden');
+            document.getElementById('modalRemarcar').classList.add('hidden');
+            document.getElementById('modalMetricaDetalhes').classList.add('hidden');
+        }
+
+        renderizarCalendarioColab();
+    </script>
+</body>
+
+</html>
