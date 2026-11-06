@@ -36,15 +36,7 @@ app.use((req, res, next) => {
 });
 
 // Conexão com o PostgreSQL
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production'
-        ? {
-            rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
-            ...(process.env.DATABASE_SSL_CA ? { ca: process.env.DATABASE_SSL_CA } : {})
-        }
-        : undefined
-});
+const pool = new Pool(require('./database-config').getDatabaseConfig(process.env.DATABASE_URL));
 const frontendDirectory = path.join(__dirname, '..', 'frontend');
 const saasBilling = require('./saas-billing').createSaasBilling(app, pool, frontendDirectory);
 

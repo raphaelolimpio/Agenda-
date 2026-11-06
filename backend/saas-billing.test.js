@@ -9,6 +9,40 @@ const {
     createSaasBilling,
     verifyPassword
 } = require('./saas-billing');
+const { getDatabaseConfig } = require('./database-config');
+
+test('database SSL defaults only relax certificate validation for the Railway proxy', () => {
+    const railway = getDatabaseConfig(
+        'postgresql://user:pass@shinkansen.proxy.rlwy.net:28306/railway?sslmode=require',
+        { NODE_ENV: 'production' }
+    );
+    assert.deepEqual(railway.ssl, { rejectUnauthorized: false });
+    assert.equal(new URL(railway.connectionString).searchParams.has('sslmode'), false);
+
+    const localRailway = getDatabaseConfig(
+        'postgresql://user:pass@shinkansen.proxy.rlwy.net:28306/railway?sslmode=require',
+        { NODE_ENV: 'development' }
+    );
+    assert.deepEqual(localRailway.ssl, { rejectUnauthorized: false });
+
+    const otherProvider = getDatabaseConfig(
+        'postgresql://user:pass@db.example.com:5432/app?sslmode=require',
+        { NODE_ENV: 'production' }
+    );
+    assert.deepEqual(otherProvider.ssl, { rejectUnauthorized: true });
+
+    const strictRailway = getDatabaseConfig(
+        'postgresql://user:pass@shinkansen.proxy.rlwy.net:28306/railway',
+        { NODE_ENV: 'production', DATABASE_SSL_REJECT_UNAUTHORIZED: 'true' }
+    );
+    assert.deepEqual(strictRailway.ssl, { rejectUnauthorized: true });
+
+    const trustedCa = getDatabaseConfig(
+        'postgresql://user:pass@db.example.com:5432/app',
+        { NODE_ENV: 'production', DATABASE_SSL_CA: 'test CA' }
+    );
+    assert.deepEqual(trustedCa.ssl, { rejectUnauthorized: true, ca: 'test CA' });
+});
 
 test('plan config defaults to R$ 50 and a seven-day trial', () => {
     assert.deepEqual(getPlanConfig({}), { monthlyPrice: 50, trialDays: 7 });
