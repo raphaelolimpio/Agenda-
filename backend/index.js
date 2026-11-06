@@ -38,7 +38,12 @@ app.use((req, res, next) => {
 // Conexão com o PostgreSQL
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined
+    ssl: process.env.NODE_ENV === 'production'
+        ? {
+            rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
+            ...(process.env.DATABASE_SSL_CA ? { ca: process.env.DATABASE_SSL_CA } : {})
+        }
+        : undefined
 });
 const frontendDirectory = path.join(__dirname, '..', 'frontend');
 const saasBilling = require('./saas-billing').createSaasBilling(app, pool, frontendDirectory);
@@ -220,7 +225,8 @@ app.get('/status', async (req, res) => {
         const result = await pool.query('SELECT NOW()');
         res.json({ status: 'Conectado com sucesso!', time: result.rows[0].now });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Erro ao verificar conexão com banco:', err);
+        res.status(500).json({ error: 'Não foi possível conectar ao banco de dados.' });
     }
 });
 
