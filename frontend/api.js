@@ -1,8 +1,5 @@
 (function () {
-    const frontendDevPorts = ['4173', '5173', '5500', '5501', '8000', '8080'];
-    const isLocalFrontend = window.location.protocol === 'file:'
-        || (['localhost', '127.0.0.1'].includes(window.location.hostname) && frontendDevPorts.includes(window.location.port));
-    const apiBase = window.APP_API_BASE_URL || (isLocalFrontend ? 'http://localhost:3000' : '');
+    const apiBase = window.API_URL || '';
 
     async function request(path, options = {}) {
         const response = await fetch(`${apiBase}${path}`, {
