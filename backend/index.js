@@ -8,17 +8,32 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
-const allowedOrigins = (process.env.CORS_ORIGINS || '')
+const configuredOrigins = (process.env.CORS_ORIGINS || '')
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean);
+const allowedOrigins = new Set(configuredOrigins);
+if (process.env.NODE_ENV !== 'production') {
+    ['4173', '5173', '5500', '5501', '8000', '8080'].forEach((port) => {
+        allowedOrigins.add(`http://localhost:${port}`);
+        allowedOrigins.add(`http://127.0.0.1:${port}`);
+    });
+}
 app.use(cors({
     origin(origin, callback) {
-        callback(null, !origin || allowedOrigins.includes(origin));
+        callback(null, !origin || allowedOrigins.has(origin));
     },
     credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
+app.use((req, res, next) => {
+    const origin = req.get('Origin');
+    const isReadOnly = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    if (origin && !isReadOnly && !allowedOrigins.has(origin)) {
+        return res.status(403).json({ error: 'Origem não autorizada.' });
+    }
+    next();
+});
 
 // Conexão com o PostgreSQL
 const pool = new Pool({

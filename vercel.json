@@ -1,0 +1,25 @@
+{
+  "outputDirectory": "frontend",
+  "rewrites": [
+    {
+      "source": "/admin.html",
+      "destination": "https://agenda-production-70a7.up.railway.app/admin.html"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://agenda-production-70a7.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/espacos",
+      "destination": "https://agenda-production-70a7.up.railway.app/espacos"
+    },
+    {
+      "source": "/espacos/:path*",
+      "destination": "https://agenda-production-70a7.up.railway.app/espacos/:path*"
+    },
+    {
+      "source": "/status",
+      "destination": "https://agenda-production-70a7.up.railway.app/status"
+    }
+  ]
+}
