@@ -308,14 +308,21 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 `, [nome_loja.trim(), storeSlug, storeSegment]);
                 const spaceId = spaceResult.rows[0].id;
                 await client.query(`
-    INSERT INTO saas_subscriptions
-        (account_id, provider_status, amount_brl, trial_days, trial_started_at, trial_ends_at, next_payment_at)
-    VALUES ($1, $2, $3, $4, NOW(), NOW() + ($4::integer * INTERVAL '1 day'), NOW() + ($4::integer * INTERVAL '1 day'))
-`, [accountId, plan.trialDays > 0 ? 'trialing' : 'pending', plan.monthlyPrice, plan.trialDays]);
+                    INSERT INTO saas_accounts (id, space_id, full_name, email, password_hash, store_name, store_segment)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `, [
+                    accountId,
+                    spaceId,
+                    nome.trim(),
+                    normalizedEmail,
+                    hashPassword(senha),
+                    nome_loja.trim(),
+                    storeSegment
+                ]);
                 await client.query(`
                     INSERT INTO saas_subscriptions
                         (account_id, provider_status, amount_brl, trial_days, trial_started_at, trial_ends_at, next_payment_at)
-                    VALUES ($1, $2, $3, $4, NOW(), NOW() + ($4 * INTERVAL '1 day'), NOW() + ($4 * INTERVAL '1 day'))
+                    VALUES ($1, $2, $3, $4, NOW(), NOW() + ($4::integer * INTERVAL '1 day'), NOW() + ($4::integer * INTERVAL '1 day'))
                 `, [accountId, plan.trialDays > 0 ? 'trialing' : 'pending', plan.monthlyPrice, plan.trialDays]);
                 await client.query('COMMIT');
             } catch (error) {

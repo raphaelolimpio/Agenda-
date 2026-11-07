@@ -158,10 +158,16 @@ test('new SaaS registration creates and links a separate establishment', async (
 
     const establishmentInsert = clientQueries.find(({ sql }) => sql.includes('INSERT INTO espacos'));
     const accountInsert = clientQueries.find(({ sql }) => sql.includes('INSERT INTO saas_accounts'));
+    const subscriptionInsert = clientQueries.find(({ sql }) => sql.includes('INSERT INTO saas_subscriptions'));
     assert.ok(establishmentInsert);
     assert.ok(accountInsert);
+    assert.ok(subscriptionInsert);
+    assert.equal(clientQueries.filter(({ sql }) => sql.includes('INSERT INTO saas_subscriptions')).length, 1);
+    assert.ok(clientQueries.indexOf(establishmentInsert) < clientQueries.indexOf(accountInsert));
+    assert.ok(clientQueries.indexOf(accountInsert) < clientQueries.indexOf(subscriptionInsert));
     assert.equal(establishmentInsert.values[0], 'Studio Exemplo');
     assert.equal(accountInsert.values[1], 42);
+    assert.equal(subscriptionInsert.values[0], accountInsert.values[0]);
     assert.equal(responseStatus, 201);
     assert.equal(responseBody.next, '/assinatura.html');
     assert.match(sessionCookie, /HttpOnly/);
