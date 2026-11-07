@@ -21,9 +21,9 @@
             <div class="flex items-center gap-3">
                 <span class="brand-mark brand-mark--light" aria-hidden="true">A+</span>
                 <div>
-                    <span id="colabNomeHeader" class="font-bold text-sm block leading-tight">Ana (Cabeleireira)</span>
+                    <span id="colabNomeHeader" class="font-bold text-sm block leading-tight">Colaborador</span>
                     <span class="text-[11px] text-slate-400">Loja ID Principal: <strong
-                            id="colabIdLojaHeader">#1</strong></span>
+                            id="colabIdLojaHeader">—</strong></span>
                 </div>
             </div>
 
@@ -32,8 +32,7 @@
                 <span class="text-xs text-slate-400">Loja Ativa:</span>
                 <select id="selectLojaAtiva" onchange="mudarLojaAtiva(this.value)"
                     class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-semibold">
-                    <option value="1">Studio Bella (#1)</option>
-                    <option value="2">Barbearia Central (#2)</option>
+                    <option value="" selected>Nenhuma loja vinculada</option>
                 </select>
             </div>
 
@@ -61,7 +60,7 @@
             <div class="section-intro">
                 <div>
                     <span class="section-eyebrow">Seu espaço de trabalho</span>
-                    <h1>Olá, <span id="colabNomeBoasVindas">Ana</span>. Vamos ao seu dia?</h1>
+                    <h1>Olá, <span id="colabNomeBoasVindas">Colaborador</span>. Vamos ao seu dia?</h1>
                     <p>Consulte seus atendimentos e mantenha sua agenda sempre organizada.</p>
                 </div>
             </div>
@@ -91,7 +90,7 @@
                 <!-- Calendário Visual Interativo com Pontos -->
                 <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-2">
                     <div class="flex justify-between items-center text-xs font-bold text-slate-700">
-                        <span id="labelMesAnoCalendarioColab">Outubro / Novembro 2026</span>
+                        <span id="labelMesAnoCalendarioColab"></span>
                         <div class="flex gap-3 text-[11px]">
                             <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-500 rounded-full"></span>
                                 Compromisso</span>
@@ -122,7 +121,7 @@
                     class="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <h3 class="font-bold text-base text-slate-900">Compromissos do Dia: <span
-                                id="labelDataSelecionadaAgenda" class="text-blue-600">31/10/2026</span></h3>
+                                id="labelDataSelecionadaAgenda" class="text-blue-600"></span></h3>
                         <p class="text-xs text-slate-500">Gerencie o status, remarque ou exclua atendimentos</p>
                     </div>
 
@@ -246,28 +245,28 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome</label><input
-                        type="text" id="perfilNome" value="Ana (Cabeleireira)"
+                        type="text" id="perfilNome"
                         class="w-full border rounded-lg px-3 py-2 text-sm"></div>
                 <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label><input
-                        type="email" id="perfilEmail" value="ana@studiobella.com"
+                        type="email" id="perfilEmail"
                         class="w-full border rounded-lg px-3 py-2 text-sm"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Senha</label><input
-                        type="password" id="perfilSenha" value="********"
+                        type="password" id="perfilSenha"
                         class="w-full border rounded-lg px-3 py-2 text-sm"></div>
                 <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Minha Chave
-                        PIX</label><input type="text" id="perfilChavePix" value="ana.pix@studiobella.com"
+                        PIX</label><input type="text" id="perfilChavePix"
                         class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
             </div>
 
             <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
                 <h4 class="font-bold text-xs text-blue-900 uppercase">Vincular Nova Loja por ID</h4>
-                <div class="flex gap-2">
+                <div class="flex flex-col sm:flex-row gap-2">
                     <input type="text" id="inputNovoIdLoja" placeholder="Digite o ID da Empresa (ex: 3)"
-                        class="flex-1 border rounded-lg px-3 py-2 text-sm bg-white font-mono">
+                        class="w-full min-w-0 flex-1 border rounded-lg px-3 py-2 text-sm bg-white font-mono">
                     <button onclick="vincularNovaLojaPorId()"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Vincular
+                        class="w-full sm:w-auto shrink-0 whitespace-nowrap bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Vincular
                         Loja</button>
                 </div>
             </div>
@@ -391,23 +390,21 @@
     </div>
 
     <script>
-        let lojaAtivaId = 1;
-        let dataSelecionadaColab = '2026-10-31';
+        let lojaAtivaId = '';
+        const hojeColab = new Date();
+        let dataSelecionadaColab = `${hojeColab.getFullYear()}-${String(hojeColab.getMonth() + 1).padStart(2, '0')}-${String(hojeColab.getDate()).padStart(2, '0')}`;
         let visaoCalendarioColab = 'mes';
         let periodoMetricaAtual = 'mes';
         let clienteEmRemarcacao = null;
         let graficoGanhosLojasInstance = null;
 
         // Lista de bloqueios ativos
-        let listaBloqueiosColab = [
-            { id: 1, tipoAlvo: 'dia', tipoRecorrencia: 'semana_recorrente', valor: '0', motivo: 'Domingo Fechado' },
-            { id: 2, tipoAlvo: 'horario', tipoRecorrencia: 'diario_recorrente', horaInicio: '18:00', horaFim: '07:00', motivo: 'Expediente Noturno' }
-        ];
+        let listaBloqueiosColab = [];
+        const lojasColaboradorMap = {};
 
-        const lojasColaboradorMap = {
-            1: { nome: 'Studio Bella', idLoja: '#1', taxa: 30, agenda: [{ id: 201, cliente: 'Carlos Eduardo', tel: '63999998888', data: '2026-10-31', hora: '14:00', servico: 'Corte', valor: 80.00, status: 'pago' }, { id: 202, cliente: 'Mariana Silva', tel: '63988887777', data: '2026-10-31', hora: '15:30', servico: 'Manicure', valor: 35.00, status: 'agendado' }], historico: [{ id: 301, cliente: 'Patrícia Souza', data: '2026-10-28', servico: 'Corte e Escova', valor: 120.00 }] },
-            2: { nome: 'Barbearia Central', idLoja: '#2', taxa: 40, agenda: [{ id: 203, cliente: 'João Marcos', tel: '63977776666', data: '2026-10-31', hora: '10:00', servico: 'Barba', valor: 90.00, status: 'pago' }], historico: [{ id: 302, cliente: 'Roberto Dias', data: '2026-10-27', servico: 'Degradê', valor: 60.00 }] }
-        };
+        function obterLojaAtiva() {
+            return lojasColaboradorMap[lojaAtivaId] || { nome: '', idLoja: '—', taxa: 0, agenda: [], historico: [] };
+        }
 
         function mudarAbaColab(aba) {
             ['agenda', 'historico', 'ganhos', 'perfil'].forEach(a => {
@@ -423,8 +420,8 @@
         }
 
         function mudarLojaAtiva(lojaId) {
-            lojaAtivaId = Number(lojaId);
-            const loja = lojasColaboradorMap[lojaAtivaId];
+            lojaAtivaId = lojaId ? Number(lojaId) : '';
+            const loja = obterLojaAtiva();
             document.getElementById('colabIdLojaHeader').textContent = loja.idLoja;
             const nomeColaborador = document.getElementById('colabNomeHeader').textContent.trim().split(/[ (]/)[0];
             document.getElementById('colabNomeBoasVindas').textContent = nomeColaborador;
@@ -432,16 +429,7 @@
         }
 
         function vincularNovaLojaPorId() {
-            const novoId = document.getElementById('inputNovoIdLoja').value.trim();
-            if (!novoId) return alert('Digite o ID!');
-            lojasColaboradorMap[novoId] = { nome: `Empresa #${novoId}`, idLoja: `#${novoId}`, taxa: 35, agenda: [], historico: [] };
-            const select = document.getElementById('selectLojaAtiva');
-            const opt = document.createElement('option');
-            opt.value = novoId;
-            opt.textContent = `Empresa #${novoId}`;
-            select.appendChild(opt);
-            document.getElementById('inputNovoIdLoja').value = '';
-            alert(`🎉 Nova loja #${novoId} vinculada com sucesso!`);
+            alert('A vinculação de lojas ainda não está disponível.');
         }
 
         // =========================================================================
@@ -457,15 +445,24 @@
         function renderizarCalendarioColab() {
             const grade = document.getElementById('gridCalendarioColab');
             grade.innerHTML = '';
-            const loja = lojasColaboradorMap[lojaAtivaId];
-
-            const diasExibidos = visaoCalendarioColab === 'semana' ? 7 : 28;
-            const dataBase = new Date(2026, 9, 25);
+            const loja = obterLojaAtiva();
+            const inicioMes = new Date(hojeColab.getFullYear(), hojeColab.getMonth(), 1);
+            const dataBase = visaoCalendarioColab === 'semana' ? new Date(hojeColab) : new Date(inicioMes);
+            dataBase.setDate(dataBase.getDate() - dataBase.getDay());
+            const diasDoMes = new Date(hojeColab.getFullYear(), hojeColab.getMonth() + 1, 0).getDate();
+            const diasExibidos = visaoCalendarioColab === 'semana'
+                ? 7
+                : Math.ceil((inicioMes.getDay() + diasDoMes) / 7) * 7;
+            document.getElementById('labelMesAnoCalendarioColab').textContent = new Intl.DateTimeFormat('pt-BR', {
+                month: 'long',
+                year: 'numeric'
+            }).format(hojeColab);
+            document.getElementById('labelDataSelecionadaAgenda').textContent = dataSelecionadaColab.split('-').reverse().join('/');
 
             for (let i = 0; i < diasExibidos; i++) {
                 const d = new Date(dataBase);
                 d.setDate(dataBase.getDate() + i);
-                const iso = d.toISOString().split('T')[0];
+                const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 const diaSemana = d.getDay();
                 const numeroDia = d.getDate();
 
@@ -488,7 +485,7 @@
                 let pontoStatus = '';
                 if (bloqueado) pontoStatus = '<span class="w-1.5 h-1.5 bg-red-500 rounded-full mt-1" title="Trancado"></span>';
                 else if (temCompromisso) pontoStatus = '<span class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1" title="Compromisso"></span>';
-                else pontoStatus = '<span class="text-[9px] text-slate-300">Livre</span>';
+                else pontoStatus = '';
 
                 btn.className = `p-2 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[48px] ${estilo}`;
                 btn.innerHTML = `<span class="text-xs font-bold">${numeroDia}</span>${pontoStatus}`;
@@ -508,7 +505,7 @@
         function renderizarListaAgendaColab() {
             const tbody = document.getElementById('tbodyAgendaColab');
             tbody.innerHTML = '';
-            const loja = lojasColaboradorMap[lojaAtivaId];
+            const loja = obterLojaAtiva();
             const fStatus = document.getElementById('filtroStatusAgendaColab').value;
 
             const filtrados = loja.agenda.filter(a => {
@@ -648,13 +645,13 @@
         }
 
         function excluirDaAgendaColab(id) {
-            const loja = lojasColaboradorMap[lojaAtivaId];
+            const loja = obterLojaAtiva();
             loja.agenda = loja.agenda.filter(a => a.id !== id);
             renderizarCalendarioColab();
         }
 
         function abrirModalRemarcar(id) {
-            const loja = lojasColaboradorMap[lojaAtivaId];
+            const loja = obterLojaAtiva();
             clienteEmRemarcacao = loja.agenda.find(a => a.id === id);
             document.getElementById('remarcarClienteNome').textContent = `Cliente: ${clienteEmRemarcacao.cliente}`;
             document.getElementById('remarcarNovaData').value = clienteEmRemarcacao.data;
@@ -680,7 +677,7 @@
         }
 
         function renderizarGanhosColab() {
-            const loja = lojasColaboradorMap[lojaAtivaId];
+            const loja = obterLojaAtiva();
             let faturamento = 0, recebido = 0, pendente = 0;
             loja.agenda.forEach(a => { faturamento += a.valor; if (a.status === 'pago') recebido += a.valor; else pendente += a.valor; });
             loja.historico.forEach(h => faturamento += h.valor);
@@ -693,8 +690,30 @@
 
             const ctx = document.getElementById('canvasGanhosLojas');
             if (graficoGanhosLojasInstance) graficoGanhosLojasInstance.destroy();
-            graficoGanhosLojasInstance = new Chart(ctx, { type: 'doughnut', data: { labels: ['Studio Bella', 'Barbearia Central'], datasets: [{ data: [155, 90], backgroundColor: ['#2563eb', '#10b981'] }] } });
-            document.getElementById('detalhesLojasGanhos').innerHTML = `<p><strong>Studio Bella:</strong> R$ 155,00</p><p><strong>Barbearia Central:</strong> R$ 90,00</p>`;
+            const lojasComMovimento = Object.values(lojasColaboradorMap).map((lojaVinculada) => ({
+                nome: lojaVinculada.nome,
+                total: [...lojaVinculada.agenda, ...lojaVinculada.historico].reduce((total, item) => total + (Number(item.valor) || 0), 0)
+            })).filter((lojaVinculada) => lojaVinculada.total > 0);
+            const detalhesLojas = document.getElementById('detalhesLojasGanhos');
+            if (lojasComMovimento.length === 0) {
+                ctx.hidden = true;
+                detalhesLojas.innerHTML = '<div class="empty-state">Seus resultados aparecerão após os primeiros atendimentos.</div>';
+            } else {
+                ctx.hidden = false;
+                graficoGanhosLojasInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: lojasComMovimento.map((lojaVinculada) => lojaVinculada.nome),
+                        datasets: [{
+                            data: lojasComMovimento.map((lojaVinculada) => lojaVinculada.total),
+                            backgroundColor: ['#1246a0', '#f97316', '#10b981', '#8b5cf6']
+                        }]
+                    }
+                });
+                detalhesLojas.innerHTML = lojasComMovimento
+                    .map((lojaVinculada) => `<p><strong>${lojaVinculada.nome}:</strong> R$ ${lojaVinculada.total.toFixed(2)}</p>`)
+                    .join('');
+            }
         }
 
         function abrirDetalhesMetrica(tipo) {
@@ -706,7 +725,12 @@
         function renderizarHistoricoColab() {
             const tbody = document.getElementById('tbodyHistoricoColab');
             tbody.innerHTML = '';
-            lojasColaboradorMap[lojaAtivaId].historico.forEach(h => {
+            const historico = obterLojaAtiva().historico;
+            if (historico.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">Nenhum atendimento concluído encontrado.</td></tr>';
+                return;
+            }
+            historico.forEach(h => {
                 tbody.innerHTML += `<tr><td class="py-3 px-4 font-bold">${h.cliente}</td><td class="py-3 px-4">${h.data}</td><td class="py-3 px-4">${h.servico}</td><td class="py-3 px-4 font-semibold">R$ ${h.valor.toFixed(2)}</td><td class="py-3 px-4 font-bold text-emerald-600">R$ ${(h.valor * 0.7).toFixed(2)}</td></tr>`;
             });
         }

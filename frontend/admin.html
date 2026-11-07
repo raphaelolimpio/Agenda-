@@ -20,7 +20,7 @@
                 <div class="flex items-center gap-3">
                     <span class="brand-mark" aria-hidden="true">A+</span>
                     <div>
-                        <span id="uiNomeEspaco" class="font-bold text-lg text-slate-900 block leading-none">Studio Bella</span>
+                        <span id="uiNomeEspaco" class="font-bold text-lg text-slate-900 block leading-none">Carregando estabelecimento...</span>
                         <span class="text-xs text-slate-500">Painel de gestão</span>
                     </div>
                 </div>
@@ -72,7 +72,7 @@
 
                 <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-2">
                     <div class="flex justify-between items-center text-xs font-bold text-slate-700">
-                        <span id="labelMesAnoCalendario">Outubro / Novembro 2026</span>
+                        <span id="labelMesAnoCalendario"></span>
                         <div class="flex gap-3 text-[11px]">
                             <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-500 rounded-full"></span> Compromisso</span>
                             <span class="flex items-center gap-1"><span class="w-2 h-2 bg-red-500 rounded-full"></span> Bloqueado / Fechado</span>
@@ -100,7 +100,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-3">
                 <div class="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h3 class="font-bold text-base text-slate-900">Compromissos do Dia: <span id="labelDataSelecionada" class="text-blue-600">31/10/2026</span></h3>
+                        <h3 class="font-bold text-base text-slate-900">Compromissos do Dia: <span id="labelDataSelecionada" class="text-blue-600"></span></h3>
                         <p class="text-xs text-slate-500">Gerencie o status, conclua ou exclua atendimentos</p>
                     </div>
 
@@ -140,7 +140,10 @@
         <section id="sec-historico" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 class="font-bold text-lg mb-4">Gráfico de Categorias e Histórico Geral</h3>
-                <div class="max-w-xs mx-auto"><canvas id="canvasGraficoCat"></canvas></div>
+                <div class="max-w-xs mx-auto">
+                    <canvas id="canvasGraficoCat"></canvas>
+                    <div id="graficoCategoriasVazio" class="empty-state" hidden>Os dados por categoria serão exibidos após os primeiros atendimentos.</div>
+                </div>
             </div>
             <div class="bg-white rounded-xl border shadow-sm p-4">
                 <table class="w-full text-left text-xs sm:text-sm">
@@ -209,13 +212,13 @@
                     <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between mb-4">
                         <div>
                             <span class="text-xs font-bold text-blue-800 uppercase block mb-1">Código Único da Loja</span>
-                            <span id="codigoLojaPerfil" class="text-xl font-mono font-bold text-blue-600 bg-white px-2 py-1 rounded border border-blue-100">LOJA-1234-BELLA</span>
+                            <span id="codigoLojaPerfil" class="text-sm font-semibold text-slate-500">Aguardando configuração</span>
                         </div>
                         <button onclick="navigator.clipboard.writeText(document.getElementById('codigoLojaPerfil').textContent); alert('Código copiado!')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow transition">Copiar Código</button>
                     </div>
-                    <div><label class="block text-xs font-semibold mb-1">Nome da Loja</label><input type="text" id="perfilNomeLoja" value="Studio Bella" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="block text-xs font-semibold mb-1">Nome da Loja</label><input type="text" id="perfilNomeLoja" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
                     <div><label class="block text-xs font-semibold mb-1">Logo URL</label><input type="text" id="perfilLogo" placeholder="https://..." class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                    <div><label class="block text-xs font-semibold mb-1">Chave PIX da Empresa (Recebedor Padrão)</label><input type="text" id="perfilPix" value="financeiro@studiobella.com" class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
+                    <div><label class="block text-xs font-semibold mb-1">Chave PIX da Empresa (Recebedor Padrão)</label><input type="text" id="perfilPix" class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
                     <button onclick="alert('Configurações salvas!')" class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold">Salvar Configurações</button>
                 </div>
 
@@ -312,7 +315,7 @@
                         <h3 class="font-bold text-sm text-slate-900 mb-3">Prévia da sua marca</h3>
                         <div class="theme-preview">
                             <div class="theme-preview__header px-5 py-4">
-                                <span id="previewNomeLoja" class="font-bold">Studio Bella</span>
+                                <span id="previewNomeLoja" class="font-bold">Seu estabelecimento</span>
                                 <p class="text-xs text-white/75 mt-1">Uma experiência com a identidade da sua empresa</p>
                             </div>
                             <div class="p-5">
@@ -405,35 +408,16 @@
 
     <script>
         // ESTADO GLOBAL DO ADMIN (NÃO DUPLICADO)
-        let dataFiltroSelecionada = '2026-10-31';
+        const hojeAdmin = new Date();
+        let dataFiltroSelecionada = `${hojeAdmin.getFullYear()}-${String(hojeAdmin.getMonth() + 1).padStart(2, '0')}-${String(hojeAdmin.getDate()).padStart(2, '0')}`;
         let modoVisaoCalendario = 'mes';
         let chartInstance = null;
 
-        // Base de Dados Simulada e Unificada
-        let atividades = [
-            { id: 1, nome: 'Corte Feminino', cat: 'Cabelo', duracao: 45, preco: 80.00, profs: [1] },
-            { id: 2, nome: 'Manicure', cat: 'Unhas', duracao: 30, preco: 35.00, profs: [1] },
-            { id: 3, nome: 'Barba e Cabelo', cat: 'Barbearia', duracao: 60, preco: 90.00, profs: [2] }
-        ];
-
-        let equipe = [
-            { id: 1, nome: 'Ana (Cabeleireira)', taxa: 30, pix: true },
-            { id: 2, nome: 'Marcos (Barbeiro)', taxa: 40, pix: false }
-        ];
-
-        let listaBloqueiosAdmin = [
-            { id: 1, tipoAlvo: 'dia', tipoRecorrencia: 'semana_recorrente', valor: '0', motivo: 'Domingo Fechado' }
-        ];
-
-        let agendamentosAdmin = [
-            { id: 101, cliente: 'Carlos Eduardo', tel: '63999998888', data: '2026-10-31', hora: '14:00', servico_id: 1, prof_id: 1, status: 'pago' },
-            { id: 102, cliente: 'Mariana Silva', tel: '63988887777', data: '2026-10-31', hora: '15:30', servico_id: 2, prof_id: 1, status: 'agendado' },
-            { id: 103, cliente: 'João Marcos', tel: '63977776666', data: '2026-10-31', hora: '10:00', servico_id: 3, prof_id: 2, status: 'pago' }
-        ];
-
-        let historicoAdmin = [
-            { id: 90, cliente: 'Patrícia Souza', data: '2026-10-25', servico_nome: 'Corte e Escova', prof_id: 1, valor: 120.00 }
-        ];
+        let atividades = [];
+        let equipe = [];
+        let listaBloqueiosAdmin = [];
+        let agendamentosAdmin = [];
+        let historicoAdmin = [];
 
         // Helpers
         function getServico(id) { return atividades.find(a => a.id == id); }
@@ -472,13 +456,23 @@
         function renderizarCalendarioAdmin() {
             const grade = document.getElementById('gridCalendarioAdmin');
             grade.innerHTML = '';
-            const diasExibidos = modoVisaoCalendario === 'semana' ? 7 : 28;
-            const dataInicio = new Date(2026, 9, 25);
+            const inicioMes = new Date(hojeAdmin.getFullYear(), hojeAdmin.getMonth(), 1);
+            const dataInicio = modoVisaoCalendario === 'semana' ? new Date(hojeAdmin) : new Date(inicioMes);
+            dataInicio.setDate(dataInicio.getDate() - dataInicio.getDay());
+            const diasDoMes = new Date(hojeAdmin.getFullYear(), hojeAdmin.getMonth() + 1, 0).getDate();
+            const diasExibidos = modoVisaoCalendario === 'semana'
+                ? 7
+                : Math.ceil((inicioMes.getDay() + diasDoMes) / 7) * 7;
+            document.getElementById('labelMesAnoCalendario').textContent = new Intl.DateTimeFormat('pt-BR', {
+                month: 'long',
+                year: 'numeric'
+            }).format(hojeAdmin);
+            document.getElementById('labelDataSelecionada').textContent = dataFiltroSelecionada.split('-').reverse().join('/');
 
             for (let i = 0; i < diasExibidos; i++) {
                 const d = new Date(dataInicio);
                 d.setDate(dataInicio.getDate() + i);
-                const iso = d.toISOString().split('T')[0];
+                const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 const diaSemana = d.getDay();
                 
                 const bloqueado = listaBloqueiosAdmin.some(b => (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'especifico' && b.valor === iso) || (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana));
@@ -492,9 +486,9 @@
                 let ponto = '';
                 if (bloqueado) ponto = '<span class="w-1.5 h-1.5 bg-red-500 rounded-full mt-1"></span>';
                 else if (temCompromisso) ponto = '<span class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1"></span>';
-                else ponto = '<span class="text-[9px] text-slate-300">Livre</span>';
+                else ponto = '';
 
-                grade.innerHTML += `<button type="button" onclick="selecionarDataEspecifica('${iso}')" class="p-2 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[48px] ${estilo}"><span class="text-xs font-bold">${d.getDate()}</span>${ponto}</button>`;
+                grade.innerHTML += `<button type="button" aria-label="${d.toLocaleDateString('pt-BR')}" onclick="selecionarDataEspecifica('${iso}')" class="p-2 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[48px] ${estilo}"><span class="text-xs font-bold">${d.getDate()}</span>${ponto}</button>`;
             }
             renderizarTabelaAgenda();
             renderizarPainelBloqueiosAtivos();
@@ -631,6 +625,10 @@
         function renderizarAbaServicos() {
             const tbody = document.getElementById('tbodyServicos');
             tbody.innerHTML = '';
+            if (atividades.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">Nenhum serviço cadastrado.</td></tr>';
+                return;
+            }
             atividades.forEach((s, idx) => {
                 const nomesProfs = s.profs.map(pid => { const p = getProfissional(pid); return p ? p.nome : ''; }).join(', ');
                 tbody.innerHTML += `
@@ -703,6 +701,9 @@
                     </tr>
                 `;
             });
+            if (equipe.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-slate-400">Nenhum profissional vinculado.</td></tr>';
+            }
         }
 
         // ==========================================================
@@ -735,6 +736,14 @@
                 }
             });
 
+            if (tbodyFinanceiro.children.length === 0) {
+                tbodyFinanceiro.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">Ainda não há movimentações financeiras.</td></tr>';
+            }
+
+            if (historicoAdmin.length === 0) {
+                tbodyHist.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">O histórico aparecerá aqui após a conclusão dos atendimentos.</td></tr>';
+            }
+
             historicoAdmin.forEach(h => {
                 const p = getProfissional(h.prof_id);
                 tbodyHist.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="py-3 px-4 font-bold">${h.cliente}</td><td class="py-3 px-4">${h.data.split('-').reverse().join('/')}</td><td class="py-3 px-4">${h.servico_nome}</td><td class="py-3 px-4">${p ? p.nome : ''}</td><td class="py-3 px-4 font-bold text-emerald-600">R$ ${h.valor.toFixed(2)}</td></tr>`;
@@ -744,8 +753,33 @@
             document.getElementById('finPago').textContent = `R$ ${pago.toFixed(2)}`;
             document.getElementById('finLucroEmpresa').textContent = `R$ ${lucroLoja.toFixed(2)}`;
 
-            if(chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(document.getElementById('canvasGraficoCat'), { type: 'doughnut', data: { labels: ['Cabelo', 'Unhas'], datasets: [{ data: [70, 30], backgroundColor: ['#2563eb', '#10b981'] }] } });
+            const categorias = new Map();
+            agendamentosAdmin.forEach((appointment) => {
+                const service = getServico(appointment.servico_id);
+                if (service) categorias.set(service.cat, (categorias.get(service.cat) || 0) + 1);
+            });
+            historicoAdmin.forEach((appointment) => {
+                const service = atividades.find((item) => item.nome === appointment.servico_nome);
+                const category = service?.cat || 'Outros';
+                categorias.set(category, (categorias.get(category) || 0) + 1);
+            });
+            const canvas = document.getElementById('canvasGraficoCat');
+            const emptyChart = document.getElementById('graficoCategoriasVazio');
+            if (chartInstance) chartInstance.destroy();
+            if (categorias.size === 0) {
+                canvas.hidden = true;
+                emptyChart.hidden = false;
+            } else {
+                canvas.hidden = false;
+                emptyChart.hidden = true;
+                chartInstance = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [...categorias.keys()],
+                        datasets: [{ data: [...categorias.values()], backgroundColor: ['#1246a0', '#f97316', '#10b981', '#8b5cf6', '#0ea5e9'] }]
+                    }
+                });
+            }
         }
 
         function fecharModais() {
@@ -756,6 +790,26 @@
         // INIT
         renderizarAbaPerfil();
         renderizarCalendarioAdmin();
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const { account, subscription } = await AppApi.request('/api/saas/me');
+                if (!subscription.can_access) {
+                    window.location.replace('assinatura.html');
+                    return;
+                }
+                document.getElementById('uiNomeEspaco').textContent = account.store_name;
+                document.getElementById('perfilNomeLoja').value = account.store_name;
+                document.getElementById('previewNomeLoja').textContent = account.store_name;
+                AppApi.setSpaceId(account.space_id);
+            } catch (error) {
+                if (error.message.includes('Entre na sua conta')) {
+                    window.location.replace('index.html');
+                    return;
+                }
+                console.error('Não foi possível carregar a conta do estabelecimento:', error);
+            }
+        });
     </script>
 </body>
 </html>

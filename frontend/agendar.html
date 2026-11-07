@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agendar Atendimento - Studio Bella</title>
+    <title>Agendamento online | Agenda+</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
     <script src="config.js"></script>
@@ -17,7 +17,7 @@
             <div class="flex items-center gap-3">
                 <span class="brand-mark" aria-hidden="true">A+</span>
                 <div>
-                    <h1 class="font-bold text-lg text-slate-900 leading-tight">Studio Bella</h1>
+                    <h1 id="nomeEstabelecimento" class="font-bold text-lg text-slate-900 leading-tight">Agendamento online</h1>
                     <p class="text-xs text-slate-500">Reserve seu próximo momento</p>
                 </div>
             </div>
@@ -63,9 +63,9 @@
                 <div>
                     <span class="section-eyebrow">Agendamento online</span>
                     <h1>Um horário especial, do seu jeito.</h1>
-                    <p>Escolha seu serviço, encontre o melhor horário e confirme em poucos passos.</p>
+                    <p>Consulte os serviços e horários disponíveis do estabelecimento.</p>
                     <div class="booking-steps" aria-label="Etapas do agendamento">
-                        <span><b>1</b> Serviço</span><span><b>2</b> Horário</span><span><b>3</b> Confirmação</span>
+                        <span><b>1</b> Serviço</span><span><b>2</b> Horário</span><span><b>3</b> Seus dados</span>
                     </div>
                 </div>
             </div>
@@ -77,8 +77,7 @@
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
                     <h2 class="text-base font-bold text-slate-900">1. Selecione o Serviço Desejado</h2>
                     <select id="selectServico" onchange="atualizarPrecoServico()" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white font-medium">
-                        <option value="1" data-preco="80.00">Corte de Cabelo Feminino - R$ 80,00 (45 min)</option>
-                        <option value="2" data-preco="35.00">Manicure - R$ 35,00 (30 min)</option>
+                        <option value="">Carregando serviços...</option>
                     </select>
                 </div>
 
@@ -100,7 +99,7 @@
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-bold text-slate-600">Ano:</span>
                                     <select id="selectAnoCustom" onchange="mudarAnoCustom(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white">
-                                        <!-- Preenchido via JS a partir de 2026 -->
+                                        <!-- Preenchido com o ano atual e os anos seguintes -->
                                     </select>
                                 </div>
                                 <button type="button" onclick="selecionarMesAtual()" class="text-xs font-semibold text-blue-600 hover:underline">Este Mês</button>
@@ -127,7 +126,7 @@
                             <button onclick="voltarParaCalendarioMensal()" class="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition">
                                 ← Voltar para o Calendário do Mês
                             </button>
-                            <span id="tituloDataAgendaDia" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">31/10/2026</span>
+                            <span id="tituloDataAgendaDia" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full"></span>
                         </div>
 
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -139,8 +138,7 @@
                             <div>
                                 <select id="selectFiltroProfissional" onchange="renderizarAgendaDiaria()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white font-medium">
                                     <option value="">👨‍⚕️ Todos os Profissionais</option>
-                                    <option value="1">Ana (Cabeleireira & Manicure)</option>
-                                    <option value="2">Marcos (Esteticista & Cabelo)</option>
+                                    <option value="" selected>Equipe do estabelecimento</option>
                                 </select>
                             </div>
                         </div>
@@ -168,31 +166,23 @@
                         <label class="block text-xs font-semibold uppercase text-slate-500">Forma de Pagamento</label>
                         <div class="grid grid-cols-2 gap-2">
                             <button type="button" onclick="selecionarPagamento('local')" id="btn-pag-local" class="py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700">🏢 Pagar no Local</button>
-                            <button type="button" onclick="selecionarPagamento('pix')" id="btn-pag-pix" class="py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600">💠 PIX Imediato</button>
+                            <button type="button" id="btn-pag-pix" disabled class="py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-400 disabled:cursor-not-allowed">💠 PIX indisponível</button>
                         </div>
                     </div>
 
                     <div class="bg-slate-50 p-3.5 rounded-lg text-xs space-y-1.5 text-slate-600 border border-slate-100">
                         <p><strong>Data/Hora Selecionada:</strong> <br><span id="resumoDataHora" class="text-blue-600 font-bold">Nenhum horário escolhido</span></p>
                         <p><strong>Profissional:</strong> <span id="resumoProfissional" class="font-bold text-slate-800">-</span></p>
-                        <p><strong>Total a Pagar:</strong> <span id="resumoValor" class="text-sm font-bold text-slate-900">R$ 80,00</span></p>
+                        <p><strong>Total a Pagar:</strong> <span id="resumoValor" class="text-sm font-bold text-slate-900">—</span></p>
                     </div>
 
-                    <button onclick="finalizarAgendamento()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg text-sm font-bold shadow-sm transition">
-                        Confirmar Agendamento
+                    <button id="confirmarAgendamentoButton" onclick="finalizarAgendamento()" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg text-sm font-bold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60">
+                        Confirmação online indisponível
                     </button>
+                    <p id="bookingAvailabilityStatus" class="status-message" role="status" aria-live="polite">
+                        Você pode consultar serviços e horários. A confirmação online ainda não está disponível.
+                    </p>
 
-                    <!-- Caixa do PIX -->
-                    <div id="caixaPagamentoPix" class="hidden pt-4 border-t border-slate-200 space-y-3">
-                        <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg text-xs text-emerald-900 space-y-1">
-                            <p class="font-bold">💠 Pagamento via PIX Gerado!</p>
-                            <p>Recebedor: <span id="pixRecebedor" class="font-semibold">Studio Bella</span></p>
-                            <p>Chave Destino: <span id="pixChaveDestino" class="font-mono"></span></p>
-                        </div>
-                        <textarea id="pixCopiaCola" readonly rows="3" class="w-full border rounded-lg p-2 text-xs font-mono bg-slate-100"></textarea>
-                        <button onclick="copiarCodigoPix()" class="w-full bg-slate-800 text-white py-2 rounded-lg text-xs font-semibold">📋 Copiar Código PIX</button>
-                        <button onclick="simularConfirmacaoPix()" class="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-semibold">✅ Simular Pagamento Concluído</button>
-                    </div>
                 </div>
             </div>
 
@@ -203,7 +193,7 @@
     <div class="fixed bottom-5 right-5 z-50">
         <div id="janelaChat" class="hidden mb-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col" style="height: 450px;">
             <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
-                <h4 class="font-bold text-sm">Assistente Virtual - Studio Bella</h4>
+                <h4 class="font-bold text-sm">Ajuda com agendamento</h4>
                 <button onclick="toggleChat()" class="text-white font-bold text-lg">&times;</button>
             </div>
             <div id="mensagensChat" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs bg-slate-50">
@@ -215,31 +205,87 @@
             </div>
         </div>
         <button onclick="toggleChat()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3.5 rounded-full shadow-xl font-bold text-sm flex items-center gap-2 ml-auto">
-            💬 Agendar por Chat IA
+            💬 Ajuda com agendamento
         </button>
     </div>
 
     <script>
-        const API_URL = window.API_URL;
-        const ESPACO_ID = 1;
+        const ESPACO_ID = AppApi.getSpaceId();
         
         let anoSelecionadoCustom = new Date().getFullYear();
         let mesSelecionadoCustom = new Date().getMonth() + 1; // 1 a 12
-        let dataSelecionadaGlobal = '2026-10-31';
+        const hojeInicial = new Date();
+        let dataSelecionadaGlobal = `${hojeInicial.getFullYear()}-${String(hojeInicial.getMonth() + 1).padStart(2, '0')}-${String(hojeInicial.getDate()).padStart(2, '0')}`;
         let horarioSelecionado = null;
         let profissionalSelecionado = null;
         let formaPagamento = 'local';
+        let servicosDisponiveis = [];
 
-        const profissionaisCadastrados = [
-            { id: '1', nome: 'Ana (Cabeleireira & Manicure)', cargo: 'Especialista', chave_pix: 'ana.pix@studiobella.com', horarios: ['08:00', '09:00', '10:30', '14:00', '15:30'] },
-            { id: '2', nome: 'Marcos (Esteticista & Cabelo)', cargo: 'Especialista', chave_pix: '63988881111', horarios: ['09:30', '11:00', '13:30', '15:00', '17:00'] }
-        ];
+        inicializarAgendamento();
 
-        carregarPerfilSalvo();
-        atualizarPrecoServico();
-        popularAnosCustom();
-        renderizarMesesCustom();
-        renderizarCalendarioMensal();
+        async function inicializarAgendamento() {
+            carregarPerfilSalvo();
+            popularAnosCustom();
+            renderizarMesesCustom();
+            renderizarCalendarioMensal();
+            atualizarPrecoServico();
+
+            if (!ESPACO_ID) {
+                exibirEstadoAgendamento('Acesse pelo link oficial do estabelecimento para consultar os serviços.', true);
+                document.getElementById('selectServico').disabled = true;
+                return;
+            }
+
+            await Promise.all([carregarEstabelecimento(), carregarServicos()]);
+        }
+
+        function exibirEstadoAgendamento(mensagem, erro = false) {
+            const status = document.getElementById('bookingAvailabilityStatus');
+            status.textContent = mensagem;
+            status.dataset.state = erro ? 'error' : '';
+        }
+
+        async function carregarEstabelecimento() {
+            try {
+                const espaco = await AppApi.request(`/espacos/${encodeURIComponent(ESPACO_ID)}/vitrine`);
+                document.title = `Agendar atendimento | ${espaco.nome}`;
+                document.getElementById('nomeEstabelecimento').textContent = espaco.nome;
+                document.documentElement.style.setProperty('--brand-primary', espaco.cor_primaria || '#1246A0');
+                document.documentElement.style.setProperty('--brand-accent', espaco.cor_destaque || '#F97316');
+                document.documentElement.style.setProperty('--brand-background', espaco.cor_fundo || '#F3F6FB');
+            } catch (error) {
+                exibirEstadoAgendamento(error.message, true);
+            }
+        }
+
+        async function carregarServicos() {
+            const select = document.getElementById('selectServico');
+            try {
+                servicosDisponiveis = await AppApi.request(`/espacos/${encodeURIComponent(ESPACO_ID)}/servicos`);
+                select.innerHTML = '';
+                if (!Array.isArray(servicosDisponiveis) || servicosDisponiveis.length === 0) {
+                    select.add(new Option('Este estabelecimento ainda não publicou serviços.', ''));
+                    select.disabled = true;
+                    exibirEstadoAgendamento('Ainda não há serviços disponíveis para agendamento.');
+                    return;
+                }
+
+                select.add(new Option('Selecione um serviço', ''));
+                servicosDisponiveis.forEach((servico) => {
+                    const preco = Number(servico.preco) || 0;
+                    const duracao = Number(servico.duracao_minutos) || 0;
+                    select.add(new Option(`${servico.nome} — ${preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${duracao} min)`, String(servico.id)));
+                });
+                select.disabled = false;
+                document.getElementById('resumoValor').textContent = '—';
+                exibirEstadoAgendamento('Horários disponíveis podem ser consultados. A confirmação online ainda não está disponível.');
+            } catch (error) {
+                select.innerHTML = '';
+                select.add(new Option('Não foi possível carregar os serviços.', ''));
+                select.disabled = true;
+                exibirEstadoAgendamento(error.message, true);
+            }
+        }
 
         function mostrarSecao(secao) {
             document.getElementById('secao-agenda').classList.toggle('hidden', secao !== 'agenda');
@@ -269,8 +315,15 @@
 
         function atualizarPrecoServico() {
             const sel = document.getElementById('selectServico');
-            const preco = sel.options[sel.selectedIndex]?.dataset.preco || '80.00';
-            document.getElementById('resumoValor').textContent = `R$ ${Number(preco).toFixed(2).replace('.', ',')}`;
+            const servico = servicosDisponiveis.find((item) => String(item.id) === sel.value);
+            document.getElementById('resumoValor').textContent = servico
+                ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(servico.preco) || 0)
+                : '—';
+            horarioSelecionado = null;
+            profissionalSelecionado = null;
+            document.getElementById('resumoDataHora').textContent = 'Nenhum horário escolhido';
+            document.getElementById('resumoProfissional').textContent = '—';
+            if (dataSelecionadaGlobal && servico) renderizarAgendaDiaria();
         }
 
         // =========================================================================
@@ -356,16 +409,23 @@
                 const diaFormatado = String(dia).padStart(2, '0');
                 const iso = `${anoSelecionadoCustom}-${mesFormatado}-${diaFormatado}`;
                 const selecionado = dataSelecionadaGlobal === iso;
+                const dataDoDia = new Date(`${iso}T00:00:00`);
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const dataPassada = dataDoDia < hoje;
 
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.onclick = () => abrirAgendaDoDia(iso);
+                btn.disabled = dataPassada;
 
-                let estilo = 'bg-white hover:border-blue-500 hover:bg-blue-50/30 text-slate-700';
+                let estilo = dataPassada
+                    ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                    : 'bg-white hover:border-blue-500 hover:bg-blue-50/30 text-slate-700';
                 if (selecionado) estilo = 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300 shadow-sm';
 
                 btn.className = `p-2.5 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[50px] ${estilo}`;
-                btn.innerHTML = `<span class="text-xs font-bold">${dia}</span><span class="text-[9px] ${selecionado ? 'text-blue-100' : 'text-emerald-600'} font-semibold">Vagas</span>`;
+                btn.innerHTML = `<span class="text-xs font-bold">${dia}</span>`;
                 grade.appendChild(btn);
             }
         }
@@ -374,6 +434,10 @@
         // TRANSIÇÃO PARA A AGENDA DO DIA
         // =========================================================================
         function abrirAgendaDoDia(dataIso) {
+            if (!document.getElementById('selectServico').value) {
+                exibirEstadoAgendamento('Selecione um serviço antes de consultar os horários.');
+                return;
+            }
             dataSelecionadaGlobal = dataIso;
             document.getElementById('tituloDataAgendaDia').textContent = dataIso.split('-').reverse().join('/');
             
@@ -388,53 +452,53 @@
             document.getElementById('painelCalendarioMensal').classList.remove('hidden');
         }
 
-        function renderizarAgendaDiaria() {
+        async function renderizarAgendaDiaria() {
             const container = document.getElementById('listaHorariosAgendaDiaria');
             container.innerHTML = '';
-
-            const filtroProfId = document.getElementById('selectFiltroProfissional').value;
-            let profsParaExibir = profissionaisCadastrados;
-            
-            if (filtroProfId) {
-                profsParaExibir = profissionaisCadastrados.filter(p => p.id === filtroProfId);
-            }
-
-            let gradeHorariosDia = [];
-            profsParaExibir.forEach(p => {
-                p.horarios.forEach(h => {
-                    gradeHorariosDia.push({ horario: h, profissional: p });
-                });
-            });
-
-            gradeHorariosDia.sort((a, b) => a.horario.localeCompare(b.horario));
-
-            if (gradeHorariosDia.length === 0) {
-                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-lg">Nenhum horário livre encontrado para este profissional nesta data.</div>`;
+            const servicoId = document.getElementById('selectServico').value;
+            if (!servicoId) {
+                container.innerHTML = '<div class="empty-state">Selecione um serviço para consultar os horários.</div>';
                 return;
             }
 
-            gradeHorariosDia.forEach(item => {
+            container.innerHTML = '<div class="loading-state">Consultando horários disponíveis...</div>';
+            try {
+                const resultado = await AppApi.request(
+                    `/espacos/${encodeURIComponent(ESPACO_ID)}/horarios-disponiveis?data=${encodeURIComponent(dataSelecionadaGlobal)}&servico_id=${encodeURIComponent(servicoId)}`
+                );
+                const horarios = Array.isArray(resultado.horarios_livres) ? resultado.horarios_livres : [];
+                container.innerHTML = '';
+                if (horarios.length === 0) {
+                    container.innerHTML = `<div class="empty-state">${AppApi.escapeHtml(resultado.mensagem || 'Nenhum horário disponível para esta data.')}</div>`;
+                    return;
+                }
+
+                horarios.forEach((horario) => {
+                const profissional = { id: 'equipe', nome: document.getElementById('nomeEstabelecimento').textContent || 'Equipe do estabelecimento' };
                 const linha = document.createElement('div');
                 linha.className = 'flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50/50 hover:border-blue-500 hover:bg-blue-50/30 transition';
                 
-                const selecionado = horarioSelecionado === item.horario && profissionalSelecionado?.id === item.profissional.id;
+                const selecionado = horarioSelecionado === horario;
 
                 linha.innerHTML = `
                     <div class="flex items-center gap-3">
-                        <span class="font-mono font-bold text-sm bg-white border px-2.5 py-1 rounded shadow-sm text-slate-800">${item.horario}</span>
+                        <span class="font-mono font-bold text-sm bg-white border px-2.5 py-1 rounded shadow-sm text-slate-800">${AppApi.escapeHtml(horario)}</span>
                         <div>
-                            <p class="text-xs font-bold text-slate-900">${item.profissional.nome}</p>
-                            <p class="text-[11px] text-slate-500">Disponível para atendimento</p>
+                            <p class="text-xs font-bold text-slate-900">Equipe do estabelecimento</p>
+                            <p class="text-[11px] text-slate-500">Consulte disponibilidade</p>
                         </div>
                     </div>
                     <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${selecionado ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}">
-                        ${selecionado ? 'Selecionado ✓' : 'Agendar'}
+                        ${selecionado ? 'Selecionado ✓' : 'Selecionar'}
                     </button>
                 `;
 
-                linha.onclick = () => selecionarHorarioNaAgenda(item.horario, item.profissional);
+                linha.onclick = () => selecionarHorarioNaAgenda(horario, profissional);
                 container.appendChild(linha);
-            });
+                });
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state">${AppApi.escapeHtml(error.message)}</div>`;
+            }
         }
 
         function selecionarHorarioNaAgenda(horario, profissional) {
@@ -458,35 +522,7 @@
         }
 
         async function finalizarAgendamento() {
-            const nome = document.getElementById('checkoutNome').value;
-            const telefone = document.getElementById('checkoutTelefone').value;
-
-            if (!horarioSelecionado || !profissionalSelecionado) {
-                return alert('Por favor, selecione um horário na agenda do dia!');
-            }
-            if (!nome || !telefone) {
-                return alert('Informe seu Nome e Telefone WhatsApp!');
-            }
-
-            if (formaPagamento === 'local') {
-                alert(`✅ Agendamento Confirmado para ${dataSelecionadaGlobal.split('-').reverse().join('/')} às ${horarioSelecionado} com ${profissionalSelecionado.nome}!\n\n📱 Comprovante enviado para o seu WhatsApp (${telefone}).`);
-            } else {
-                document.getElementById('caixaPagamentoPix').classList.remove('hidden');
-                document.getElementById('pixRecebedor').textContent = profissionalSelecionado.nome;
-                document.getElementById('pixChaveDestino').textContent = profissionalSelecionado.chave_pix;
-                document.getElementById('pixCopiaCola').value = `00020126360014BR.GOV.BCB.PIX0114${profissionalSelecionado.chave_pix}5204000053039865802BR`;
-            }
-        }
-
-        function copiarCodigoPix() {
-            document.getElementById('pixCopiaCola').select();
-            document.execCommand('copy');
-            alert('Código PIX copiado!');
-        }
-
-        function simularConfirmacaoPix() {
-            alert('🎉 Pagamento PIX confirmado e registrado na agenda do profissional!');
-            document.getElementById('caixaPagamentoPix').classList.add('hidden');
+            exibirEstadoAgendamento('A confirmação online ainda não está disponível. Nenhum horário foi reservado.', true);
         }
 
         function toggleChat() {

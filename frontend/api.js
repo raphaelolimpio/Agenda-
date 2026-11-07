@@ -21,8 +21,7 @@
 
     function getSpaceId() {
         const requestedId = new URLSearchParams(window.location.search).get('loja');
-        const savedId = window.localStorage.getItem('espacoId');
-        return requestedId || savedId || '1';
+        return requestedId || null;
     }
 
     function applyBrandTheme(settings) {

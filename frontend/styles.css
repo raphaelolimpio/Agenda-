@@ -916,3 +916,241 @@ table th {
         transition-duration: 0.01ms !important;
     }
 }
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+#admin-page main,
+#staff-page main,
+#booking-page main {
+    min-width: 0;
+}
+
+#admin-page header nav,
+#staff-page header nav {
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+}
+
+#admin-page header nav button,
+#staff-page header nav button {
+    scroll-snap-align: start;
+}
+
+#admin-page table,
+#staff-page table {
+    white-space: normal;
+}
+
+#admin-page .overflow-x-auto,
+#staff-page .overflow-x-auto {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+#admin-page #gridCalendarioAdmin button,
+#staff-page #gridCalendarioColab button,
+#booking-page #gradeCalendarioMensal button {
+    min-width: 0;
+    padding-inline: 0.25rem;
+}
+
+#admin-page .section-intro,
+#staff-page .section-intro {
+    min-width: 0;
+}
+
+#booking-page #janelaChat {
+    width: min(24rem, calc(100vw - 2rem));
+    max-height: min(450px, calc(100dvh - 7rem));
+}
+
+#booking-page #gradeMesesCustom button {
+    min-height: 2.5rem;
+}
+
+@media (max-width: 767px) {
+    html {
+        scrollbar-width: none;
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+
+    #admin-page header.sticky,
+    #staff-page header.sticky {
+        position: sticky !important;
+        top: 0;
+        z-index: 40;
+    }
+
+    #admin-page header .max-w-7xl {
+        padding-top: 0.75rem;
+        padding-bottom: 0.65rem;
+    }
+
+    #admin-page header nav,
+    #staff-page header nav {
+        margin-inline: -0.25rem;
+        padding-inline: 0.25rem;
+    }
+
+    #admin-page #sec-agenda > div > .flex.items-center.justify-between,
+    #staff-page #sec-agenda > div > .flex.items-center.justify-between,
+    #admin-page #sec-agenda .border-b.flex.items-center.justify-between,
+    #staff-page #sec-agenda .border-b.flex.items-center.justify-between {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    #admin-page #sec-agenda select,
+    #staff-page #sec-agenda select {
+        min-width: 0;
+        flex: 1 1 10rem;
+    }
+
+    #admin-page #sec-agenda .grid-cols-7,
+    #staff-page #sec-agenda .grid-cols-7 {
+        gap: 0.2rem;
+    }
+
+    #admin-page #gridCalendarioAdmin button,
+    #staff-page #gridCalendarioColab button {
+        min-height: 2.8rem;
+        font-size: 0.75rem;
+    }
+
+    #admin-page #sec-vitrine .grid,
+    #staff-page #sec-ganhos .grid {
+        min-width: 0;
+    }
+
+    #admin-page #sec-perfil .bg-blue-50 {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    #admin-page #sec-perfil #codigoLojaPerfil {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        font-size: 1rem;
+    }
+
+    #staff-page header .max-w-7xl {
+        align-items: stretch;
+    }
+
+    #staff-page header .max-w-7xl > div:nth-child(2) {
+        align-self: flex-start;
+        max-width: 100%;
+    }
+
+    #staff-page #selectLojaAtiva {
+        min-width: 0;
+        max-width: min(70vw, 20rem);
+    }
+
+    #staff-page #sec-ganhos > .bg-white:first-child {
+        align-items: flex-start;
+    }
+
+    #staff-page #sec-perfil .p-4 > .flex {
+        align-items: stretch;
+    }
+
+    #booking-page header .max-w-6xl {
+        height: auto;
+        min-height: 4rem;
+        padding-top: 0.65rem;
+        padding-bottom: 0.65rem;
+    }
+
+    #booking-page header .max-w-6xl > div:first-child {
+        min-width: 0;
+    }
+
+    #booking-page header .max-w-6xl > div:last-child {
+        flex: 0 0 auto;
+    }
+
+    #booking-page #secao-agenda .bg-white,
+    #booking-page #secao-perfil {
+        padding: 1rem;
+    }
+
+    #booking-page #gradeCalendarioMensal {
+        gap: 0.2rem;
+    }
+
+    #booking-page #gradeCalendarioMensal button {
+        min-height: 2.75rem;
+    }
+
+    #booking-page > div.fixed.bottom-5 {
+        position: static;
+        width: auto;
+        padding: 0 1rem 1rem;
+    }
+
+    #booking-page > div.fixed.bottom-5 > button {
+        margin-left: auto;
+    }
+
+    .subscription-main {
+        width: min(100% - 2rem, 42rem);
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+}
+
+@media (max-width: 420px) {
+    #admin-page main,
+    #staff-page main,
+    #booking-page main {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    #admin-page .section-intro,
+    #staff-page .section-intro {
+        padding: 1.15rem;
+    }
+
+    #admin-page #sec-agenda .bg-white,
+    #staff-page #sec-agenda .bg-white {
+        padding: 0.85rem;
+    }
+
+    #admin-page #gridCalendarioAdmin button,
+    #staff-page #gridCalendarioColab button,
+    #booking-page #gradeCalendarioMensal button {
+        min-height: 2.5rem;
+    }
+
+    #admin-page #sec-agenda .flex.gap-2,
+    #staff-page #sec-agenda .flex.gap-2 {
+        width: 100%;
+    }
+
+    #admin-page #sec-agenda .flex.gap-2 > button,
+    #staff-page #sec-agenda .flex.gap-2 > button {
+        flex: 1 1 auto;
+    }
+
+    .subscription-header {
+        padding-inline: 0.75rem;
+    }
+
+    .subscription-card {
+        padding: 1.15rem;
+    }
+}
