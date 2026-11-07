@@ -458,6 +458,74 @@ function createSaasBilling(app, pool, frontendDirectory) {
         }
     });
 
+    app.post('/api/saas/admin/password-reset-link', async (req, res) => {
+        const adminKey = process.env.PASSWORD_RESET_ADMIN_KEY;
+        const suppliedKey = req.headers?.['x-password-reset-admin-key'];
+        if (typeof adminKey !== 'string' || adminKey.length < 32) {
+            return res.status(503).json({ error: 'A recuperação administrativa não está configurada.' });
+        }
+        if (typeof suppliedKey !== 'string') {
+            return res.status(401).json({ error: 'Não autorizado.' });
+        }
+        const expectedKeyBuffer = Buffer.from(adminKey);
+        const suppliedKeyBuffer = Buffer.from(suppliedKey);
+        if (expectedKeyBuffer.length !== suppliedKeyBuffer.length
+            || !crypto.timingSafeEqual(expectedKeyBuffer, suppliedKeyBuffer)) {
+            return res.status(401).json({ error: 'Não autorizado.' });
+        }
+
+        const { email } = req.body || {};
+        if (!isValidEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
+
+        let resetTokenHash;
+        try {
+            const appBaseUrl = process.env.APP_BASE_URL;
+            if (!appBaseUrl) {
+                return res.status(503).json({ error: 'A URL pública para recuperação de senha não está configurada.' });
+            }
+            const baseUrl = new URL(appBaseUrl);
+            if (!['http:', 'https:'].includes(baseUrl.protocol)
+                || (process.env.NODE_ENV === 'production' && baseUrl.protocol !== 'https:')) {
+                return res.status(503).json({ error: 'A URL pública para recuperação de senha não está configurada corretamente.' });
+            }
+
+            await ensureSchema();
+            const accountResult = await pool.query(
+                'SELECT id FROM saas_accounts WHERE email = $1',
+                [email.trim().toLowerCase()]
+            );
+            const account = accountResult.rows[0];
+            if (!account) return res.status(404).json({ error: 'Não existe conta cadastrada com esse e-mail.' });
+
+            const resetToken = crypto.randomBytes(32).toString('hex');
+            resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+            await pool.query(`
+                UPDATE saas_password_resets
+                SET used_at = NOW()
+                WHERE account_id = $1 AND used_at IS NULL
+            `, [account.id]);
+            await pool.query(`
+                INSERT INTO saas_password_resets (token_hash, account_id, expires_at)
+                VALUES ($1, $2, NOW() + INTERVAL '30 minutes')
+            `, [resetTokenHash, account.id]);
+
+            const resetUrl = new URL('/recuperar-senha.html', baseUrl);
+            resetUrl.hash = new URLSearchParams({ token: resetToken }).toString();
+            return res.json({
+                message: 'Link de recuperação gerado. Confirme a identidade do usuário antes de compartilhá-lo.',
+                reset_url: resetUrl.href,
+                expires_in_minutes: 30
+            });
+        } catch (error) {
+            if (resetTokenHash) {
+                await pool.query('DELETE FROM saas_password_resets WHERE token_hash = $1', [resetTokenHash])
+                    .catch((cleanupError) => console.error('Administrative password reset cleanup failed:', cleanupError));
+            }
+            console.error('Administrative password reset link generation failed:', error);
+            return res.status(500).json({ error: 'Não foi possível gerar o link de recuperação.' });
+        }
+    });
+
     app.post('/api/saas/reset-password', async (req, res) => {
         const { token, senha } = req.body || {};
         if (typeof token !== 'string' || !/^[\da-f]{64}$/i.test(token)) {

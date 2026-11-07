@@ -290,6 +290,83 @@ test('password reset emails an unguessable hashed token and invalidates existing
     }
 });
 
+test('administrative password reset links require a secret and contain only an expiring token', async () => {
+    const originalEnv = {
+        PASSWORD_RESET_ADMIN_KEY: process.env.PASSWORD_RESET_ADMIN_KEY,
+        APP_BASE_URL: process.env.APP_BASE_URL,
+        NODE_ENV: process.env.NODE_ENV
+    };
+    const adminKey = 'test-password-reset-admin-key-32-chars';
+    process.env.PASSWORD_RESET_ADMIN_KEY = adminKey;
+    process.env.APP_BASE_URL = 'https://agenda.example.com';
+    process.env.NODE_ENV = 'production';
+
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) {
+            routes.set(`GET ${pathname}`, handler);
+        },
+        post(pathname, handler) {
+            routes.set(`POST ${pathname}`, handler);
+        }
+    };
+    const accountId = 'account-id';
+    const poolQueries = [];
+    const pool = {
+        async query(sql, values = []) {
+            poolQueries.push({ sql, values });
+            if (sql.includes('SELECT id FROM saas_accounts')) {
+                return values[0] === 'pessoa@example.com' ? { rows: [{ id: accountId }] } : { rows: [] };
+            }
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const makeResponse = () => ({
+        statusCode: 200,
+        status(status) {
+            this.statusCode = status;
+            return this;
+        },
+        json(body) {
+            this.body = body;
+            return this;
+        }
+    });
+
+    try {
+        const generateLink = routes.get('POST /api/saas/admin/password-reset-link');
+        const unauthorizedResponse = makeResponse();
+        await generateLink({ headers: {}, body: { email: 'pessoa@example.com' } }, unauthorizedResponse);
+        assert.equal(unauthorizedResponse.statusCode, 401);
+
+        const response = makeResponse();
+        await generateLink({
+            headers: { 'x-password-reset-admin-key': adminKey },
+            body: { email: 'Pessoa@example.com' }
+        }, response);
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body.expires_in_minutes, 30);
+        const token = new URL(response.body.reset_url).hash.slice(1).match(/token=([a-f\d]{64})/i)[1];
+        const insertedReset = poolQueries.find(({ sql }) => sql.includes('INSERT INTO saas_password_resets'));
+        assert.equal(insertedReset.values[0], crypto.createHash('sha256').update(token).digest('hex'));
+        assert.equal(insertedReset.values[1], accountId);
+        assert.ok(poolQueries.some(({ sql, values }) => sql.includes('UPDATE saas_password_resets') && values[0] === accountId));
+
+        const unknownAccountResponse = makeResponse();
+        await generateLink({
+            headers: { 'x-password-reset-admin-key': adminKey },
+            body: { email: 'desconhecido@example.com' }
+        }, unknownAccountResponse);
+        assert.equal(unknownAccountResponse.statusCode, 404);
+    } finally {
+        for (const [key, value] of Object.entries(originalEnv)) {
+            if (value === undefined) delete process.env[key];
+            else process.env[key] = value;
+        }
+    }
+});
+
 test('vitrine writes are limited to the signed-in account establishment', async () => {
     const app = { get() {}, post() {} };
     const account = {
