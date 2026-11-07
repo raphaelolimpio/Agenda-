@@ -23,10 +23,10 @@
             <section id="requestPanel">
                 <h1 class="text-xl font-bold text-slate-900">Recuperar senha</h1>
                 <p class="mt-2 text-sm leading-6 text-slate-600">
-                    Informe o e-mail da sua conta. Se ela existir, enviaremos um link para criar uma nova senha.
+                    Informe o e-mail da sua conta. Se os dados corresponderem a uma conta, enviaremos o link para o WhatsApp cadastrado.
                 </p>
                 <p class="mt-3 text-sm leading-6 text-slate-600">
-                    Enquanto o envio de e-mail não estiver configurado, fale com o responsável pelo Agenda+ para receber um link temporário após confirmar sua identidade.
+                    O link expira em 30 minutos e só pode ser usado uma vez. Se não receber a mensagem, fale com o responsável pelo Agenda+.
                 </p>
                 <form id="requestForm" class="mt-6 space-y-4">
                     <div>
@@ -35,7 +35,7 @@
                             placeholder="seu@email.com" class="w-full border border-slate-300 rounded-lg px-3 py-3 text-sm">
                     </div>
                     <button id="requestButton" type="submit" class="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700">
-                        Enviar link de recuperação
+                        Enviar instruções pelo WhatsApp
                     </button>
                     <p id="requestStatus" class="status-message" role="status" aria-live="polite"></p>
                 </form>

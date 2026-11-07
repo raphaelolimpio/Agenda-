@@ -12,6 +12,10 @@
         });
         const payload = await response.json().catch(() => ({}));
 
+        if (response.status === 402 && window.location.pathname !== '/assinatura.html') {
+            window.location.replace('assinatura.html');
+        }
+
         if (!response.ok) {
             throw new Error(payload.error || `Falha na solicitação (${response.status}).`);
         }

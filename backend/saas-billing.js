@@ -26,12 +26,16 @@ async function ensureSaasSchema(pool) {
             space_id INTEGER,
             full_name TEXT NOT NULL,
             email TEXT NOT NULL UNIQUE,
+            whatsapp_phone TEXT,
+            whatsapp_opt_in_at TIMESTAMPTZ,
             password_hash TEXT NOT NULL,
             store_name TEXT NOT NULL,
             store_segment TEXT NOT NULL DEFAULT 'outros',
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         ALTER TABLE saas_accounts ADD COLUMN IF NOT EXISTS space_id INTEGER;
+        ALTER TABLE saas_accounts ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT;
+        ALTER TABLE saas_accounts ADD COLUMN IF NOT EXISTS whatsapp_opt_in_at TIMESTAMPTZ;
         CREATE UNIQUE INDEX IF NOT EXISTS saas_accounts_space_id_idx ON saas_accounts(space_id);
         DO $saas$
         BEGIN
@@ -121,6 +125,52 @@ function isValidEmail(email) {
     return typeof email === 'string'
         && email.length <= 254
         && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function normalizeWhatsAppPhone(value) {
+    if (typeof value !== 'string' || value.length > 30) return null;
+    const compact = value.trim().replace(/[\s()-]/g, '');
+    if (!/^\+?[1-9]\d{7,14}$/.test(compact)) return null;
+    return compact.replace(/^\+/, '');
+}
+
+async function sendWhatsAppTemplate(phone, templateName, parameters) {
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const apiVersion = process.env.WHATSAPP_API_VERSION;
+    if (!accessToken || !phoneNumberId || !apiVersion || !/^v\d+\.\d+$/.test(apiVersion)
+        || !/^\d+$/.test(phoneNumberId) || !templateName) {
+        return { status: 'not_configured' };
+    }
+
+    const response = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: phone,
+            type: 'template',
+            template: {
+                name: templateName,
+                language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'pt_BR' },
+                components: parameters.length
+                    ? [{
+                        type: 'body',
+                        parameters: parameters.map((text) => ({ type: 'text', text }))
+                    }]
+                    : []
+            }
+        })
+    });
+
+    if (!response.ok) {
+        console.error('WhatsApp template delivery failed:', response.status);
+        return { status: 'failed' };
+    }
+    return { status: 'sent' };
 }
 
 function isValidCheckoutUrl(value) {
@@ -278,13 +328,20 @@ function createSaasBilling(app, pool, frontendDirectory) {
     });
 
     app.post('/api/saas/register', async (req, res) => {
-        const { nome, email, senha, nome_loja, segmento } = req.body || {};
+        const { nome, email, senha, telefone_whatsapp, consentimento_whatsapp, nome_loja, segmento } = req.body || {};
         if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 120) {
             return res.status(400).json({ error: 'Informe seu nome completo.' });
         }
         if (!isValidEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
         if (typeof senha !== 'string' || senha.length < 10 || senha.length > 200) {
             return res.status(400).json({ error: 'A senha deve ter pelo menos 10 caracteres.' });
+        }
+        const whatsappPhone = normalizeWhatsAppPhone(telefone_whatsapp);
+        if (!whatsappPhone) {
+            return res.status(400).json({ error: 'Informe um WhatsApp válido com código do país, por exemplo +55 11 99999-9999.' });
+        }
+        if (consentimento_whatsapp !== true) {
+            return res.status(400).json({ error: 'Autorize o envio de avisos da conta pelo WhatsApp para continuar.' });
         }
         if (typeof nome_loja !== 'string' || nome_loja.trim().length < 2 || nome_loja.trim().length > 150) {
             return res.status(400).json({ error: 'Informe o nome do estabelecimento.' });
@@ -316,13 +373,15 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 `, [nome_loja.trim(), storeSlug, storeSegment]);
                 const spaceId = spaceResult.rows[0].id;
                 await client.query(`
-                    INSERT INTO saas_accounts (id, space_id, full_name, email, password_hash, store_name, store_segment)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    INSERT INTO saas_accounts
+                        (id, space_id, full_name, email, whatsapp_phone, whatsapp_opt_in_at, password_hash, store_name, store_segment)
+                    VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8)
                 `, [
                     accountId,
                     spaceId,
                     nome.trim(),
                     normalizedEmail,
+                    whatsappPhone,
                     hashPassword(senha),
                     nome_loja.trim(),
                     storeSegment
@@ -341,7 +400,23 @@ function createSaasBilling(app, pool, frontendDirectory) {
             }
 
             await createSession(accountId, res);
-            res.status(201).json({ message: 'Conta criada.', next: '/assinatura.html' });
+            let whatsappStatus = 'not_configured';
+            try {
+                const notification = await sendWhatsAppTemplate(
+                    whatsappPhone,
+                    process.env.WHATSAPP_TEMPLATE_ACCOUNT_CREATED,
+                    [nome.trim()]
+                );
+                whatsappStatus = notification.status;
+            } catch (error) {
+                whatsappStatus = 'failed';
+                console.error('WhatsApp account-created notification failed:', error);
+            }
+            res.status(201).json({
+                message: 'Conta criada.',
+                whatsapp_notification: whatsappStatus,
+                next: plan.trialDays > 0 ? '/admin.html' : '/assinatura.html'
+            });
         } catch (error) {
             if (error.code === '23505' && error.constraint === 'saas_accounts_email_key') {
                 return res.status(409).json({ error: 'Já existe uma conta com este e-mail.' });
@@ -360,14 +435,23 @@ function createSaasBilling(app, pool, frontendDirectory) {
         try {
             await ensureSchema();
             const result = await pool.query(`
-                SELECT id, password_hash FROM saas_accounts WHERE email = $1
+                SELECT a.id, a.password_hash, a.space_id,
+                       s.provider_status, s.amount_brl, s.trial_days,
+                       s.trial_ends_at, s.next_payment_at, s.checkout_url
+                FROM saas_accounts a
+                LEFT JOIN saas_subscriptions s ON s.account_id = a.id
+                WHERE a.email = $1
             `, [email.trim().toLowerCase()]);
             const account = result.rows[0];
             if (!account || !verifyPassword(senha, account.password_hash)) {
                 return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
             }
             await createSession(account.id, res);
-            res.json({ message: 'Sessão iniciada.', next: '/assinatura.html' });
+            const subscription = effectiveSubscription(account);
+            const next = subscription.can_access && account.space_id
+                ? '/admin.html'
+                : '/assinatura.html';
+            res.json({ message: 'Sessão iniciada.', next });
         } catch (error) {
             console.error('SaaS login failed:', error);
             res.status(500).json({ error: 'Não foi possível entrar na conta.' });
@@ -378,11 +462,14 @@ function createSaasBilling(app, pool, frontendDirectory) {
         const { email } = req.body || {};
         if (!isValidEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
 
-        const resendApiKey = process.env.RESEND_API_KEY;
-        const emailFrom = process.env.EMAIL_FROM;
         const appBaseUrl = process.env.APP_BASE_URL;
-        if (!resendApiKey || !emailFrom || !appBaseUrl) {
-            return res.status(503).json({ error: 'A recuperação de senha ainda não está configurada.' });
+        const whatsAppReady = process.env.WHATSAPP_ACCESS_TOKEN
+            && process.env.WHATSAPP_PHONE_NUMBER_ID
+            && process.env.WHATSAPP_API_VERSION
+            && /^v\d+\.\d+$/.test(process.env.WHATSAPP_API_VERSION)
+            && process.env.WHATSAPP_TEMPLATE_PASSWORD_RESET;
+        if (!whatsAppReady || !appBaseUrl) {
+            return res.status(503).json({ error: 'A recuperação pelo WhatsApp ainda não está configurada.' });
         }
 
         let resetTokenHash;
@@ -396,12 +483,13 @@ function createSaasBilling(app, pool, frontendDirectory) {
             await ensureSchema();
             const normalizedEmail = email.trim().toLowerCase();
             const accountResult = await pool.query(
-                'SELECT id, email FROM saas_accounts WHERE email = $1',
+                'SELECT id, full_name, whatsapp_phone FROM saas_accounts WHERE email = $1',
                 [normalizedEmail]
             );
             const account = accountResult.rows[0];
-            if (!account) {
-                return res.json({ message: 'Se houver uma conta com esse e-mail, enviaremos um link para redefinir a senha.' });
+            const genericMessage = 'Se os dados corresponderem a uma conta, enviaremos as instruções para o WhatsApp cadastrado.';
+            if (!account || !account.whatsapp_phone) {
+                return res.json({ message: genericMessage });
             }
 
             const recentRequest = await pool.query(`
@@ -411,7 +499,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 ) AS requested_recently
             `, [account.id]);
             if (recentRequest.rows[0]?.requested_recently) {
-                return res.json({ message: 'Se houver uma conta com esse e-mail, enviaremos um link para redefinir a senha.' });
+                return res.json({ message: genericMessage });
             }
 
             const resetToken = crypto.randomBytes(32).toString('hex');
@@ -427,27 +515,22 @@ function createSaasBilling(app, pool, frontendDirectory) {
 
             const resetUrl = new URL('/recuperar-senha.html', baseUrl);
             resetUrl.hash = new URLSearchParams({ token: resetToken }).toString();
-            const emailResponse = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${resendApiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    from: emailFrom,
-                    to: [account.email],
-                    subject: 'Redefina sua senha do Agenda+',
-                    html: `<p>Recebemos uma solicitação para redefinir a senha da sua conta Agenda+.</p><p><a href="${resetUrl.href}">Criar uma nova senha</a></p><p>O link expira em 30 minutos e só pode ser usado uma vez. Se você não solicitou a troca, ignore este e-mail.</p>`,
-                    text: `Para criar uma nova senha do Agenda+, acesse: ${resetUrl.href}\n\nO link expira em 30 minutos e só pode ser usado uma vez. Se você não solicitou a troca, ignore este e-mail.`
-                })
-            });
-            if (!emailResponse.ok) {
-                console.error('Password reset email delivery failed:', emailResponse.status);
-                await pool.query('DELETE FROM saas_password_resets WHERE token_hash = $1', [resetTokenHash]);
-                return res.status(502).json({ error: 'Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde.' });
+            let delivery;
+            try {
+                delivery = await sendWhatsAppTemplate(
+                    account.whatsapp_phone,
+                    process.env.WHATSAPP_TEMPLATE_PASSWORD_RESET,
+                    [account.full_name, resetUrl.href]
+                );
+            } catch (error) {
+                console.error('Password reset WhatsApp delivery failed:', error);
+                delivery = { status: 'failed' };
             }
-
-            return res.json({ message: 'Se houver uma conta com esse e-mail, enviaremos um link para redefinir a senha.' });
+            if (delivery.status !== 'sent') {
+                console.error('Password reset WhatsApp delivery was not sent:', delivery.status);
+                await pool.query('DELETE FROM saas_password_resets WHERE token_hash = $1', [resetTokenHash]);
+            }
+            return res.json({ message: genericMessage });
         } catch (error) {
             if (resetTokenHash) {
                 await pool.query('DELETE FROM saas_password_resets WHERE token_hash = $1', [resetTokenHash])

@@ -65,6 +65,15 @@
                     <input type="email" id="cadEmail" autocomplete="email" placeholder="seu@email.com" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
                 </div>
             </div>
+            <div>
+                <label for="cadWhatsapp" class="block text-xs font-semibold uppercase text-slate-500 mb-1">WhatsApp com código do país</label>
+                <input type="tel" id="cadWhatsapp" autocomplete="tel" inputmode="tel" maxlength="30" required
+                    placeholder="+55 11 99999-9999" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                <label class="mt-2 flex items-start gap-2 text-xs leading-5 text-slate-600">
+                    <input type="checkbox" id="cadWhatsappConsent" required class="mt-1">
+                    <span>Autorizo receber pelo WhatsApp avisos da conta e links de recuperação que eu solicitar.</span>
+                </label>
+            </div>
             
             <!-- Campos Dinâmicos: Exibidos de acordo com o Tipo de Usuário -->
             <div>
@@ -129,11 +138,11 @@
 
             exibirStatusAuth('Validando seus dados...');
             try {
-                await AppApi.request('/api/saas/login', {
+                const result = await AppApi.request('/api/saas/login', {
                     method: 'POST',
                     body: JSON.stringify({ email, senha })
                 });
-                window.location.href = 'assinatura.html';
+                window.location.href = result.next;
             } catch (error) {
                 exibirStatusAuth(error.message, true);
             }
@@ -142,11 +151,12 @@
         async function realizarCadastro() {
             const nome = document.getElementById('cadNome').value;
             const email = document.getElementById('cadEmail').value;
+            const telefoneWhatsapp = document.getElementById('cadWhatsapp').value.trim();
             const senha = document.getElementById('cadSenha').value;
             const senhaConf = document.getElementById('cadSenhaConfirma').value;
 
-            if (!nome || !email || !senha) {
-                return alert('Preencha os campos obrigatórios (Nome, E-mail, Senha).');
+            if (!nome || !email || !telefoneWhatsapp || !senha) {
+                return alert('Preencha nome, e-mail, WhatsApp e senha.');
             }
 
             if (senha !== senhaConf) {
@@ -161,17 +171,25 @@
             button.disabled = true;
             exibirStatusAuth('Criando sua conta...');
             try {
-                await AppApi.request('/api/saas/register', {
+                const result = await AppApi.request('/api/saas/register', {
                     method: 'POST',
                     body: JSON.stringify({
                         nome,
                         email,
+                        telefone_whatsapp: telefoneWhatsapp,
+                        consentimento_whatsapp: document.getElementById('cadWhatsappConsent').checked,
                         senha,
                         nome_loja: document.getElementById('cadNomeLoja').value.trim(),
                         segmento: 'salao'
                     })
                 });
-                window.location.href = 'assinatura.html';
+                if (result.whatsapp_notification !== 'sent') {
+                    const status = document.getElementById('cadastroStatus');
+                    status.textContent = 'Conta criada, mas a mensagem de confirmação no WhatsApp não foi enviada. A integração ainda precisa ser configurada.';
+                    status.dataset.state = 'error';
+                    await new Promise(resolve => setTimeout(resolve, 1800));
+                }
+                window.location.href = result.next;
             } catch (error) {
                 exibirStatusAuth(error.message, true);
             } finally {

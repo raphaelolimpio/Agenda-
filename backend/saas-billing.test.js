@@ -98,7 +98,32 @@ test('webhook signature verifies both second and millisecond timestamps', () => 
     }
 });
 
-test('new SaaS registration creates and links a separate establishment', async () => {
+test('new SaaS registration creates, links, and confirms the account by WhatsApp', async (t) => {
+    const originalFetch = global.fetch;
+    const originalEnv = {
+        WHATSAPP_ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN,
+        WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
+        WHATSAPP_API_VERSION: process.env.WHATSAPP_API_VERSION,
+        WHATSAPP_TEMPLATE_ACCOUNT_CREATED: process.env.WHATSAPP_TEMPLATE_ACCOUNT_CREATED
+    };
+    process.env.WHATSAPP_ACCESS_TOKEN = 'test-whatsapp-token';
+    process.env.WHATSAPP_PHONE_NUMBER_ID = '123456789';
+    process.env.WHATSAPP_API_VERSION = 'v99.0';
+    process.env.WHATSAPP_TEMPLATE_ACCOUNT_CREATED = 'agenda_conta_criada';
+    let whatsappPayload;
+    global.fetch = async (url, options) => {
+        assert.equal(url, 'https://graph.facebook.com/v99.0/123456789/messages');
+        whatsappPayload = JSON.parse(options.body);
+        return { ok: true, status: 200 };
+    };
+    t.after(() => {
+        global.fetch = originalFetch;
+        for (const [key, value] of Object.entries(originalEnv)) {
+            if (value === undefined) delete process.env[key];
+            else process.env[key] = value;
+        }
+    });
+
     const routes = new Map();
     const app = {
         get(pathname, handler) {
@@ -150,6 +175,8 @@ test('new SaaS registration creates and links a separate establishment', async (
         body: {
             nome: 'Pessoa Exemplo',
             email: 'pessoa@example.com',
+            telefone_whatsapp: '+55 (11) 99999-9999',
+            consentimento_whatsapp: true,
             senha: 'senha-segura-123',
             nome_loja: 'Studio Exemplo',
             segmento: 'salao'
@@ -167,24 +194,115 @@ test('new SaaS registration creates and links a separate establishment', async (
     assert.ok(clientQueries.indexOf(accountInsert) < clientQueries.indexOf(subscriptionInsert));
     assert.equal(establishmentInsert.values[0], 'Studio Exemplo');
     assert.equal(accountInsert.values[1], 42);
+    assert.equal(accountInsert.values[4], '5511999999999');
     assert.equal(subscriptionInsert.values[0], accountInsert.values[0]);
     assert.equal(responseStatus, 201);
-    assert.equal(responseBody.next, '/assinatura.html');
+    assert.equal(responseBody.next, '/admin.html');
+    assert.equal(responseBody.whatsapp_notification, 'sent');
+    assert.equal(whatsappPayload.to, '5511999999999');
+    assert.equal(whatsappPayload.template.name, 'agenda_conta_criada');
+    assert.equal(whatsappPayload.template.components[0].parameters[0].text, 'Pessoa Exemplo');
     assert.match(sessionCookie, /HttpOnly/);
     assert.ok(poolQueries.some(sql => sql.includes('INSERT INTO saas_sessions')));
     assert.equal(typeof billing.requireOwnedSpace, 'function');
 });
 
-test('password reset emails an unguessable hashed token and invalidates existing sessions', async () => {
+test('login sends active and trial accounts to the dashboard and expired accounts to billing', async () => {
+    const storedPassword = hashPassword('senha-segura-123');
+    const cases = [
+        {
+            name: 'active subscription',
+            account: {
+                id: 'active-account',
+                password_hash: storedPassword,
+                space_id: 42,
+                provider_status: 'authorized',
+                amount_brl: '50.00',
+                trial_days: 7,
+                trial_ends_at: null
+            },
+            next: '/admin.html'
+        },
+        {
+            name: 'active trial',
+            account: {
+                id: 'trial-account',
+                password_hash: storedPassword,
+                space_id: 42,
+                provider_status: 'trialing',
+                amount_brl: '50.00',
+                trial_days: 7,
+                trial_ends_at: new Date(Date.now() + 60_000)
+            },
+            next: '/admin.html'
+        },
+        {
+            name: 'expired trial',
+            account: {
+                id: 'expired-account',
+                password_hash: storedPassword,
+                space_id: 42,
+                provider_status: 'trialing',
+                amount_brl: '50.00',
+                trial_days: 7,
+                trial_ends_at: new Date(Date.now() - 60_000)
+            },
+            next: '/assinatura.html'
+        }
+    ];
+
+    for (const testCase of cases) {
+        const routes = new Map();
+        const app = {
+            get(pathname, handler) {
+                routes.set(`GET ${pathname}`, handler);
+            },
+            post(pathname, handler) {
+                routes.set(`POST ${pathname}`, handler);
+            }
+        };
+        const pool = {
+            async query(sql) {
+                if (sql.includes('FROM saas_accounts a')) return { rows: [testCase.account] };
+                return { rows: [] };
+            }
+        };
+        createSaasBilling(app, pool, 'frontend');
+        const response = {
+            statusCode: 200,
+            status(status) {
+                this.statusCode = status;
+                return this;
+            },
+            setHeader() {},
+            json(body) {
+                this.body = body;
+                return this;
+            }
+        };
+
+        await routes.get('POST /api/saas/login')({
+            body: { email: 'pessoa@example.com', senha: 'senha-segura-123' }
+        }, response);
+        assert.equal(response.statusCode, 200, testCase.name);
+        assert.equal(response.body.next, testCase.next, testCase.name);
+    }
+});
+
+test('password reset sends an unguessable hashed token to the registered WhatsApp and invalidates sessions', async () => {
     const originalFetch = global.fetch;
     const originalEnv = {
-        RESEND_API_KEY: process.env.RESEND_API_KEY,
-        EMAIL_FROM: process.env.EMAIL_FROM,
+        WHATSAPP_ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN,
+        WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
+        WHATSAPP_API_VERSION: process.env.WHATSAPP_API_VERSION,
+        WHATSAPP_TEMPLATE_PASSWORD_RESET: process.env.WHATSAPP_TEMPLATE_PASSWORD_RESET,
         APP_BASE_URL: process.env.APP_BASE_URL,
         NODE_ENV: process.env.NODE_ENV
     };
-    process.env.RESEND_API_KEY = 'test-resend-key';
-    process.env.EMAIL_FROM = 'Agenda+ <noreply@example.com>';
+    process.env.WHATSAPP_ACCESS_TOKEN = 'test-whatsapp-token';
+    process.env.WHATSAPP_PHONE_NUMBER_ID = '123456789';
+    process.env.WHATSAPP_API_VERSION = 'v99.0';
+    process.env.WHATSAPP_TEMPLATE_PASSWORD_RESET = 'agenda_recuperar_senha';
     process.env.APP_BASE_URL = 'https://agenda.example.com';
     process.env.NODE_ENV = 'production';
 
@@ -204,9 +322,13 @@ test('password reset emails an unguessable hashed token and invalidates existing
     const pool = {
         async query(sql, values = []) {
             poolQueries.push({ sql, values });
-            if (sql.includes('SELECT id, email FROM saas_accounts')) {
+            if (sql.includes('SELECT id, full_name, whatsapp_phone FROM saas_accounts')) {
                 return values[0] === 'pessoa@example.com'
-                    ? { rows: [{ id: accountId, email: 'pessoa@example.com' }] }
+                    ? { rows: [{
+                        id: accountId,
+                        full_name: 'Pessoa Exemplo',
+                        whatsapp_phone: '5511999999999'
+                    }] }
                     : { rows: [] };
             }
             if (sql.includes('SELECT EXISTS')) return { rows: [{ requested_recently: false }] };
@@ -227,11 +349,11 @@ test('password reset emails an unguessable hashed token and invalidates existing
         }
     };
     createSaasBilling(app, pool, 'frontend');
-    let emailPayload;
+    let whatsappPayload;
     global.fetch = async (url, options) => {
-        assert.equal(url, 'https://api.resend.com/emails');
-        assert.equal(options.headers.Authorization, 'Bearer test-resend-key');
-        emailPayload = JSON.parse(options.body);
+        assert.equal(url, 'https://graph.facebook.com/v99.0/123456789/messages');
+        assert.equal(options.headers.Authorization, 'Bearer test-whatsapp-token');
+        whatsappPayload = JSON.parse(options.body);
         return { ok: true, status: 200 };
     };
 
@@ -256,8 +378,9 @@ test('password reset emails an unguessable hashed token and invalidates existing
 
         assert.equal(knownEmailResponse.statusCode, 200);
         assert.deepEqual(knownEmailResponse.body, unknownEmailResponse.body);
-        assert.equal(emailPayload.to[0], 'pessoa@example.com');
-        const resetLink = emailPayload.html.match(/href="([^"]+)"/)[1];
+        assert.equal(whatsappPayload.to, '5511999999999');
+        assert.equal(whatsappPayload.template.name, 'agenda_recuperar_senha');
+        const resetLink = whatsappPayload.template.components[0].parameters[1].text;
         const resetToken = new URL(resetLink).hash.slice(1).match(/token=([a-f\d]{64})/i)[1];
         assert.equal(resetToken.length, 64);
         const insertedReset = poolQueries.find(({ sql }) => sql.includes('INSERT INTO saas_password_resets'));
