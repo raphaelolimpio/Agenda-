@@ -1,5 +1,12 @@
 {
   "outputDirectory": "frontend",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/index.html",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/admin.html",
