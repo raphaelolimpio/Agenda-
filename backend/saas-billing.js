@@ -54,6 +54,14 @@ async function ensureSaasSchema(pool) {
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS saas_sessions_account_id_idx ON saas_sessions(account_id);
+        CREATE TABLE IF NOT EXISTS saas_password_resets (
+            token_hash CHAR(64) PRIMARY KEY,
+            account_id UUID NOT NULL REFERENCES saas_accounts(id) ON DELETE CASCADE,
+            expires_at TIMESTAMPTZ NOT NULL,
+            used_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS saas_password_resets_account_id_idx ON saas_password_resets(account_id);
         CREATE TABLE IF NOT EXISTS saas_subscriptions (
             id BIGSERIAL PRIMARY KEY,
             account_id UUID NOT NULL UNIQUE REFERENCES saas_accounts(id) ON DELETE CASCADE,
@@ -363,6 +371,141 @@ function createSaasBilling(app, pool, frontendDirectory) {
         } catch (error) {
             console.error('SaaS login failed:', error);
             res.status(500).json({ error: 'Não foi possível entrar na conta.' });
+        }
+    });
+
+    app.post('/api/saas/request-password-reset', async (req, res) => {
+        const { email } = req.body || {};
+        if (!isValidEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
+
+        const resendApiKey = process.env.RESEND_API_KEY;
+        const emailFrom = process.env.EMAIL_FROM;
+        const appBaseUrl = process.env.APP_BASE_URL;
+        if (!resendApiKey || !emailFrom || !appBaseUrl) {
+            return res.status(503).json({ error: 'A recuperação de senha ainda não está configurada.' });
+        }
+
+        let resetTokenHash;
+        try {
+            const baseUrl = new URL(appBaseUrl);
+            if (!['http:', 'https:'].includes(baseUrl.protocol)
+                || (process.env.NODE_ENV === 'production' && baseUrl.protocol !== 'https:')) {
+                return res.status(503).json({ error: 'A URL pública para recuperação de senha não está configurada corretamente.' });
+            }
+
+            await ensureSchema();
+            const normalizedEmail = email.trim().toLowerCase();
+            const accountResult = await pool.query(
+                'SELECT id, email FROM saas_accounts WHERE email = $1',
+                [normalizedEmail]
+            );
+            const account = accountResult.rows[0];
+            if (!account) {
+                return res.json({ message: 'Se houver uma conta com esse e-mail, enviaremos um link para redefinir a senha.' });
+            }
+
+            const recentRequest = await pool.query(`
+                SELECT EXISTS (
+                    SELECT 1 FROM saas_password_resets
+                    WHERE account_id = $1 AND created_at > NOW() - INTERVAL '2 minutes'
+                ) AS requested_recently
+            `, [account.id]);
+            if (recentRequest.rows[0]?.requested_recently) {
+                return res.json({ message: 'Se houver uma conta com esse e-mail, enviaremos um link para redefinir a senha.' });
+            }
+
+            const resetToken = crypto.randomBytes(32).toString('hex');
+            resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+            await pool.query(`
+                DELETE FROM saas_password_resets
+                WHERE expires_at <= NOW() OR created_at < NOW() - INTERVAL '1 day'
+            `);
+            await pool.query(`
+                INSERT INTO saas_password_resets (token_hash, account_id, expires_at)
+                VALUES ($1, $2, NOW() + INTERVAL '30 minutes')
+            `, [resetTokenHash, account.id]);
+
+            const resetUrl = new URL('/recuperar-senha.html', baseUrl);
+            resetUrl.hash = new URLSearchParams({ token: resetToken }).toString();
+            const emailResponse = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${resendApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    from: emailFrom,
+                    to: [account.email],
+                    subject: 'Redefina sua senha do Agenda+',
+                    html: `<p>Recebemos uma solicitação para redefinir a senha da sua conta Agenda+.</p><p><a href="${resetUrl.href}">Criar uma nova senha</a></p><p>O link expira em 30 minutos e só pode ser usado uma vez. Se você não solicitou a troca, ignore este e-mail.</p>`,
+                    text: `Para criar uma nova senha do Agenda+, acesse: ${resetUrl.href}\n\nO link expira em 30 minutos e só pode ser usado uma vez. Se você não solicitou a troca, ignore este e-mail.`
+                })
+            });
+            if (!emailResponse.ok) {
+                console.error('Password reset email delivery failed:', emailResponse.status);
+                await pool.query('DELETE FROM saas_password_resets WHERE token_hash = $1', [resetTokenHash]);
+                return res.status(502).json({ error: 'Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde.' });
+            }
+
+            return res.json({ message: 'Se houver uma conta com esse e-mail, enviaremos um link para redefinir a senha.' });
+        } catch (error) {
+            if (resetTokenHash) {
+                await pool.query('DELETE FROM saas_password_resets WHERE token_hash = $1', [resetTokenHash])
+                    .catch((cleanupError) => console.error('Password reset token cleanup failed:', cleanupError));
+            }
+            console.error('Password reset request failed:', error);
+            return res.status(500).json({ error: 'Não foi possível processar a solicitação de recuperação.' });
+        }
+    });
+
+    app.post('/api/saas/reset-password', async (req, res) => {
+        const { token, senha } = req.body || {};
+        if (typeof token !== 'string' || !/^[\da-f]{64}$/i.test(token)) {
+            return res.status(400).json({ error: 'O link de recuperação é inválido ou expirou.' });
+        }
+        if (typeof senha !== 'string' || senha.length < 10 || senha.length > 200) {
+            return res.status(400).json({ error: 'A nova senha deve ter pelo menos 10 caracteres.' });
+        }
+
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        let client;
+        try {
+            await ensureSchema();
+            client = await pool.connect();
+            await client.query('BEGIN');
+            const tokenResult = await client.query(`
+                SELECT account_id
+                FROM saas_password_resets
+                WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()
+                FOR UPDATE
+            `, [tokenHash]);
+            const reset = tokenResult.rows[0];
+            if (!reset) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: 'O link de recuperação é inválido ou expirou.' });
+            }
+
+            await client.query(
+                'UPDATE saas_accounts SET password_hash = $1 WHERE id = $2',
+                [hashPassword(senha), reset.account_id]
+            );
+            await client.query(
+                'UPDATE saas_password_resets SET used_at = NOW() WHERE token_hash = $1',
+                [tokenHash]
+            );
+            await client.query('DELETE FROM saas_sessions WHERE account_id = $1', [reset.account_id]);
+            await client.query('COMMIT');
+            return res.json({ message: 'Senha alterada. Entre novamente com a nova senha.' });
+        } catch (error) {
+            if (client) {
+                await client.query('ROLLBACK').catch((rollbackError) => {
+                    console.error('Password reset rollback failed:', rollbackError);
+                });
+            }
+            console.error('Password reset failed:', error);
+            return res.status(500).json({ error: 'Não foi possível alterar a senha.' });
+        } finally {
+            if (client) client.release();
         }
     });
 

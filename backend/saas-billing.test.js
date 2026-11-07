@@ -175,6 +175,121 @@ test('new SaaS registration creates and links a separate establishment', async (
     assert.equal(typeof billing.requireOwnedSpace, 'function');
 });
 
+test('password reset emails an unguessable hashed token and invalidates existing sessions', async () => {
+    const originalFetch = global.fetch;
+    const originalEnv = {
+        RESEND_API_KEY: process.env.RESEND_API_KEY,
+        EMAIL_FROM: process.env.EMAIL_FROM,
+        APP_BASE_URL: process.env.APP_BASE_URL,
+        NODE_ENV: process.env.NODE_ENV
+    };
+    process.env.RESEND_API_KEY = 'test-resend-key';
+    process.env.EMAIL_FROM = 'Agenda+ <noreply@example.com>';
+    process.env.APP_BASE_URL = 'https://agenda.example.com';
+    process.env.NODE_ENV = 'production';
+
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) {
+            routes.set(`GET ${pathname}`, handler);
+        },
+        post(pathname, handler) {
+            routes.set(`POST ${pathname}`, handler);
+        }
+    };
+    const accountId = 'account-id';
+    const poolQueries = [];
+    const clientQueries = [];
+    let resetTokenUsed = false;
+    const pool = {
+        async query(sql, values = []) {
+            poolQueries.push({ sql, values });
+            if (sql.includes('SELECT id, email FROM saas_accounts')) {
+                return values[0] === 'pessoa@example.com'
+                    ? { rows: [{ id: accountId, email: 'pessoa@example.com' }] }
+                    : { rows: [] };
+            }
+            if (sql.includes('SELECT EXISTS')) return { rows: [{ requested_recently: false }] };
+            return { rows: [] };
+        },
+        async connect() {
+            return {
+                async query(sql, values = []) {
+                    clientQueries.push({ sql, values });
+                    if (sql.includes('SELECT account_id')) {
+                        return resetTokenUsed ? { rows: [] } : { rows: [{ account_id: accountId }] };
+                    }
+                    if (sql.includes('UPDATE saas_password_resets')) resetTokenUsed = true;
+                    return { rows: [] };
+                },
+                release() {}
+            };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    let emailPayload;
+    global.fetch = async (url, options) => {
+        assert.equal(url, 'https://api.resend.com/emails');
+        assert.equal(options.headers.Authorization, 'Bearer test-resend-key');
+        emailPayload = JSON.parse(options.body);
+        return { ok: true, status: 200 };
+    };
+
+    const makeResponse = () => ({
+        statusCode: 200,
+        status(status) {
+            this.statusCode = status;
+            return this;
+        },
+        json(body) {
+            this.body = body;
+            return this;
+        }
+    });
+
+    try {
+        const requestReset = routes.get('POST /api/saas/request-password-reset');
+        const knownEmailResponse = makeResponse();
+        await requestReset({ body: { email: 'Pessoa@example.com' } }, knownEmailResponse);
+        const unknownEmailResponse = makeResponse();
+        await requestReset({ body: { email: 'desconhecido@example.com' } }, unknownEmailResponse);
+
+        assert.equal(knownEmailResponse.statusCode, 200);
+        assert.deepEqual(knownEmailResponse.body, unknownEmailResponse.body);
+        assert.equal(emailPayload.to[0], 'pessoa@example.com');
+        const resetLink = emailPayload.html.match(/href="([^"]+)"/)[1];
+        const resetToken = new URL(resetLink).hash.slice(1).match(/token=([a-f\d]{64})/i)[1];
+        assert.equal(resetToken.length, 64);
+        const insertedReset = poolQueries.find(({ sql }) => sql.includes('INSERT INTO saas_password_resets'));
+        const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+        assert.equal(insertedReset.values[0], resetTokenHash);
+        assert.notEqual(insertedReset.values[0], resetToken);
+
+        const resetResponse = makeResponse();
+        await routes.get('POST /api/saas/reset-password')({
+            body: { token: resetToken, senha: 'nova-senha-segura-123' }
+        }, resetResponse);
+        const passwordUpdate = clientQueries.find(({ sql }) => sql.includes('UPDATE saas_accounts'));
+        assert.equal(resetResponse.statusCode, 200);
+        assert.equal(verifyPassword('nova-senha-segura-123', passwordUpdate.values[0]), true);
+        assert.ok(clientQueries.some(({ sql, values }) => sql.includes('UPDATE saas_password_resets') && values[0] === resetTokenHash));
+        assert.ok(clientQueries.some(({ sql, values }) => sql.includes('DELETE FROM saas_sessions') && values[0] === accountId));
+        assert.ok(clientQueries.some(({ sql }) => sql === 'COMMIT'));
+
+        const reusedTokenResponse = makeResponse();
+        await routes.get('POST /api/saas/reset-password')({
+            body: { token: resetToken, senha: 'outra-senha-segura-123' }
+        }, reusedTokenResponse);
+        assert.equal(reusedTokenResponse.statusCode, 400);
+    } finally {
+        global.fetch = originalFetch;
+        for (const [key, value] of Object.entries(originalEnv)) {
+            if (value === undefined) delete process.env[key];
+            else process.env[key] = value;
+        }
+    }
+});
+
 test('vitrine writes are limited to the signed-in account establishment', async () => {
     const app = { get() {}, post() {} };
     const account = {

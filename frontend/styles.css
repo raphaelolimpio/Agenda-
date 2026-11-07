@@ -37,6 +37,41 @@ body.min-h-screen.flex.items-center.justify-center .bg-slate-900 {
     background: linear-gradient(120deg, #10244a, var(--brand-primary)) !important;
 }
 
+.recovery-page {
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    padding: 1.25rem;
+    background:
+        radial-gradient(ellipse at 12% 18%, color-mix(in srgb, var(--brand-primary) 16%, transparent), transparent 35%),
+        radial-gradient(ellipse at 88% 84%, color-mix(in srgb, var(--brand-accent) 13%, transparent), transparent 32%),
+        var(--brand-background) !important;
+}
+
+.recovery-card {
+    width: min(100%, 29rem);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    background: var(--surface);
+    box-shadow: 0 30px 90px rgb(16 36 74 / 16%);
+}
+
+.recovery-card__header {
+    padding: 1.75rem;
+    background: linear-gradient(120deg, #10244a, var(--brand-primary));
+    color: white;
+    text-align: center;
+}
+
+.recovery-card__body {
+    padding: clamp(1.25rem, 5vw, 2rem);
+}
+
+.recovery-card [hidden] {
+    display: none !important;
+}
+
 header {
     box-shadow: 0 3px 14px rgb(15 23 42 / 4%);
 }

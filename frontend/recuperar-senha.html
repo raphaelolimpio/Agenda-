@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Agenda+ | Recuperar senha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+</head>
+<body class="recovery-page">
+    <main class="recovery-card">
+        <header class="recovery-card__header">
+            <a href="index.html" class="inline-block text-2xl font-bold tracking-tight text-white">
+                Agenda<span class="text-orange-400">+</span>
+            </a>
+            <p class="mt-1 text-xs font-semibold uppercase text-slate-300">Acesso seguro à sua conta</p>
+        </header>
+
+        <div class="recovery-card__body">
+            <section id="requestPanel">
+                <h1 class="text-xl font-bold text-slate-900">Recuperar senha</h1>
+                <p class="mt-2 text-sm leading-6 text-slate-600">
+                    Informe o e-mail da sua conta. Se ela existir, enviaremos um link para criar uma nova senha.
+                </p>
+                <form id="requestForm" class="mt-6 space-y-4">
+                    <div>
+                        <label for="resetEmail" class="mb-1 block text-xs font-semibold uppercase text-slate-500">E-mail</label>
+                        <input id="resetEmail" type="email" autocomplete="email" maxlength="254" required
+                            placeholder="seu@email.com" class="w-full border border-slate-300 rounded-lg px-3 py-3 text-sm">
+                    </div>
+                    <button id="requestButton" type="submit" class="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700">
+                        Enviar link de recuperação
+                    </button>
+                    <p id="requestStatus" class="status-message" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+
+            <section id="resetPanel" hidden>
+                <h1 class="text-xl font-bold text-slate-900">Criar nova senha</h1>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Escolha uma senha com pelo menos 10 caracteres.</p>
+                <form id="resetForm" class="mt-6 space-y-4">
+                    <div>
+                        <label for="newPassword" class="mb-1 block text-xs font-semibold uppercase text-slate-500">Nova senha</label>
+                        <input id="newPassword" type="password" autocomplete="new-password" minlength="10" maxlength="200" required
+                            class="w-full border border-slate-300 rounded-lg px-3 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label for="confirmPassword" class="mb-1 block text-xs font-semibold uppercase text-slate-500">Confirmar senha</label>
+                        <input id="confirmPassword" type="password" autocomplete="new-password" minlength="10" maxlength="200" required
+                            class="w-full border border-slate-300 rounded-lg px-3 py-3 text-sm">
+                    </div>
+                    <button id="resetButton" type="submit" class="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700">
+                        Salvar nova senha
+                    </button>
+                </form>
+                <p id="resetStatus" class="status-message mt-3" role="status" aria-live="polite"></p>
+            </section>
+
+            <a href="index.html" class="mt-5 inline-block text-sm font-semibold text-blue-600 hover:underline">Voltar para entrar</a>
+        </div>
+    </main>
+
+    <script>
+        const resetToken = new URLSearchParams(window.location.hash.slice(1)).get('token') || '';
+        const requestPanel = document.getElementById('requestPanel');
+        const resetPanel = document.getElementById('resetPanel');
+
+        if (/^[\da-f]{64}$/i.test(resetToken)) {
+            requestPanel.hidden = true;
+            resetPanel.hidden = false;
+        } else if (window.location.hash) {
+            document.getElementById('requestStatus').textContent = 'O link de recuperação é inválido. Solicite um novo link.';
+            document.getElementById('requestStatus').dataset.state = 'error';
+        }
+        if (window.location.hash) {
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+        }
+
+        function setRecoveryStatus(element, message, isError = false) {
+            element.textContent = message;
+            element.dataset.state = isError ? 'error' : 'success';
+        }
+
+        document.getElementById('requestForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const button = document.getElementById('requestButton');
+            const status = document.getElementById('requestStatus');
+            button.disabled = true;
+            status.dataset.state = '';
+            status.textContent = 'Enviando solicitação...';
+            try {
+                const result = await AppApi.request('/api/saas/request-password-reset', {
+                    method: 'POST',
+                    body: JSON.stringify({ email: document.getElementById('resetEmail').value.trim() })
+                });
+                setRecoveryStatus(status, result.message);
+            } catch (error) {
+                setRecoveryStatus(status, error.message, true);
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        document.getElementById('resetForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const button = document.getElementById('resetButton');
+            const status = document.getElementById('resetStatus');
+            const senha = document.getElementById('newPassword').value;
+            const confirmacao = document.getElementById('confirmPassword').value;
+            if (senha !== confirmacao) {
+                setRecoveryStatus(status, 'As senhas não conferem.', true);
+                return;
+            }
+
+            button.disabled = true;
+            status.dataset.state = '';
+            status.textContent = 'Salvando nova senha...';
+            try {
+                const result = await AppApi.request('/api/saas/reset-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ token: resetToken, senha })
+                });
+                document.getElementById('resetForm').hidden = true;
+                setRecoveryStatus(status, result.message);
+            } catch (error) {
+                setRecoveryStatus(status, error.message, true);
+            } finally {
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
