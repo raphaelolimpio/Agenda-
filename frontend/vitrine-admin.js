@@ -1,6 +1,7 @@
 (function () {
     let spaceId;
     const status = document.getElementById('vitrineStatus');
+    const failedImagePreviews = new Set();
     const colorFields = [
         { picker: 'vitrineCorPrimariaPicker', input: 'vitrineCorPrimaria', property: 'cor_primaria' },
         { picker: 'vitrineCorDestaquePicker', input: 'vitrineCorDestaque', property: 'cor_destaque' },
@@ -10,6 +11,41 @@
     function setStatus(message, state) {
         status.textContent = message;
         status.dataset.state = state || '';
+    }
+
+    function updateImagePreview(elementId, url) {
+        const image = document.getElementById(elementId);
+        const warning = document.getElementById('previewImagemAviso');
+        const imageUrl = AppApi.getImageUrl(url);
+        const updateWarning = () => {
+            warning.textContent = failedImagePreviews.size
+                ? 'Não foi possível carregar uma imagem. Confira se o arquivo no Google Drive está compartilhado com “Qualquer pessoa com o link”.'
+                : '';
+            warning.classList.toggle('hidden', failedImagePreviews.size === 0);
+        };
+        image.dataset.previewUrl = imageUrl;
+        if (!imageUrl) {
+            failedImagePreviews.delete(elementId);
+            image.removeAttribute('src');
+            image.classList.add('hidden');
+            updateWarning();
+            return;
+        }
+        image.onerror = () => {
+            if (image.dataset.previewUrl !== imageUrl) return;
+            failedImagePreviews.add(elementId);
+            image.classList.add('hidden');
+            updateWarning();
+        };
+        image.onload = () => {
+            if (image.dataset.previewUrl !== imageUrl) return;
+            failedImagePreviews.delete(elementId);
+            updateWarning();
+        };
+        failedImagePreviews.delete(elementId);
+        image.classList.remove('hidden');
+        image.src = imageUrl;
+        updateWarning();
     }
 
     function selectSegment(value) {
@@ -52,6 +88,8 @@
         document.getElementById('previewNomeLoja').textContent = name;
         document.getElementById('previewSegmento').textContent = segment.options[segment.selectedIndex]?.text || 'Outro segmento';
         document.getElementById('previewDescricao').textContent = settings.descricao || 'Sua descrição aparece aqui para apresentar seu negócio aos clientes.';
+        updateImagePreview('previewBanner', settings.banner_url);
+        updateImagePreview('previewLogo', settings.logo_url);
     }
 
     colorFields.forEach(({ picker, input }) => {
