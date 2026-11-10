@@ -66,15 +66,6 @@
         let clienteAtual = null;
         const favoritosCliente = new Set();
 
-        function urlImagemSegura(url) {
-            try {
-                const parsed = new URL(url);
-                return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
-            } catch {
-                return '';
-            }
-        }
-
         function normalizarSegmento(valor = '') {
             const texto = valor.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             if (texto.includes('barbear')) return 'barbearia';
@@ -120,8 +111,8 @@
             resumo.textContent = `${filtradas.length} ${filtradas.length === 1 ? 'estabelecimento' : 'estabelecimentos'}`;
             filtradas.forEach(loja => {
                 const segment = normalizarSegmento(loja.segmento || loja.nicho);
-                const banner = urlImagemSegura(loja.banner_url);
-                const logo = urlImagemSegura(loja.logo_url);
+                const banner = AppApi.getImageUrl(loja.banner_url);
+                const logo = AppApi.getImageUrl(loja.logo_url);
                 const logoMarkup = logo
                     ? `<img src="${AppApi.escapeHtml(logo)}" alt="" class="store-card__logo absolute -top-8">`
                     : '<span class="store-card__logo absolute -top-8 grid place-items-center text-xl font-bold text-blue-600">A+</span>';
