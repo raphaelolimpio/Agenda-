@@ -27,6 +27,10 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
 app.use((req, res, next) => {
     const origin = req.get('Origin');
     const isReadOnly = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);

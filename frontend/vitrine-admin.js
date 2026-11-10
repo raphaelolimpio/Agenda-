@@ -153,16 +153,25 @@
 
         button.disabled = true;
         setStatus('Salvando identidade visual...', '');
+        const saveController = new AbortController();
+        const saveTimeout = setTimeout(() => saveController.abort(), 20000);
         try {
             await AppApi.request(`/espacos/${encodeURIComponent(spaceId)}/vitrine`, {
                 method: 'PUT',
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                signal: saveController.signal
             });
             updatePreview();
             setStatus('Vitrine salva. As cores e informações já estão disponíveis para os clientes.', 'success');
         } catch (error) {
-            setStatus(error.message, 'error');
+            const message = error.name === 'AbortError'
+                ? 'O salvamento demorou mais de 20 segundos. Verifique a conexão e tente novamente.'
+                : error.status === 401
+                    ? 'Sua sessão expirou ou não está ativa neste endereço. Entre novamente como dono e tente salvar.'
+                    : error.message;
+            setStatus(message, 'error');
         } finally {
+            clearTimeout(saveTimeout);
             button.disabled = false;
         }
     });
@@ -183,7 +192,7 @@
             if (storeName) storeName.textContent = account.store_name;
             spaceId = String(account.space_id);
             AppApi.setSpaceId(spaceId);
-            document.getElementById('linkVisualizarVitrine').href = `vitrine.html?loja=${encodeURIComponent(spaceId)}`;
+            document.getElementById('linkVisualizarVitrine').href = `vitrine.html?loja=${encodeURIComponent(spaceId)}&origem=painel`;
             await loadVitrine();
         } catch (error) {
             setStatus(error.message, 'error');

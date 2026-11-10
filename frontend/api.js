@@ -5,6 +5,7 @@
         const response = await fetch(`${apiBase}${path}`, {
             ...options,
             credentials: 'include',
+            cache: 'no-store',
             headers: {
                 ...(options.body ? { 'Content-Type': 'application/json' } : {}),
                 ...options.headers

@@ -13,9 +13,9 @@
 
     <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30">
         <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-            <a href="index.html" class="text-sm font-bold text-slate-600 hover:text-blue-600">← Explorar estabelecimentos</a>
+            <a id="linkVoltarVitrine" href="index.html" class="text-sm font-bold text-slate-600 hover:text-blue-600">← Explorar estabelecimentos</a>
             <div class="flex items-center gap-4">
-                <a href="entrar.html?tipo=cliente" class="text-sm font-bold text-slate-600 hover:text-blue-600">Entrar</a>
+                <a id="linkEntrarVitrine" href="entrar.html?tipo=cliente" class="text-sm font-bold text-slate-600 hover:text-blue-600">Entrar como cliente</a>
                 <a id="linkAgendamentoTopo" href="agendar.html" class="text-sm font-bold text-blue-600">Agendar</a>
             </div>
         </div>
@@ -55,6 +55,13 @@
     <script>
         (function () {
             const spaceId = AppApi.getSpaceId();
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('origem') === 'painel') {
+                const backLink = document.getElementById('linkVoltarVitrine');
+                backLink.href = 'admin.html?aba=vitrine';
+                backLink.textContent = '← Voltar ao painel';
+                document.getElementById('linkEntrarVitrine').classList.add('hidden');
+            }
             const money = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
 
             async function carregarVitrine() {
