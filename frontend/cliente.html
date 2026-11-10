@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#10244a">
+    <title>Minha área | Agenda+</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="portal.css">
+    <script src="config.js"></script>
+    <script src="api.js" defer></script>
+</head>
+<body class="portal-page">
+    <header class="portal-header">
+        <a href="index.html" class="portal-brand">Agenda<span>+</span></a>
+        <div class="portal-header__user">
+            <span>Olá, <strong id="customerGreeting">cliente</strong></span>
+            <button type="button" class="portal-logout" onclick="encerrarSessao()">Sair</button>
+        </div>
+        <nav class="portal-nav" aria-label="Navegação do cliente">
+            <button type="button" class="portal-nav__item is-active" data-panel="stores" onclick="mostrarPainel('stores')"><span aria-hidden="true">🏬</span> Vitrine</button>
+            <button type="button" class="portal-nav__item" data-panel="favorites" onclick="mostrarPainel('favorites')"><span aria-hidden="true">♡</span> Favoritas</button>
+            <button type="button" class="portal-nav__item" data-panel="appointments" onclick="mostrarPainel('appointments')"><span aria-hidden="true">📅</span> Atendimentos</button>
+            <button type="button" class="portal-nav__item" data-panel="profile" onclick="mostrarPainel('profile')"><span aria-hidden="true">👤</span> Meus dados</button>
+        </nav>
+    </header>
+
+    <main class="portal-main">
+        <section class="portal-welcome">
+            <p class="section-eyebrow">Sua experiência Agenda+</p>
+            <h1>Encontre seu próximo atendimento.</h1>
+            <p>Explore lojas, salve suas favoritas e acompanhe seus horários em um só lugar.</p>
+        </section>
+
+        <section id="panel-stores" class="portal-panel">
+            <div class="portal-panel__heading">
+                <div><h2>Vitrine de lojas</h2><p>Conheça estabelecimentos e encontre um serviço para você.</p></div>
+                <input id="storeSearch" class="portal-input portal-search" type="search" placeholder="Buscar loja ou serviço" aria-label="Buscar loja ou serviço">
+            </div>
+            <div id="customerStores" class="portal-card-grid"><p class="loading-state">Carregando estabelecimentos...</p></div>
+        </section>
+
+        <section id="panel-favorites" class="portal-panel" hidden>
+            <div class="portal-panel__heading"><div><h2>Lojas favoritas</h2><p>Seus estabelecimentos salvos para encontrar mais rápido.</p></div></div>
+            <div id="favoriteStores" class="portal-card-grid"></div>
+        </section>
+
+        <section id="panel-appointments" class="portal-panel" hidden>
+            <div class="portal-panel__heading"><div><h2>Meus atendimentos</h2><p>Confira próximos horários e o histórico de visitas.</p></div></div>
+            <div class="portal-columns">
+                <article class="portal-card">
+                    <h3>Em aberto</h3>
+                    <div id="upcomingAppointments" class="portal-list"></div>
+                </article>
+                <article class="portal-card">
+                    <h3>Histórico</h3>
+                    <div id="appointmentHistory" class="portal-list"></div>
+                </article>
+            </div>
+            <article class="portal-card portal-recent">
+                <h3>Lojas visitadas recentemente</h3>
+                <div id="recentStores" class="portal-chip-list"></div>
+            </article>
+        </section>
+
+        <section id="panel-profile" class="portal-panel" hidden>
+            <form id="customerProfile" class="portal-card portal-profile-form">
+                <h2>Meus dados</h2>
+                <p>Atualize as informações usadas nos seus atendimentos.</p>
+                <label class="portal-label" for="profileName">Nome completo</label>
+                <input id="profileName" class="portal-input" autocomplete="name" required minlength="2" maxlength="120">
+                <label class="portal-label" for="profileEmail">E-mail</label>
+                <input id="profileEmail" type="email" class="portal-input" autocomplete="email" required>
+                <label class="portal-label" for="profilePhone">Telefone com código do país</label>
+                <input id="profilePhone" type="tel" class="portal-input" autocomplete="tel" required>
+                <button class="portal-primary" type="submit">Salvar alterações</button>
+                <p id="profileStatus" class="status-message" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        let customerData = null;
+        let allStores = [];
+        const favoriteIds = new Set();
+        const formatDate = (value) => {
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? 'Data indisponível' : new Intl.DateTimeFormat('pt-BR', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            }).format(date);
+        };
+
+        function mostrarPainel(name) {
+            document.querySelectorAll('.portal-panel').forEach((panel) => {
+                panel.hidden = panel.id !== `panel-${name}`;
+            });
+            document.querySelectorAll('.portal-nav__item').forEach((button) => {
+                button.classList.toggle('is-active', button.dataset.panel === name);
+            });
+        }
+
+        function storeCard(store) {
+            const id = String(store.id ?? store.space_id);
+            const name = AppApi.escapeHtml(store.nome || store.store_name || 'Estabelecimento');
+            const isFavorite = favoriteIds.has(id);
+            return `<article class="portal-store-card">
+                <button type="button" class="portal-favorite" aria-label="${isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}"
+                    aria-pressed="${isFavorite}" onclick="alternarFavorito('${AppApi.escapeHtml(id)}')">${isFavorite ? '♥' : '♡'}</button>
+                <p class="portal-store-card__category">${AppApi.escapeHtml(store.segmento || store.nicho || 'Serviços')}</p>
+                <h3>${name}</h3>
+                <p>${AppApi.escapeHtml(store.descricao || 'Conheça os serviços e encontre um horário para você.')}</p>
+                <a class="portal-primary portal-store-link" href="vitrine.html?loja=${encodeURIComponent(id)}">Conhecer e agendar</a>
+            </article>`;
+        }
+
+        function renderStores() {
+            const search = document.getElementById('storeSearch').value.trim().toLowerCase();
+            const visible = allStores.filter((store) =>
+                `${store.nome} ${store.nicho || ''} ${store.segmento || ''} ${store.servicos || ''}`.toLowerCase().includes(search)
+            );
+            document.getElementById('customerStores').innerHTML = visible.length
+                ? visible.map(storeCard).join('')
+                : '<p class="empty-state">Nenhum estabelecimento encontrado.</p>';
+        }
+
+        function renderFavorites() {
+            const favoriteStores = customerData.favorites;
+            document.getElementById('favoriteStores').innerHTML = favoriteStores.length
+                ? favoriteStores.map(storeCard).join('')
+                : '<p class="empty-state">Você ainda não salvou lojas favoritas. Explore a vitrine para adicionar uma.</p>';
+        }
+
+        function renderAppointments() {
+            const renderList = (items) => items.length
+                ? items.map((appointment) => `<article class="portal-appointment">
+                    <div><strong>${AppApi.escapeHtml(appointment.store_name)}</strong><span>${AppApi.escapeHtml(appointment.service_name || 'Atendimento')}</span></div>
+                    <time>${formatDate(appointment.data_hora_inicio)}</time>
+                    <span class="portal-badge">${AppApi.escapeHtml(appointment.status || 'Em aberto')}</span>
+                </article>`).join('')
+                : '<p class="portal-empty">Nenhum atendimento por enquanto.</p>';
+            document.getElementById('upcomingAppointments').innerHTML = renderList(customerData.upcoming);
+            document.getElementById('appointmentHistory').innerHTML = renderList(customerData.history);
+            document.getElementById('recentStores').innerHTML = customerData.recent_visits.length
+                ? customerData.recent_visits.map((store) => `<a class="portal-chip" href="vitrine.html?loja=${encodeURIComponent(store.space_id)}">
+                    ${AppApi.escapeHtml(store.store_name)}<span>${formatDate(store.last_visited_at)}</span>
+                </a>`).join('')
+                : '<p class="portal-empty">As lojas que você visitar aparecerão aqui.</p>';
+        }
+
+        async function alternarFavorito(spaceId) {
+            try {
+                if (favoriteIds.has(String(spaceId))) {
+                    await AppApi.request(`/api/customer/favorites/${encodeURIComponent(spaceId)}`, { method: 'DELETE' });
+                    favoriteIds.delete(String(spaceId));
+                    customerData.favorites = customerData.favorites.filter((store) => String(store.space_id) !== String(spaceId));
+                } else {
+                    await AppApi.request('/api/customer/favorites', {
+                        method: 'POST',
+                        body: JSON.stringify({ space_id: spaceId })
+                    });
+                    favoriteIds.add(String(spaceId));
+                    const store = allStores.find((item) => String(item.id) === String(spaceId));
+                    if (store) customerData.favorites.unshift(store);
+                }
+                renderStores();
+                renderFavorites();
+            } catch (error) {
+                window.alert(error.message);
+            }
+        }
+
+        document.getElementById('customerProfile').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const status = document.getElementById('profileStatus');
+            status.textContent = 'Salvando...';
+            try {
+                const result = await AppApi.request('/api/customer/profile', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        nome: document.getElementById('profileName').value.trim(),
+                        email: document.getElementById('profileEmail').value.trim(),
+                        telefone: document.getElementById('profilePhone').value.trim()
+                    })
+                });
+                customerData.customer = result.customer;
+                document.getElementById('customerGreeting').textContent = result.customer.full_name.split(' ')[0];
+                status.textContent = 'Dados atualizados.';
+                status.dataset.state = '';
+            } catch (error) {
+                status.textContent = error.message;
+                status.dataset.state = 'error';
+            }
+        });
+
+        async function encerrarSessao() {
+            try {
+                await AppApi.request('/api/saas/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('Não foi possível encerrar a sessão no servidor:', error);
+            } finally {
+                window.location.assign('index.html');
+            }
+        }
+
+        async function iniciarAreaCliente() {
+            try {
+                customerData = await AppApi.request('/api/customer/me');
+                customerData.favorites.forEach((store) => favoriteIds.add(String(store.space_id)));
+                document.getElementById('customerGreeting').textContent = customerData.customer.full_name.split(' ')[0];
+                document.getElementById('profileName').value = customerData.customer.full_name;
+                document.getElementById('profileEmail').value = customerData.customer.email;
+                document.getElementById('profilePhone').value = `+${customerData.customer.phone}`;
+                renderFavorites();
+                renderAppointments();
+                allStores = await AppApi.request('/espacos');
+                renderStores();
+            } catch (error) {
+                if (error.status === 401) {
+                    window.location.replace('entrar.html?tipo=cliente&next=cliente.html');
+                    return;
+                }
+                document.getElementById('customerStores').innerHTML = `<p class="empty-state">${AppApi.escapeHtml(error.message)}</p>`;
+            }
+        }
+
+        document.getElementById('storeSearch').addEventListener('input', renderStores);
+        iniciarAreaCliente();
+    </script>
+</body>
+</html>

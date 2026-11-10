@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#10244a">
+    <title>Entrar | Agenda+</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="portal.css">
+    <script src="config.js"></script>
+    <script src="api.js" defer></script>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <main class="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <header class="bg-slate-900 p-6 text-center text-white">
+            <a href="index.html" class="text-2xl font-bold tracking-tight">Agenda<span class="text-orange-400">+</span></a>
+            <p class="mt-2 text-sm text-slate-300">Acesse sua conta ou crie seu cadastro</p>
+        </header>
+
+        <div class="space-y-5 p-5 sm:p-7">
+            <fieldset>
+                <legend class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-slate-500">Entrar como</legend>
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" class="auth-role is-selected" data-role="cliente" aria-pressed="true" onclick="selecionarPerfil('cliente')">
+                        <span aria-hidden="true">👤</span><span>Cliente</span>
+                    </button>
+                    <button type="button" class="auth-role" data-role="funcionario" aria-pressed="false" onclick="selecionarPerfil('funcionario')">
+                        <span aria-hidden="true">🧑‍💼</span><span>Funcionário</span>
+                    </button>
+                    <button type="button" class="auth-role" data-role="dono" aria-pressed="false" onclick="selecionarPerfil('dono')">
+                        <span aria-hidden="true">🏪</span><span>Dono</span>
+                    </button>
+                </div>
+            </fieldset>
+
+            <div class="flex rounded-xl border border-slate-200 bg-slate-50 p-1" role="tablist" aria-label="Tipo de acesso">
+                <button id="loginTab" type="button" class="auth-tab is-selected" role="tab" aria-selected="true" onclick="selecionarModo('login')">Entrar</button>
+                <button id="registerTab" type="button" class="auth-tab" role="tab" aria-selected="false" onclick="selecionarModo('cadastro')">Criar conta</button>
+            </div>
+
+            <form id="authForm" class="space-y-4" novalidate>
+                <div id="nameField" class="hidden">
+                    <label class="auth-label" for="fullName">Nome completo</label>
+                    <input id="fullName" class="auth-input" autocomplete="name" maxlength="120">
+                </div>
+                <div>
+                    <label class="auth-label" for="email">E-mail</label>
+                    <input id="email" type="email" class="auth-input" autocomplete="email" placeholder="voce@email.com" required>
+                </div>
+                <div id="phoneField" class="hidden">
+                    <label class="auth-label" for="phone">Telefone com código do país</label>
+                    <input id="phone" type="tel" class="auth-input" autocomplete="tel" placeholder="+55 11 99999-9999">
+                </div>
+                <div id="storeField" class="hidden">
+                    <label class="auth-label" for="storeName">Nome do estabelecimento</label>
+                    <input id="storeName" class="auth-input" maxlength="150" autocomplete="organization">
+                </div>
+                <div id="companyCodeField" class="hidden">
+                    <label class="auth-label" for="companyCode">Código da empresa <span class="font-normal normal-case">(opcional)</span></label>
+                    <input id="companyCode" class="auth-input uppercase" maxlength="12" autocomplete="off" placeholder="Código fornecido pelo dono">
+                    <p class="mt-1 text-xs text-slate-500">Você pode se vincular a outras lojas depois de entrar.</p>
+                </div>
+                <div>
+                    <label class="auth-label" for="password">Senha</label>
+                    <input id="password" type="password" class="auth-input" autocomplete="current-password" minlength="10" maxlength="200" required>
+                </div>
+                <div id="confirmPasswordField" class="hidden">
+                    <label class="auth-label" for="confirmPassword">Confirmar senha</label>
+                    <input id="confirmPassword" type="password" class="auth-input" autocomplete="new-password" minlength="10" maxlength="200">
+                </div>
+                <div id="ownerConsentField" class="hidden">
+                    <label class="flex items-start gap-2 text-xs leading-5 text-slate-600">
+                        <input id="whatsappConsent" type="checkbox" class="mt-1">
+                        <span>Autorizo receber pelo WhatsApp avisos da conta e links de recuperação que eu solicitar.</span>
+                    </label>
+                </div>
+                <label id="rememberField" class="flex items-center gap-2 text-sm text-slate-600">
+                    <input id="remember" type="checkbox" checked>
+                    Manter conectado neste dispositivo
+                </label>
+                <a id="forgotPassword" href="recuperar-senha.html" class="hidden text-sm font-semibold text-blue-700 hover:underline">Esqueci minha senha</a>
+                <button id="submitButton" type="submit" class="w-full rounded-xl bg-blue-700 px-4 py-3 font-bold text-white transition hover:bg-blue-800">Entrar</button>
+                <p id="authStatus" class="status-message" role="status" aria-live="polite"></p>
+            </form>
+
+            <a href="index.html" class="block text-center text-sm font-semibold text-slate-500 hover:text-blue-700">Voltar para a vitrine</a>
+        </div>
+    </main>
+
+    <script>
+        const roleLabels = { cliente: 'cliente', funcionario: 'funcionário', dono: 'dono' };
+        let perfilAtual = new URLSearchParams(window.location.search).get('tipo');
+        let modoAtual = 'login';
+        if (!Object.hasOwn(roleLabels, perfilAtual)) perfilAtual = 'cliente';
+
+        function selecionarPerfil(role) {
+            perfilAtual = role;
+            document.querySelectorAll('.auth-role').forEach((button) => {
+                const selected = button.dataset.role === role;
+                button.classList.toggle('is-selected', selected);
+                button.setAttribute('aria-pressed', String(selected));
+            });
+            document.getElementById('storeField').classList.toggle('hidden', role !== 'dono' || modoAtual !== 'cadastro');
+            document.getElementById('phoneField').classList.toggle('hidden', modoAtual !== 'cadastro' || role === 'funcionario');
+            document.getElementById('ownerConsentField').classList.toggle('hidden', role !== 'dono' || modoAtual !== 'cadastro');
+            document.getElementById('companyCodeField').classList.toggle('hidden', role !== 'funcionario' || modoAtual !== 'cadastro');
+            document.getElementById('forgotPassword').classList.toggle('hidden', role !== 'dono' || modoAtual !== 'login');
+            document.getElementById('fullName').required = modoAtual === 'cadastro';
+            document.getElementById('phone').required = modoAtual === 'cadastro' && role !== 'funcionario';
+            document.getElementById('storeName').required = modoAtual === 'cadastro' && role === 'dono';
+            document.getElementById('password').autocomplete = modoAtual === 'cadastro' ? 'new-password' : 'current-password';
+            document.getElementById('authStatus').textContent = '';
+        }
+
+        function selecionarModo(mode) {
+            modoAtual = mode;
+            const isSignup = mode === 'cadastro';
+            document.getElementById('loginTab').classList.toggle('is-selected', !isSignup);
+            document.getElementById('registerTab').classList.toggle('is-selected', isSignup);
+            document.getElementById('loginTab').setAttribute('aria-selected', String(!isSignup));
+            document.getElementById('registerTab').setAttribute('aria-selected', String(isSignup));
+            document.getElementById('nameField').classList.toggle('hidden', !isSignup);
+            document.getElementById('confirmPasswordField').classList.toggle('hidden', !isSignup);
+            document.getElementById('rememberField').classList.toggle('hidden', isSignup);
+            document.getElementById('submitButton').textContent = isSignup ? 'Criar minha conta' : 'Entrar';
+            document.getElementById('confirmPassword').required = isSignup;
+            selecionarPerfil(perfilAtual);
+        }
+
+        function showAuthStatus(message, isError = false) {
+            const status = document.getElementById('authStatus');
+            status.textContent = message;
+            status.dataset.state = isError ? 'error' : '';
+        }
+
+        function nextPath(result) {
+            const requested = new URLSearchParams(window.location.search).get('next');
+            const allowed = /^(\/)?(admin|colaborador|cliente|agendar)\.html(?:\?.*)?$/;
+            return requested && allowed.test(requested) ? requested : result.next;
+        }
+
+        document.getElementById('authForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const button = document.getElementById('submitButton');
+            const nome = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const senha = document.getElementById('password').value;
+            if (modoAtual === 'cadastro' && senha !== document.getElementById('confirmPassword').value) {
+                showAuthStatus('As senhas não conferem.', true);
+                return;
+            }
+            if (modoAtual === 'cadastro' && senha.length < 10) {
+                showAuthStatus('A senha deve ter pelo menos 10 caracteres.', true);
+                return;
+            }
+            if (modoAtual === 'cadastro' && perfilAtual === 'dono' && !document.getElementById('whatsappConsent').checked) {
+                showAuthStatus('Autorize os avisos de conta pelo WhatsApp para continuar.', true);
+                return;
+            }
+
+            const endpoint = {
+                cliente: modoAtual === 'cadastro' ? '/api/customer/register' : '/api/customer/login',
+                funcionario: modoAtual === 'cadastro' ? '/api/employee/register' : '/api/employee/login',
+                dono: modoAtual === 'cadastro' ? '/api/saas/register' : '/api/saas/login'
+            }[perfilAtual];
+            const payload = modoAtual === 'login'
+                ? { email, senha, remember: document.getElementById('remember').checked }
+                : perfilAtual === 'dono'
+                    ? {
+                        nome,
+                        email,
+                        senha,
+                        telefone_whatsapp: document.getElementById('phone').value.trim(),
+                        consentimento_whatsapp: document.getElementById('whatsappConsent').checked,
+                        nome_loja: document.getElementById('storeName').value.trim(),
+                        segmento: 'salao'
+                    }
+                    : perfilAtual === 'funcionario'
+                        ? { nome, email, senha, codigo_empresa: document.getElementById('companyCode').value.trim() || undefined }
+                        : { nome, email, senha, telefone: document.getElementById('phone').value.trim() };
+            if (modoAtual === 'cadastro') payload.remember = true;
+
+            button.disabled = true;
+            showAuthStatus(modoAtual === 'cadastro' ? 'Criando sua conta...' : 'Validando seus dados...');
+            try {
+                const result = await AppApi.request(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                if (modoAtual === 'cadastro' && perfilAtual === 'dono'
+                    && result.whatsapp_notification !== 'sent') {
+                    showAuthStatus('Conta criada, mas a mensagem de confirmação no WhatsApp não foi enviada. A integração ainda precisa ser configurada.', true);
+                    await new Promise((resolve) => setTimeout(resolve, 1800));
+                }
+                window.location.assign(nextPath(result));
+            } catch (error) {
+                showAuthStatus(error.message, true);
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        selecionarPerfil(perfilAtual);
+    </script>
+</body>
+</html>

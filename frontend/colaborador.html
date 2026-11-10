@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="portal.css">
     <script src="config.js"></script>
     <script src="api.js"></script>
 </head>
@@ -38,20 +39,33 @@
 
             <nav class="flex gap-1 overflow-x-auto">
                 <button onclick="mudarAbaColab('agenda')" id="aba-btn-agenda"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white">Agenda</button>
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white"><span aria-hidden="true">📅</span> Agenda</button>
                 <button onclick="mudarAbaColab('historico')" id="aba-btn-historico"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">Histórico</button>
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800"><span aria-hidden="true">🕘</span> Histórico</button>
                 <button onclick="mudarAbaColab('ganhos')" id="aba-btn-ganhos"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">Ganhos &
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800"><span aria-hidden="true">💰</span> Ganhos &
                     Caixa</button>
                 <button onclick="mudarAbaColab('perfil')" id="aba-btn-perfil"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">Meu
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800"><span aria-hidden="true">👤</span> Meu
                     Perfil</button>
+                <button type="button" onclick="encerrarSessao()" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800"><span aria-hidden="true">↪</span> Sair</button>
             </nav>
         </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        <section class="portal-card portal-join-card">
+            <div>
+                <h2>Vincular uma empresa</h2>
+                <p>Peça ao dono da loja o código de acesso e adicione a empresa à sua conta.</p>
+            </div>
+            <form id="joinCompanyForm" class="portal-join-form">
+                <label class="sr-only" for="inputNovoIdLoja">Código da empresa</label>
+                <input type="text" id="inputNovoIdLoja" class="portal-input" maxlength="12" placeholder="Código da empresa" autocomplete="off">
+                <button class="portal-primary" type="submit">Vincular empresa</button>
+            </form>
+            <p id="joinCompanyStatus" class="status-message" role="status" aria-live="polite"></p>
+        </section>
 
         <!-- =============================================================== -->
         <!-- ABA 1: AGENDA COM CALENDÁRIO VISUAL & GERENCIAR BLOQUEIOS        -->
@@ -243,37 +257,9 @@
             class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-xl mx-auto space-y-5">
             <h3 class="font-bold text-lg text-slate-900">Meu Perfil & Vínculo de Lojas</h3>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome</label><input
-                        type="text" id="perfilNome"
-                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label><input
-                        type="email" id="perfilEmail"
-                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Senha</label><input
-                        type="password" id="perfilSenha"
-                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Minha Chave
-                        PIX</label><input type="text" id="perfilChavePix"
-                        class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
-            </div>
-
-            <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
-                <h4 class="font-bold text-xs text-blue-900 uppercase">Vincular Nova Loja por ID</h4>
-                <div class="flex flex-col sm:flex-row gap-2">
-                    <input type="text" id="inputNovoIdLoja" placeholder="Digite o ID da Empresa (ex: 3)"
-                        class="w-full min-w-0 flex-1 border rounded-lg px-3 py-2 text-sm bg-white font-mono">
-                    <button onclick="vincularNovaLojaPorId()"
-                        class="w-full sm:w-auto shrink-0 whitespace-nowrap bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Vincular
-                        Loja</button>
-                </div>
-            </div>
-
-            <button onclick="alert('Perfil salvo com sucesso!')"
-                class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold">Salvar
-                Alterações</button>
+            <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome</label><input type="text" id="perfilNome" class="w-full border rounded-lg px-3 py-2 text-sm" disabled></div>
+            <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label><input type="email" id="perfilEmail" class="w-full border rounded-lg px-3 py-2 text-sm" disabled></div>
+            <p class="text-xs text-slate-500">Para alterar o acesso, solicite ao administrador da sua conta.</p>
         </section>
 
     </main>
@@ -397,6 +383,7 @@
         let periodoMetricaAtual = 'mes';
         let clienteEmRemarcacao = null;
         let graficoGanhosLojasInstance = null;
+        let employeeData = null;
 
         // Lista de bloqueios ativos
         let listaBloqueiosColab = [];
@@ -428,8 +415,88 @@
             renderizarCalendarioColab();
         }
 
-        function vincularNovaLojaPorId() {
-            alert('A vinculação de lojas ainda não está disponível.');
+        async function vincularEmpresa(event) {
+            event.preventDefault();
+            const input = document.getElementById('inputNovoIdLoja');
+            const status = document.getElementById('joinCompanyStatus');
+            const code = input.value.trim().toUpperCase();
+            status.textContent = 'Validando código...';
+            status.dataset.state = '';
+            try {
+                await AppApi.request('/api/employee/join', {
+                    method: 'POST',
+                    body: JSON.stringify({ codigo_empresa: code })
+                });
+                input.value = '';
+                status.textContent = 'Empresa vinculada. Atualizando sua lista...';
+                await carregarPortalColaborador();
+            } catch (error) {
+                status.textContent = error.message;
+                status.dataset.state = 'error';
+            }
+        }
+
+        async function encerrarSessao() {
+            try {
+                await AppApi.request('/api/saas/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('Não foi possível encerrar a sessão no servidor:', error);
+            } finally {
+                window.location.assign('index.html');
+            }
+        }
+
+        async function carregarPortalColaborador() {
+            try {
+                employeeData = await AppApi.request('/api/employee/me');
+                document.getElementById('colabNomeHeader').textContent = employeeData.employee.full_name;
+                document.getElementById('perfilNome').value = employeeData.employee.full_name;
+                document.getElementById('perfilEmail').value = employeeData.employee.email;
+                const selector = document.getElementById('selectLojaAtiva');
+                selector.innerHTML = '';
+                Object.keys(lojasColaboradorMap).forEach((key) => delete lojasColaboradorMap[key]);
+                const activeSpaces = employeeData.spaces.filter((space) => space.can_access);
+                employeeData.spaces.forEach((space) => {
+                    const option = new Option(
+                        space.can_access ? space.store_name : `${space.store_name} — plano suspenso`,
+                        String(space.space_id)
+                    );
+                    option.disabled = !space.can_access;
+                    selector.add(option);
+                    if (space.can_access) {
+                        lojasColaboradorMap[space.space_id] = {
+                            nome: space.store_name,
+                            idLoja: space.space_id,
+                            taxa: 0,
+                            agenda: [],
+                            historico: []
+                        };
+                    }
+                });
+                if (activeSpaces.length) {
+                    selector.value = String(activeSpaces[0].space_id);
+                    mudarLojaAtiva(selector.value);
+                    document.getElementById('joinCompanyStatus').textContent = '';
+                } else {
+                    selector.add(new Option('Nenhuma empresa ativa', ''));
+                    selector.value = '';
+                    mudarLojaAtiva('');
+                    document.getElementById('joinCompanyStatus').textContent = employeeData.spaces.length
+                        ? 'O acesso às empresas vinculadas está suspenso por falta de pagamento.'
+                        : 'Você ainda não está vinculado a nenhuma empresa. Peça um código ao dono da loja.';
+                    document.getElementById('joinCompanyStatus').dataset.state = employeeData.spaces.length ? 'error' : '';
+                }
+                if (new URLSearchParams(window.location.search).get('vincular') === '1') {
+                    document.getElementById('inputNovoIdLoja').focus();
+                }
+            } catch (error) {
+                if (error.status === 401) {
+                    window.location.replace('entrar.html?tipo=funcionario&next=colaborador.html');
+                    return;
+                }
+                document.getElementById('joinCompanyStatus').textContent = error.message;
+                document.getElementById('joinCompanyStatus').dataset.state = 'error';
+            }
         }
 
         // =========================================================================
@@ -439,7 +506,9 @@
             visaoCalendarioColab = visao;
             document.getElementById('btn-visao-mes').className = visao === 'mes' ? 'px-3 py-1.5 bg-blue-600 text-white' : 'px-3 py-1.5 bg-white text-slate-700';
             document.getElementById('btn-visao-semana').className = visao === 'semana' ? 'px-3 py-1.5 bg-blue-600 text-white' : 'px-3 py-1.5 bg-white text-slate-700';
+            document.getElementById('joinCompanyForm').addEventListener('submit', vincularEmpresa);
             renderizarCalendarioColab();
+            carregarPortalColaborador();
         }
 
         function renderizarCalendarioColab() {

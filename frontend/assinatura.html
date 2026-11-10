@@ -6,17 +6,30 @@
     <meta name="theme-color" content="#10244a">
     <title>Plano e cobrança | Agenda+</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="portal.css">
     <script src="config.js"></script>
     <script src="api.js" defer></script>
     <script src="assinatura.js" defer></script>
 </head>
 <body class="subscription-page">
     <header class="subscription-header">
-        <a class="subscription-brand" href="index.html" aria-label="Agenda+ início">
+        <a class="subscription-brand" href="admin.html" aria-label="Voltar ao painel do proprietário">
             <span class="brand-mark">A+</span>
             <span>Agenda<span class="subscription-brand__accent">+</span></span>
         </a>
-        <button id="logoutButton" class="subscription-quiet-button" type="button">Sair da conta</button>
+        <nav class="subscription-menu" aria-label="Menu do proprietário">
+            <a href="admin.html?aba=agenda"><span aria-hidden="true">📅</span> Agenda</a>
+            <a href="admin.html?aba=historico"><span aria-hidden="true">🕘</span> Histórico</a>
+            <a href="admin.html?aba=receita"><span aria-hidden="true">💰</span> Financeiro</a>
+            <a href="admin.html?aba=servicos"><span aria-hidden="true">✂️</span> Atividades</a>
+            <a href="admin.html?aba=perfil"><span aria-hidden="true">👥</span> Perfil & Equipe</a>
+            <a href="admin.html?aba=vitrine"><span aria-hidden="true">🪟</span> Vitrine</a>
+            <a id="subscriptionMenuPlan" href="assinatura.html" aria-current="page"><span aria-hidden="true">💳</span> Plano e cobrança</a>
+        </nav>
+        <div class="subscription-header__actions">
+            <a id="headerDashboardLink" href="admin.html" class="subscription-secondary-button">Voltar ao painel</a>
+            <button id="logoutButton" class="subscription-quiet-button" type="button">Sair da conta</button>
+        </div>
     </header>
 
     <main class="subscription-main">

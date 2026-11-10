@@ -1,9 +1,10 @@
 const statusNames = {
-    active: 'Ativa',
+    active: 'Plano mensal',
     trialing: 'Em período de teste',
     not_started: 'Não iniciada',
     payment_pending: 'Aguardando pagamento',
     payment_failed: 'Pagamento recusado',
+    payment_overdue: 'Pagamento vencido — acesso suspenso',
     cancelled: 'Cancelada',
     paused: 'Pausada',
     expired: 'Período encerrado'
@@ -45,12 +46,16 @@ async function loadSubscription() {
 
     const dashboardLink = document.getElementById('dashboardLink');
     dashboardLink.hidden = !subscription.can_access;
+    document.getElementById('headerDashboardLink').hidden = !subscription.can_access;
+    document.getElementById('subscriptionMenuPlan').hidden = subscription.status === 'active';
 
     const checkoutButton = document.getElementById('checkoutButton');
     checkoutButton.disabled = false;
     if (subscription.status === 'active') {
-        checkoutButton.textContent = 'Assinatura ativa';
+        checkoutButton.textContent = 'Plano mensal ativo';
         checkoutButton.disabled = true;
+    } else if (subscription.status === 'payment_overdue') {
+        checkoutButton.textContent = 'Regularizar pagamento';
     } else {
         checkoutButton.textContent = subscription.checkout_url
             ? 'Continuar no Mercado Pago'
@@ -102,7 +107,7 @@ document.getElementById('logoutButton').addEventListener('click', async () => {
 
 loadSubscription().catch((error) => {
     if (error.message.includes('Entre na sua conta')) {
-        window.location.replace('index.html');
+        window.location.replace('entrar.html?tipo=dono');
         return;
     }
     document.getElementById('accountStore').textContent = 'Não foi possível carregar sua conta';

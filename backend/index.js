@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
+const { createSaasBilling, effectiveSubscription } = require('./saas-billing');
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -38,7 +39,7 @@ app.use((req, res, next) => {
 // Conexão com o PostgreSQL
 const pool = new Pool(require('./database-config').getDatabaseConfig(process.env.DATABASE_URL));
 const frontendDirectory = path.join(__dirname, '..', 'frontend');
-const saasBilling = require('./saas-billing').createSaasBilling(app, pool, frontendDirectory);
+const saasBilling = createSaasBilling(app, pool, frontendDirectory);
 
 let vitrineSchemaReady;
 
@@ -299,6 +300,140 @@ app.get('/espacos/:id/horarios-disponiveis', async (req, res) => {
     }
 });
 
+app.post('/espacos/:id/agendamentos', async (req, res) => {
+    const { id } = req.params;
+    const {
+        servico_id: serviceId,
+        data,
+        horario,
+        timezone_offset_minutes: timezoneOffset
+    } = req.body || {};
+    if (!isValidSpaceId(id)) return res.status(400).json({ error: 'ID de estabelecimento inválido.' });
+    if (!/^\d+$/.test(String(serviceId || '')) || !/^\d{4}-\d{2}-\d{2}$/.test(data || '')
+        || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(horario || '')
+        || !Number.isInteger(timezoneOffset) || Math.abs(timezoneOffset) > 840) {
+        return res.status(400).json({ error: 'Selecione um serviço, data e horário válidos.' });
+    }
+
+    let customer;
+    try {
+        customer = await saasBilling.getCustomerForRequest(req);
+    } catch (error) {
+        console.error('Appointment customer validation failed:', error);
+        return res.status(500).json({ error: 'Não foi possível validar sua conta de cliente.' });
+    }
+    if (!customer) return res.status(401).json({ error: 'Entre na sua conta de cliente para confirmar o atendimento.' });
+
+    const [year, month, day] = data.split('-').map(Number);
+    const [hour, minute] = horario.split(':').map(Number);
+    const requestedDateTime = new Date(Date.UTC(year, month - 1, day, hour, minute));
+    if (requestedDateTime.getUTCFullYear() !== year
+        || requestedDateTime.getUTCMonth() !== month - 1
+        || requestedDateTime.getUTCDate() !== day) {
+        return res.status(400).json({ error: 'Escolha uma data válida.' });
+    }
+    const startsAt = new Date(requestedDateTime.getTime() + timezoneOffset * 60_000);
+    if (startsAt <= new Date()) {
+        return res.status(400).json({ error: 'Escolha uma data e horário futuros.' });
+    }
+    const startTimestamp = `${data} ${horario}:00`;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${id}:${data}`]);
+
+        const ownerSubscription = await client.query(`
+            SELECT s.provider_status, s.trial_ends_at, s.next_payment_at
+            FROM saas_subscriptions s
+            JOIN saas_accounts a ON a.id = s.account_id
+            WHERE a.space_id = $1
+        `, [id]);
+        if (ownerSubscription.rows[0] && !effectiveSubscription(ownerSubscription.rows[0]).can_access) {
+            await client.query('ROLLBACK');
+            return res.status(402).json({ error: 'Este estabelecimento está temporariamente indisponível.' });
+        }
+
+        const serviceResult = await client.query(
+            'SELECT id, duracao_minutos FROM servicos WHERE id = $1 AND espaco_id = $2',
+            [serviceId, id]
+        );
+        if (serviceResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Serviço não encontrado neste estabelecimento.' });
+        }
+
+        const weekday = new Date(`${data}T12:00:00Z`).getUTCDay();
+        const hoursResult = await client.query(`
+            SELECT hora_inicio, hora_fim, ativo
+            FROM configuracoes_horarios
+            WHERE espaco_id = $1 AND dia_semana = $2
+        `, [id, weekday]);
+        const hours = hoursResult.rows[0];
+        if (!hours || !hours.ativo) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: 'O estabelecimento não atende neste dia.' });
+        }
+
+        const duration = Number(serviceResult.rows[0].duracao_minutos);
+        const [startHour, startMinute] = horario.split(':').map(Number);
+        const [closeHour, closeMinute] = String(hours.hora_fim).slice(0, 5).split(':').map(Number);
+        const [openHour, openMinute] = String(hours.hora_inicio).slice(0, 5).split(':').map(Number);
+        const startMinutes = startHour * 60 + startMinute;
+        const closeMinutes = closeHour * 60 + closeMinute;
+        const endMinutes = startMinutes + duration;
+        if (!Number.isFinite(duration) || duration < 1
+            || startMinutes < openHour * 60 + openMinute
+            || endMinutes > closeMinutes) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: 'O horário escolhido está fora do expediente.' });
+        }
+
+        const conflictResult = await client.query(`
+            SELECT EXISTS (
+                SELECT 1
+                FROM agendamentos
+                WHERE espaco_id = $1
+                  AND status = 'confirmado'
+                  AND data_hora_inicio < ($2::timestamp + ($3 * INTERVAL '1 minute'))
+                  AND data_hora_fim > $2::timestamp
+            ) AS has_conflict
+        `, [id, startTimestamp, duration]);
+        if (conflictResult.rows[0].has_conflict) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: 'Esse horário acabou de ser reservado. Escolha outro horário.' });
+        }
+
+        const appointmentResult = await client.query(`
+            INSERT INTO agendamentos
+                (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status, cliente_id)
+            VALUES (
+                $1, $2, $3, $4, $5::timestamp,
+                $5::timestamp + ($6 * INTERVAL '1 minute'),
+                'confirmado', $7
+            )
+            RETURNING id, espaco_id, servico_id, data_hora_inicio, data_hora_fim, status
+        `, [
+            id,
+            serviceId,
+            customer.full_name,
+            customer.phone,
+            startTimestamp,
+            duration,
+            customer.id
+        ]);
+        await client.query('COMMIT');
+        return res.status(201).json({ message: 'Atendimento confirmado.', appointment: appointmentResult.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK').catch((rollbackError) => {
+            console.error('Appointment booking rollback failed:', rollbackError);
+        });
+        console.error('Appointment booking failed:', error);
+        return res.status(500).json({ error: 'Não foi possível confirmar o atendimento.' });
+    } finally {
+        client.release();
+    }
+});
+
 // 2. ROTA DO CHATBOT INTELIGENTE (POST) - AGORA FORA DA OUTRA ROTA
 // 2. ROTA DO CHATBOT INTELIGENTE E REGISTRO DE AGENDAMENTO (POST)
 app.post('/espacos/:id/chat', async (req, res) => {
@@ -362,9 +497,14 @@ app.post('/espacos/:id/chat', async (req, res) => {
         if (match) {
             try {
                 const dadosAgendamento = JSON.parse(match[1]);
+                const cliente = await saasBilling.getCustomerForRequest(req);
                 
                 // 1. Buscar duração do serviço para calcular o horário de fim
-                const servRes = await pool.query('SELECT duracao_minutos FROM servicos WHERE id = $1', [dadosAgendamento.servico_id]);
+                const servRes = await pool.query(
+                    'SELECT duracao_minutos FROM servicos WHERE id = $1 AND espaco_id = $2',
+                    [dadosAgendamento.servico_id, id]
+                );
+                if (servRes.rows.length === 0) throw new Error('Serviço não encontrado para este estabelecimento.');
                 const duracao = servRes.rows[0].duracao_minutos;
 
                 const inicioDate = new Date(dadosAgendamento.data_hora_inicio);
@@ -373,15 +513,17 @@ app.post('/espacos/:id/chat', async (req, res) => {
 
                 // 2. Salvar no Banco de Dados
                 await pool.query(
-                    `INSERT INTO agendamentos (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, 'confirmado')`,
+                    `INSERT INTO agendamentos
+                        (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status, cliente_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, 'confirmado', $7)`,
                     [
                         id,
                         dadosAgendamento.servico_id,
                         dadosAgendamento.cliente_nome,
                         dadosAgendamento.cliente_telefone,
                         dadosAgendamento.data_hora_inicio,
-                        dataHoraFimStr
+                        dataHoraFimStr,
+                        cliente?.id || null
                     ]
                 );
 
@@ -412,6 +554,16 @@ app.post('/espacos/:id/chat', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.use(express.static(frontendDirectory));
+
+const subscriptionSweep = setInterval(() => {
+    saasBilling.cancelOverdueSubscriptions().catch((error) => {
+        console.error('Overdue subscription sweep failed:', error);
+    });
+}, 5 * 60 * 1000);
+subscriptionSweep.unref();
+saasBilling.cancelOverdueSubscriptions().catch((error) => {
+    console.error('Initial overdue subscription sweep failed:', error);
+});
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);

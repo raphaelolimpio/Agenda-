@@ -66,6 +66,13 @@ test('subscription access reflects provider authorization and trial expiry', () 
     assert.equal(active.status, 'active');
     assert.equal(active.can_access, true);
 
+    const overdue = effectiveSubscription({
+        provider_status: 'authorized',
+        next_payment_at: new Date('2026-11-09T12:00:00.000Z')
+    }, new Date('2026-11-10T12:00:00.000Z'));
+    assert.equal(overdue.status, 'payment_overdue');
+    assert.equal(overdue.can_access, false);
+
     const trial = effectiveSubscription({
         provider_status: 'pending',
         trial_ends_at: new Date(Date.now() + 60_000)
@@ -96,6 +103,55 @@ test('webhook signature verifies both second and millisecond timestamps', () => 
         assert.equal(isValidWebhookSignature(headers, dataId, secret), true);
         assert.equal(isValidWebhookSignature(headers, dataId, 'wrong-secret'), false);
     }
+});
+
+test('customer registration creates a hashed account and a persistent portal session', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const queries = [];
+    const pool = {
+        async query(sql, values = []) {
+            queries.push({ sql, values });
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    let responseStatus = 200;
+    let responseBody;
+    let cookie;
+    const response = {
+        setHeader(name, value) { if (name === 'Set-Cookie') cookie = value; },
+        status(status) { responseStatus = status; return this; },
+        json(body) { responseBody = body; return this; }
+    };
+
+    await routes.get('POST /api/customer/register')({
+        body: {
+            nome: 'Cliente Exemplo',
+            email: 'cliente@example.com',
+            telefone: '+55 11 99999-9999',
+            senha: 'senha-segura-123',
+            remember: true
+        }
+    }, response);
+
+    const accountInsert = queries.find(({ sql }) => sql.includes('INSERT INTO saas_customers'));
+    const sessionInsert = queries.find(({ sql }) => sql.includes('INSERT INTO saas_portal_sessions'));
+    assert.ok(accountInsert);
+    assert.ok(sessionInsert);
+    assert.notEqual(accountInsert.values[4], 'senha-segura-123');
+    assert.equal(accountInsert.values[2], 'cliente@example.com');
+    assert.equal(accountInsert.values[3], '5511999999999');
+    assert.equal(sessionInsert.values[1], 'customer');
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /Max-Age=/);
+    assert.equal(responseStatus, 201);
+    assert.equal(responseBody.next, '/cliente.html');
 });
 
 test('new SaaS registration creates, links, and confirms the account by WhatsApp', async (t) => {
@@ -131,6 +187,12 @@ test('new SaaS registration creates, links, and confirms the account by WhatsApp
         },
         post(pathname, handler) {
             routes.set(`POST ${pathname}`, handler);
+        },
+        patch(pathname, handler) {
+            routes.set(`PATCH ${pathname}`, handler);
+        },
+        delete(pathname, handler) {
+            routes.set(`DELETE ${pathname}`, handler);
         }
     };
     const poolQueries = [];
@@ -259,6 +321,12 @@ test('login sends active and trial accounts to the dashboard and expired account
             },
             post(pathname, handler) {
                 routes.set(`POST ${pathname}`, handler);
+            },
+            patch(pathname, handler) {
+                routes.set(`PATCH ${pathname}`, handler);
+            },
+            delete(pathname, handler) {
+                routes.set(`DELETE ${pathname}`, handler);
             }
         };
         const pool = {
@@ -313,6 +381,12 @@ test('password reset sends an unguessable hashed token to the registered WhatsAp
         },
         post(pathname, handler) {
             routes.set(`POST ${pathname}`, handler);
+        },
+        patch(pathname, handler) {
+            routes.set(`PATCH ${pathname}`, handler);
+        },
+        delete(pathname, handler) {
+            routes.set(`DELETE ${pathname}`, handler);
         }
     };
     const accountId = 'account-id';
@@ -431,6 +505,12 @@ test('administrative password reset links require a secret and contain only an e
         },
         post(pathname, handler) {
             routes.set(`POST ${pathname}`, handler);
+        },
+        patch(pathname, handler) {
+            routes.set(`PATCH ${pathname}`, handler);
+        },
+        delete(pathname, handler) {
+            routes.set(`DELETE ${pathname}`, handler);
         }
     };
     const accountId = 'account-id';
@@ -491,7 +571,7 @@ test('administrative password reset links require a secret and contain only an e
 });
 
 test('vitrine writes are limited to the signed-in account establishment', async () => {
-    const app = { get() {}, post() {} };
+    const app = { get() {}, post() {}, patch() {}, delete() {} };
     const account = {
         id: 'account-id',
         space_id: 42,

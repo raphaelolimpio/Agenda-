@@ -81,6 +81,56 @@ async function ensureSaasSchema(pool) {
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        CREATE TABLE IF NOT EXISTS saas_customers (
+            id UUID PRIMARY KEY,
+            full_name TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            phone TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS saas_employees (
+            id UUID PRIMARY KEY,
+            full_name TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS saas_employee_spaces (
+            employee_id UUID NOT NULL REFERENCES saas_employees(id) ON DELETE CASCADE,
+            space_id INTEGER NOT NULL REFERENCES espacos(id) ON DELETE CASCADE,
+            linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (employee_id, space_id)
+        );
+        CREATE TABLE IF NOT EXISTS saas_employee_codes (
+            space_id INTEGER PRIMARY KEY REFERENCES espacos(id) ON DELETE CASCADE,
+            created_by UUID NOT NULL REFERENCES saas_accounts(id) ON DELETE CASCADE,
+            code_hash CHAR(64) NOT NULL UNIQUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS saas_portal_sessions (
+            token_hash CHAR(64) PRIMARY KEY,
+            user_type TEXT NOT NULL CHECK (user_type IN ('customer', 'employee')),
+            user_id UUID NOT NULL,
+            expires_at TIMESTAMPTZ NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS saas_portal_sessions_user_idx
+            ON saas_portal_sessions(user_type, user_id);
+        CREATE TABLE IF NOT EXISTS saas_customer_favorites (
+            customer_id UUID NOT NULL REFERENCES saas_customers(id) ON DELETE CASCADE,
+            space_id INTEGER NOT NULL REFERENCES espacos(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (customer_id, space_id)
+        );
+        CREATE TABLE IF NOT EXISTS saas_customer_recent_spaces (
+            customer_id UUID NOT NULL REFERENCES saas_customers(id) ON DELETE CASCADE,
+            space_id INTEGER NOT NULL REFERENCES espacos(id) ON DELETE CASCADE,
+            last_visited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (customer_id, space_id)
+        );
+        ALTER TABLE agendamentos
+            ADD COLUMN IF NOT EXISTS cliente_id UUID REFERENCES saas_customers(id) ON DELETE SET NULL;
     `);
 }
 
@@ -115,10 +165,11 @@ function verifyPassword(password, storedHash) {
     return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
-function serializeSessionCookie(token, env = process.env) {
+function serializeSessionCookie(token, env = process.env, remember = true) {
     const secure = env.NODE_ENV === 'production' ? '; Secure' : '';
     const maxAge = SESSION_DAYS * 24 * 60 * 60;
-    return `${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure}`;
+    const persistence = remember ? `; Max-Age=${maxAge}` : '';
+    return `${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/${persistence}${secure}`;
 }
 
 function isValidEmail(email) {
@@ -213,9 +264,15 @@ function effectiveSubscription(subscription, now = new Date()) {
     const providerStatus = subscription.provider_status;
     const trialEndsAt = subscription.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
     const trialIsActive = trialEndsAt && trialEndsAt > now;
+    const nextPaymentAt = subscription.next_payment_at ? new Date(subscription.next_payment_at) : null;
+    const paymentIsOverdue = providerStatus === 'authorized'
+        && nextPaymentAt
+        && !Number.isNaN(nextPaymentAt.getTime())
+        && nextPaymentAt <= now;
     let status = providerStatus;
 
-    if (providerStatus === 'authorized') status = 'active';
+    if (paymentIsOverdue) status = 'payment_overdue';
+    else if (providerStatus === 'authorized') status = 'active';
     else if (trialIsActive) status = 'trialing';
     else if (providerStatus === 'trialing') status = 'expired';
     else if (providerStatus === 'cancelled' || providerStatus === 'canceled') status = 'cancelled';
@@ -271,7 +328,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 await ensureSchema();
                 req.saasAccount = await getAccountForRequest(req);
                 if (!req.saasAccount) return res.status(401).json({ error: 'Entre na sua conta para continuar.' });
-                return handler(req, res, next);
+                return await handler(req, res, next);
             } catch (error) {
                 console.error('SaaS account request failed:', error);
                 return res.status(500).json({ error: 'Não foi possível validar sua conta.' });
@@ -295,7 +352,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                     return res.status(402).json({ error: 'Sua assinatura não está ativa.' });
                 }
                 req.saasAccount = account;
-                return handler(req, res, next);
+                return await handler(req, res, next);
             } catch (error) {
                 console.error('SaaS establishment authorization failed:', error);
                 return res.status(500).json({ error: 'Não foi possível validar o estabelecimento.' });
@@ -303,14 +360,62 @@ function createSaasBilling(app, pool, frontendDirectory) {
         };
     }
 
-    async function createSession(accountId, res) {
+    async function createSession(accountId, res, remember = true) {
         const token = crypto.randomBytes(32).toString('hex');
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         await pool.query(`
             INSERT INTO saas_sessions (token_hash, account_id, expires_at)
             VALUES ($1, $2, NOW() + ($3 * INTERVAL '1 day'))
         `, [tokenHash, accountId, SESSION_DAYS]);
-        res.setHeader('Set-Cookie', serializeSessionCookie(token));
+        res.setHeader('Set-Cookie', serializeSessionCookie(token, process.env, remember));
+    }
+
+    async function createPortalSession(userType, userId, res, remember = true) {
+        const token = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        await pool.query(`
+            INSERT INTO saas_portal_sessions (token_hash, user_type, user_id, expires_at)
+            VALUES ($1, $2, $3, NOW() + ($4 * INTERVAL '1 day'))
+        `, [tokenHash, userType, userId, SESSION_DAYS]);
+        res.setHeader('Set-Cookie', serializeSessionCookie(token, process.env, remember));
+    }
+
+    async function getPortalUser(req, userType) {
+        const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+        if (!token || !/^[\da-f]{64}$/i.test(token)) return null;
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const result = await pool.query(`
+            SELECT user_id
+            FROM saas_portal_sessions
+            WHERE token_hash = $1 AND user_type = $2 AND expires_at > NOW()
+        `, [tokenHash, userType]);
+        return result.rows[0]?.user_id || null;
+    }
+
+    function requirePortalUser(userType, handler) {
+        return async (req, res, next) => {
+            try {
+                await ensureSchema();
+                const userId = await getPortalUser(req, userType);
+                if (!userId) return res.status(401).json({ error: 'Entre na sua conta para continuar.' });
+                req.portalUserId = userId;
+                return await handler(req, res, next);
+            } catch (error) {
+                console.error(`${userType} portal request failed:`, error);
+                return res.status(500).json({ error: 'Não foi possível validar sua conta.' });
+            }
+        };
+    }
+
+    async function getCustomerForRequest(req) {
+        await ensureSchema();
+        const customerId = await getPortalUser(req, 'customer');
+        if (!customerId) return null;
+        const result = await pool.query(
+            'SELECT id, full_name, email, phone FROM saas_customers WHERE id = $1',
+            [customerId]
+        );
+        return result.rows[0] || null;
     }
 
     app.get('/api/saas/plan', (req, res) => {
@@ -324,6 +429,150 @@ function createSaasBilling(app, pool, frontendDirectory) {
             });
         } catch (error) {
             res.status(503).json({ error: 'A configuração da assinatura está inválida.' });
+        }
+    });
+
+    app.post('/api/customer/register', async (req, res) => {
+        const { nome, email, telefone, senha, remember } = req.body || {};
+        const phone = normalizeWhatsAppPhone(telefone);
+        if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 120) {
+            return res.status(400).json({ error: 'Informe seu nome completo.' });
+        }
+        if (!isValidEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
+        if (!phone) return res.status(400).json({ error: 'Informe um telefone válido com código do país.' });
+        if (typeof senha !== 'string' || senha.length < 10 || senha.length > 200) {
+            return res.status(400).json({ error: 'A senha deve ter pelo menos 10 caracteres.' });
+        }
+
+        try {
+            await ensureSchema();
+            const customerId = crypto.randomUUID();
+            await pool.query(`
+                INSERT INTO saas_customers (id, full_name, email, phone, password_hash)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [customerId, nome.trim(), email.trim().toLowerCase(), phone, hashPassword(senha)]);
+            await createPortalSession('customer', customerId, res, remember !== false);
+            return res.status(201).json({ message: 'Conta criada.', next: '/cliente.html' });
+        } catch (error) {
+            if (error.code === '23505') {
+                return res.status(409).json({ error: 'Já existe uma conta de cliente com este e-mail.' });
+            }
+            console.error('Customer registration failed:', error);
+            return res.status(500).json({ error: 'Não foi possível criar a conta de cliente.' });
+        }
+    });
+
+    app.post('/api/customer/login', async (req, res) => {
+        const { email, senha, remember } = req.body || {};
+        if (!isValidEmail(email) || typeof senha !== 'string' || senha.length > 200) {
+            return res.status(400).json({ error: 'Informe um e-mail e uma senha válidos.' });
+        }
+        try {
+            await ensureSchema();
+            const result = await pool.query(
+                'SELECT id, password_hash FROM saas_customers WHERE email = $1',
+                [email.trim().toLowerCase()]
+            );
+            const customer = result.rows[0];
+            if (!customer || !verifyPassword(senha, customer.password_hash)) {
+                return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+            }
+            await createPortalSession('customer', customer.id, res, remember !== false);
+            return res.json({ message: 'Sessão iniciada.', next: '/cliente.html' });
+        } catch (error) {
+            console.error('Customer login failed:', error);
+            return res.status(500).json({ error: 'Não foi possível entrar na conta de cliente.' });
+        }
+    });
+
+    app.post('/api/employee/register', async (req, res) => {
+        const { nome, email, senha, codigo_empresa, remember } = req.body || {};
+        if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 120) {
+            return res.status(400).json({ error: 'Informe seu nome completo.' });
+        }
+        if (!isValidEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
+        if (typeof senha !== 'string' || senha.length < 10 || senha.length > 200) {
+            return res.status(400).json({ error: 'A senha deve ter pelo menos 10 caracteres.' });
+        }
+        if (codigo_empresa !== undefined && codigo_empresa !== null
+            && (typeof codigo_empresa !== 'string' || !/^[\da-f]{12}$/i.test(codigo_empresa.trim()))) {
+            return res.status(400).json({ error: 'O código da empresa é inválido.' });
+        }
+
+        const client = await pool.connect();
+        try {
+            await ensureSchema();
+            const employeeId = crypto.randomUUID();
+            await client.query('BEGIN');
+            await client.query(`
+                INSERT INTO saas_employees (id, full_name, email, password_hash)
+                VALUES ($1, $2, $3, $4)
+            `, [employeeId, nome.trim(), email.trim().toLowerCase(), hashPassword(senha)]);
+
+            if (codigo_empresa) {
+                const codeHash = crypto.createHash('sha256').update(codigo_empresa.trim().toUpperCase()).digest('hex');
+                const codeResult = await client.query(`
+                    SELECT c.space_id, s.provider_status, s.trial_ends_at, s.next_payment_at
+                    FROM saas_employee_codes c
+                    JOIN saas_accounts a ON a.id = c.created_by
+                    JOIN saas_subscriptions s ON s.account_id = a.id
+                    WHERE c.code_hash = $1
+                    FOR UPDATE OF c
+                `, [codeHash]);
+                const company = codeResult.rows[0];
+                if (!company) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ error: 'Código da empresa inválido ou desativado.' });
+                }
+                if (!effectiveSubscription(company).can_access) {
+                    await client.query('ROLLBACK');
+                    return res.status(402).json({ error: 'A assinatura desta empresa não está ativa.' });
+                }
+                await client.query(
+                    'INSERT INTO saas_employee_spaces (employee_id, space_id) VALUES ($1, $2)',
+                    [employeeId, company.space_id]
+                );
+            }
+            await client.query('COMMIT');
+            await createPortalSession('employee', employeeId, res, remember !== false);
+            return res.status(201).json({
+                message: 'Conta criada.',
+                next: codigo_empresa ? '/colaborador.html' : '/colaborador.html?vincular=1'
+            });
+        } catch (error) {
+            await client.query('ROLLBACK').catch((rollbackError) => {
+                console.error('Employee registration rollback failed:', rollbackError);
+            });
+            if (error.code === '23505') {
+                return res.status(409).json({ error: 'Já existe uma conta de funcionário com este e-mail.' });
+            }
+            console.error('Employee registration failed:', error);
+            return res.status(500).json({ error: 'Não foi possível criar a conta de funcionário.' });
+        } finally {
+            client.release();
+        }
+    });
+
+    app.post('/api/employee/login', async (req, res) => {
+        const { email, senha, remember } = req.body || {};
+        if (!isValidEmail(email) || typeof senha !== 'string' || senha.length > 200) {
+            return res.status(400).json({ error: 'Informe um e-mail e uma senha válidos.' });
+        }
+        try {
+            await ensureSchema();
+            const result = await pool.query(
+                'SELECT id, password_hash FROM saas_employees WHERE email = $1',
+                [email.trim().toLowerCase()]
+            );
+            const employee = result.rows[0];
+            if (!employee || !verifyPassword(senha, employee.password_hash)) {
+                return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+            }
+            await createPortalSession('employee', employee.id, res, remember !== false);
+            return res.json({ message: 'Sessão iniciada.', next: '/colaborador.html' });
+        } catch (error) {
+            console.error('Employee login failed:', error);
+            return res.status(500).json({ error: 'Não foi possível entrar na conta de funcionário.' });
         }
     });
 
@@ -399,7 +648,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 client.release();
             }
 
-            await createSession(accountId, res);
+            await createSession(accountId, res, req.body?.remember !== false);
             let whatsappStatus = 'not_configured';
             try {
                 const notification = await sendWhatsAppTemplate(
@@ -446,7 +695,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
             if (!account || !verifyPassword(senha, account.password_hash)) {
                 return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
             }
-            await createSession(account.id, res);
+            await createSession(account.id, res, req.body?.remember !== false);
             const subscription = effectiveSubscription(account);
             const next = subscription.can_access && account.space_id
                 ? '/admin.html'
@@ -667,6 +916,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
                 await ensureSchema();
                 await pool.query('DELETE FROM saas_sessions WHERE token_hash = $1', [tokenHash]);
+                await pool.query('DELETE FROM saas_portal_sessions WHERE token_hash = $1', [tokenHash]);
             }
             res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
             res.json({ message: 'Sessão encerrada.' });
@@ -692,6 +942,242 @@ function createSaasBilling(app, pool, frontendDirectory) {
         res.json({ account, subscription });
     }));
 
+    app.post('/api/saas/employee-code', requireAccount(async (req, res) => {
+        const account = req.saasAccount;
+        if (!account.space_id) return res.status(403).json({ error: 'Sua conta não possui um estabelecimento vinculado.' });
+        if (!effectiveSubscription(account).can_access) {
+            return res.status(402).json({ error: 'Sua assinatura não está ativa.' });
+        }
+
+        try {
+            const code = crypto.randomBytes(6).toString('hex').toUpperCase();
+            const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+            await pool.query(`
+                INSERT INTO saas_employee_codes (space_id, created_by, code_hash, created_at)
+                VALUES ($1, $2, $3, NOW())
+                ON CONFLICT (space_id) DO UPDATE SET
+                    created_by = EXCLUDED.created_by,
+                    code_hash = EXCLUDED.code_hash,
+                    created_at = NOW()
+            `, [account.space_id, account.id, codeHash]);
+            return res.json({ code, message: 'Código criado. Ele substitui o código anterior desta loja.' });
+        } catch (error) {
+            console.error('Employee company-code creation failed:', error);
+            return res.status(500).json({ error: 'Não foi possível gerar o código da empresa.' });
+        }
+    }));
+
+    app.get('/api/saas/employees', requireAccount(async (req, res) => {
+        try {
+            const result = await pool.query(`
+                SELECT e.id, e.full_name, e.email, es.linked_at
+                FROM saas_employee_spaces es
+                JOIN saas_employees e ON e.id = es.employee_id
+                WHERE es.space_id = $1
+                ORDER BY e.full_name
+            `, [req.saasAccount.space_id]);
+            return res.json(result.rows);
+        } catch (error) {
+            console.error('Employee list retrieval failed:', error);
+            return res.status(500).json({ error: 'Não foi possível carregar a equipe vinculada.' });
+        }
+    }));
+
+    app.get('/api/customer/me', requirePortalUser('customer', async (req, res) => {
+        const [customerResult, favoritesResult, appointmentsResult, recentVisitsResult] = await Promise.all([
+            pool.query(
+                'SELECT id, full_name, email, phone FROM saas_customers WHERE id = $1',
+                [req.portalUserId]
+            ),
+            pool.query(`
+                SELECT e.id AS space_id, e.nome AS store_name, e.nicho,
+                       COALESCE(e.nicho, 'outros') AS segmento, e.logo_url
+                FROM saas_customer_favorites f
+                JOIN espacos e ON e.id = f.space_id
+                WHERE f.customer_id = $1
+                ORDER BY f.created_at DESC
+            `, [req.portalUserId]),
+            pool.query(`
+                SELECT a.id, a.espaco_id AS space_id, e.nome AS store_name,
+                       s.nome AS service_name, a.data_hora_inicio, a.data_hora_fim, a.status
+                FROM agendamentos a
+                JOIN espacos e ON e.id = a.espaco_id
+                LEFT JOIN servicos s ON s.id = a.servico_id
+                WHERE a.cliente_id = $1
+                ORDER BY a.data_hora_inicio DESC
+            `, [req.portalUserId]),
+            pool.query(`
+                SELECT e.id AS space_id, e.nome AS store_name, e.nicho,
+                       r.last_visited_at
+                FROM saas_customer_recent_spaces r
+                JOIN espacos e ON e.id = r.space_id
+                WHERE r.customer_id = $1
+                ORDER BY r.last_visited_at DESC
+                LIMIT 12
+            `, [req.portalUserId])
+        ]);
+        if (!customerResult.rows[0]) return res.status(404).json({ error: 'Conta de cliente não encontrada.' });
+
+        const appointments = appointmentsResult.rows;
+        const upcoming = appointments.filter((appointment) =>
+            new Date(appointment.data_hora_inicio) >= new Date()
+            && !['cancelado', 'cancelada', 'concluido', 'concluído'].includes(String(appointment.status).toLowerCase())
+        );
+        const history = appointments.filter((appointment) => !upcoming.includes(appointment));
+        return res.json({
+            customer: customerResult.rows[0],
+            favorites: favoritesResult.rows,
+            recent_visits: recentVisitsResult.rows,
+            upcoming,
+            history
+        });
+    }));
+
+    app.patch('/api/customer/profile', requirePortalUser('customer', async (req, res) => {
+        const { nome, email, telefone } = req.body || {};
+        const phone = normalizeWhatsAppPhone(telefone);
+        if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 120) {
+            return res.status(400).json({ error: 'Informe seu nome completo.' });
+        }
+        if (!isValidEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
+        if (!phone) return res.status(400).json({ error: 'Informe um telefone válido com código do país.' });
+        try {
+            const result = await pool.query(`
+                UPDATE saas_customers
+                SET full_name = $1, email = $2, phone = $3
+                WHERE id = $4
+                RETURNING id, full_name, email, phone
+            `, [nome.trim(), email.trim().toLowerCase(), phone, req.portalUserId]);
+            return res.json({ customer: result.rows[0] });
+        } catch (error) {
+            if (error.code === '23505') {
+                return res.status(409).json({ error: 'Já existe uma conta de cliente com este e-mail.' });
+            }
+            console.error('Customer profile update failed:', error);
+            return res.status(500).json({ error: 'Não foi possível atualizar seu perfil.' });
+        }
+    }));
+
+    app.post('/api/customer/favorites', requirePortalUser('customer', async (req, res) => {
+        const { space_id: spaceId } = req.body || {};
+        if (!/^\d+$/.test(String(spaceId || '')) || Number(spaceId) < 1) {
+            return res.status(400).json({ error: 'Informe um estabelecimento válido.' });
+        }
+        try {
+            const storeResult = await pool.query('SELECT id FROM espacos WHERE id = $1', [spaceId]);
+            if (storeResult.rows.length === 0) return res.status(404).json({ error: 'Estabelecimento não encontrado.' });
+            await pool.query(`
+                INSERT INTO saas_customer_favorites (customer_id, space_id)
+                VALUES ($1, $2)
+                ON CONFLICT (customer_id, space_id) DO NOTHING
+            `, [req.portalUserId, spaceId]);
+            return res.status(201).json({ message: 'Estabelecimento adicionado aos favoritos.' });
+        } catch (error) {
+            console.error('Customer favorite creation failed:', error);
+            return res.status(500).json({ error: 'Não foi possível salvar o favorito.' });
+        }
+    }));
+
+    app.delete('/api/customer/favorites/:spaceId', requirePortalUser('customer', async (req, res) => {
+        if (!/^\d+$/.test(req.params.spaceId)) {
+            return res.status(400).json({ error: 'Informe um estabelecimento válido.' });
+        }
+        try {
+            await pool.query(
+                'DELETE FROM saas_customer_favorites WHERE customer_id = $1 AND space_id = $2',
+                [req.portalUserId, req.params.spaceId]
+            );
+            return res.json({ message: 'Estabelecimento removido dos favoritos.' });
+        } catch (error) {
+            console.error('Customer favorite deletion failed:', error);
+            return res.status(500).json({ error: 'Não foi possível remover o favorito.' });
+        }
+    }));
+
+    app.post('/api/customer/recent-visits', requirePortalUser('customer', async (req, res) => {
+        const { space_id: spaceId } = req.body || {};
+        if (!/^\d+$/.test(String(spaceId || '')) || Number(spaceId) < 1) {
+            return res.status(400).json({ error: 'Informe um estabelecimento válido.' });
+        }
+        try {
+            const storeResult = await pool.query('SELECT id FROM espacos WHERE id = $1', [spaceId]);
+            if (storeResult.rows.length === 0) return res.status(404).json({ error: 'Estabelecimento não encontrado.' });
+            await pool.query(`
+                INSERT INTO saas_customer_recent_spaces (customer_id, space_id, last_visited_at)
+                VALUES ($1, $2, NOW())
+                ON CONFLICT (customer_id, space_id)
+                DO UPDATE SET last_visited_at = NOW()
+            `, [req.portalUserId, spaceId]);
+            return res.status(204).end();
+        } catch (error) {
+            console.error('Customer recent-store update failed:', error);
+            return res.status(500).json({ error: 'Não foi possível registrar a visita.' });
+        }
+    }));
+
+    app.get('/api/employee/me', requirePortalUser('employee', async (req, res) => {
+        const [employeeResult, spacesResult] = await Promise.all([
+            pool.query(
+                'SELECT id, full_name, email FROM saas_employees WHERE id = $1',
+                [req.portalUserId]
+            ),
+            pool.query(`
+                SELECT e.id AS space_id, e.nome AS store_name, e.nicho,
+                       s.provider_status, s.trial_ends_at, s.next_payment_at
+                FROM saas_employee_spaces es
+                JOIN espacos e ON e.id = es.space_id
+                JOIN saas_accounts a ON a.space_id = es.space_id
+                JOIN saas_subscriptions s ON s.account_id = a.id
+                WHERE es.employee_id = $1
+                ORDER BY e.nome
+            `, [req.portalUserId])
+        ]);
+        return res.json({
+            employee: employeeResult.rows[0],
+            spaces: spacesResult.rows.map((space) => ({
+                space_id: space.space_id,
+                store_name: space.store_name,
+                nicho: space.nicho,
+                can_access: effectiveSubscription(space).can_access
+            }))
+        });
+    }));
+
+    app.post('/api/employee/join', requirePortalUser('employee', async (req, res) => {
+        const { codigo_empresa: code } = req.body || {};
+        if (typeof code !== 'string' || !/^[\da-f]{12}$/i.test(code.trim())) {
+            return res.status(400).json({ error: 'Informe um código de empresa válido.' });
+        }
+        try {
+            const codeHash = crypto.createHash('sha256').update(code.trim().toUpperCase()).digest('hex');
+            const companyResult = await pool.query(`
+                SELECT c.space_id, s.provider_status, s.trial_ends_at, s.next_payment_at
+                FROM saas_employee_codes c
+                JOIN saas_accounts a ON a.id = c.created_by
+                JOIN saas_subscriptions s ON s.account_id = a.id
+                WHERE c.code_hash = $1
+            `, [codeHash]);
+            const company = companyResult.rows[0];
+            if (!company) return res.status(404).json({ error: 'Código da empresa inválido ou desativado.' });
+            if (!effectiveSubscription(company).can_access) {
+                return res.status(402).json({ error: 'A assinatura desta empresa não está ativa.' });
+            }
+            const result = await pool.query(`
+                INSERT INTO saas_employee_spaces (employee_id, space_id)
+                VALUES ($1, $2)
+                ON CONFLICT (employee_id, space_id) DO NOTHING
+                RETURNING space_id
+            `, [req.portalUserId, company.space_id]);
+            if (result.rows.length === 0) {
+                return res.status(409).json({ error: 'Você já está vinculado a esta empresa.' });
+            }
+            return res.status(201).json({ message: 'Vínculo com a empresa criado.' });
+        } catch (error) {
+            console.error('Employee company join failed:', error);
+            return res.status(500).json({ error: 'Não foi possível vincular sua conta à empresa.' });
+        }
+    }));
+
     app.post('/api/saas/checkout', requireAccount(async (req, res) => {
         const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
         const appBaseUrl = process.env.APP_BASE_URL;
@@ -712,7 +1198,15 @@ function createSaasBilling(app, pool, frontendDirectory) {
             return res.status(503).json({ error: 'APP_BASE_URL não contém uma URL válida.' });
         }
         if (req.saasAccount.provider_status === 'authorized') {
-            return res.status(409).json({ error: 'Sua assinatura já está ativa.' });
+            const subscription = effectiveSubscription(req.saasAccount);
+            if (subscription.status === 'payment_overdue' && req.saasAccount.checkout_url) {
+                return res.json({ checkout_url: req.saasAccount.checkout_url });
+            }
+            return res.status(409).json({
+                error: subscription.status === 'payment_overdue'
+                    ? 'O pagamento está vencido. Aguarde a atualização da cobrança e tente novamente.'
+                    : 'Sua assinatura já está ativa.'
+            });
         }
         if (req.saasAccount.provider_status === 'pending' && req.saasAccount.checkout_url) {
             return res.json({ checkout_url: req.saasAccount.checkout_url });
@@ -751,8 +1245,20 @@ function createSaasBilling(app, pool, frontendDirectory) {
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                console.error('Mercado Pago subscription creation failed:', response.status, payload.message || payload.error);
-                return res.status(502).json({ error: 'O Mercado Pago não conseguiu iniciar a assinatura. Tente novamente.' });
+                const reference = crypto.randomUUID();
+                const causes = Array.isArray(payload.cause)
+                    ? payload.cause.map(({ code, description }) => ({ code, description }))
+                    : [];
+                console.error('Mercado Pago subscription creation failed:', {
+                    reference,
+                    status: response.status,
+                    code: payload.error,
+                    message: payload.message,
+                    causes
+                });
+                return res.status(502).json({
+                    error: `O Mercado Pago não conseguiu iniciar a assinatura. Tente novamente. Referência: ${reference}.`
+                });
             }
             const checkoutUrl = payload.init_point || payload.sandbox_init_point;
             if (!payload.id || !isValidCheckoutUrl(checkoutUrl)) {
@@ -810,7 +1316,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
             }
             await pool.query(`
                 UPDATE saas_subscriptions
-                SET provider_status = $1, updated_at = NOW()
+                SET provider_status = $1, checkout_url = NULL, updated_at = NOW()
                 WHERE account_id = $2
             `, [payload.status || 'cancelled', req.saasAccount.id]);
             res.json({ message: 'Assinatura cancelada.' });
@@ -852,6 +1358,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 SET provider_status = $1,
                     amount_brl = COALESCE($2, amount_brl),
                     next_payment_at = COALESCE($3, next_payment_at),
+                    checkout_url = CASE WHEN $1 IN ('cancelled', 'canceled') THEN NULL ELSE checkout_url END,
                     updated_at = NOW()
                 WHERE provider_subscription_id = $4
                   AND account_id = $5
@@ -871,11 +1378,59 @@ function createSaasBilling(app, pool, frontendDirectory) {
         }
     });
 
+    async function cancelOverdueSubscriptions() {
+        const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
+        if (!token) return;
+        await ensureSchema();
+        const overdue = await pool.query(`
+            SELECT account_id, provider_subscription_id
+            FROM saas_subscriptions
+            WHERE provider_status = 'authorized'
+              AND provider_subscription_id IS NOT NULL
+              AND next_payment_at <= NOW()
+        `);
+
+        for (const subscription of overdue.rows) {
+            try {
+                const response = await fetch(
+                    `${MERCADO_PAGO_API}/preapproval/${encodeURIComponent(subscription.provider_subscription_id)}`,
+                    {
+                        method: 'PUT',
+                        headers: {
+                            Authorization: `******`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ status: 'cancelled' })
+                    }
+                );
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    console.error('Overdue Mercado Pago subscription cancellation failed:', {
+                        status: response.status,
+                        message: payload.message || payload.error,
+                        account_id: subscription.account_id
+                    });
+                    continue;
+                }
+                await pool.query(`
+                    UPDATE saas_subscriptions
+                    SET provider_status = $1, checkout_url = NULL, updated_at = NOW()
+                    WHERE account_id = $2 AND next_payment_at <= NOW()
+                `, [payload.status || 'cancelled', subscription.account_id]);
+            } catch (error) {
+                console.error('Overdue Mercado Pago subscription cancellation failed:', {
+                    account_id: subscription.account_id,
+                    error
+                });
+            }
+        }
+    }
+
     app.get('/admin.html', async (req, res) => {
         try {
             await ensureSchema();
             req.saasAccount = await getAccountForRequest(req);
-            if (!req.saasAccount) return res.redirect('/index.html?next=admin.html');
+            if (!req.saasAccount) return res.redirect('/entrar.html?tipo=dono&next=admin.html');
 
             const subscription = effectiveSubscription(req.saasAccount);
             if (!subscription.can_access || !req.saasAccount.space_id) return res.redirect('/assinatura.html');
@@ -886,7 +1441,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
         }
     });
 
-    return { requireOwnedSpace };
+    return { requireOwnedSpace, getCustomerForRequest, cancelOverdueSubscriptions };
 }
 
 module.exports = {

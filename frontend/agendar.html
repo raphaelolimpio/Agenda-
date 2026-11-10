@@ -177,10 +177,10 @@
                     </div>
 
                     <button id="confirmarAgendamentoButton" onclick="finalizarAgendamento()" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg text-sm font-bold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60">
-                        Confirmação online indisponível
+                        Confirmar atendimento
                     </button>
                     <p id="bookingAvailabilityStatus" class="status-message" role="status" aria-live="polite">
-                        Você pode consultar serviços e horários. A confirmação online ainda não está disponível.
+                        Escolha um serviço e um horário para confirmar seu atendimento.
                     </p>
 
                 </div>
@@ -237,6 +237,8 @@
             }
 
             await Promise.all([carregarEstabelecimento(), carregarServicos()]);
+            await carregarContaCliente();
+            atualizarBotaoConfirmacao();
         }
 
         function exibirEstadoAgendamento(mensagem, erro = false) {
@@ -313,6 +315,25 @@
             if (salvo.foto) { document.getElementById('perfilFoto').value = salvo.foto; document.getElementById('previewFotoCliente').src = salvo.foto; document.getElementById('avatarHeader').src = salvo.foto; }
         }
 
+        async function carregarContaCliente() {
+            try {
+                const { customer } = await AppApi.request('/api/customer/me');
+                document.getElementById('checkoutNome').value = customer.full_name;
+                document.getElementById('checkoutEmail').value = customer.email;
+                document.getElementById('checkoutTelefone').value = `+${customer.phone}`;
+                document.getElementById('perfilNome').value = customer.full_name;
+                document.getElementById('perfilEmail').value = customer.email;
+                document.getElementById('perfilTelefone').value = `+${customer.phone}`;
+            } catch (error) {
+                if (error.status !== 401) exibirEstadoAgendamento(error.message, true);
+            }
+        }
+
+        function atualizarBotaoConfirmacao() {
+            const button = document.getElementById('confirmarAgendamentoButton');
+            button.disabled = !horarioSelecionado || !document.getElementById('selectServico').value;
+        }
+
         function atualizarPrecoServico() {
             const sel = document.getElementById('selectServico');
             const servico = servicosDisponiveis.find((item) => String(item.id) === sel.value);
@@ -323,6 +344,7 @@
             profissionalSelecionado = null;
             document.getElementById('resumoDataHora').textContent = 'Nenhum horário escolhido';
             document.getElementById('resumoProfissional').textContent = '—';
+            atualizarBotaoConfirmacao();
             if (dataSelecionadaGlobal && servico) renderizarAgendaDiaria();
         }
 
@@ -508,6 +530,7 @@
             document.getElementById('resumoDataHora').textContent = `${dataSelecionadaGlobal.split('-').reverse().join('/')} às ${horario}`;
             document.getElementById('resumoProfissional').textContent = profissional.nome;
 
+            atualizarBotaoConfirmacao();
             renderizarAgendaDiaria();
         }
 
@@ -522,7 +545,37 @@
         }
 
         async function finalizarAgendamento() {
-            exibirEstadoAgendamento('A confirmação online ainda não está disponível. Nenhum horário foi reservado.', true);
+            if (!horarioSelecionado || !document.getElementById('selectServico').value) {
+                exibirEstadoAgendamento('Selecione um serviço e um horário antes de confirmar.', true);
+                return;
+            }
+            const button = document.getElementById('confirmarAgendamentoButton');
+            button.disabled = true;
+            exibirEstadoAgendamento('Confirmando seu atendimento...');
+            try {
+                await AppApi.request('/api/customer/me');
+                const appointment = await AppApi.request(`/espacos/${encodeURIComponent(ESPACO_ID)}/agendamentos`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        servico_id: document.getElementById('selectServico').value,
+                        data: dataSelecionadaGlobal,
+                        horario: horarioSelecionado,
+                        timezone_offset_minutes: new Date(`${dataSelecionadaGlobal}T${horarioSelecionado}:00`).getTimezoneOffset()
+                    })
+                });
+                exibirEstadoAgendamento(`${appointment.message} Você pode acompanhar este horário em Minha área.`);
+                button.textContent = 'Atendimento confirmado';
+                button.disabled = true;
+            } catch (error) {
+                if (error.status === 401) {
+                    const next = `agendar.html?loja=${encodeURIComponent(ESPACO_ID)}`;
+                    window.location.assign(`entrar.html?tipo=cliente&next=${encodeURIComponent(next)}`);
+                    return;
+                }
+                exibirEstadoAgendamento(error.message, true);
+                button.disabled = false;
+                if (error.status === 409) renderizarAgendaDiaria();
+            }
         }
 
         function toggleChat() {

@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="portal.css">
     <script src="config.js"></script>
     <script src="api.js" defer></script>
     <script src="vitrine-admin.js" defer></script>
@@ -18,7 +19,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <span class="brand-mark" aria-hidden="true">A+</span>
+                    <a href="admin.html" class="brand-mark" aria-label="Voltar ao painel do proprietário">A+</a>
                     <div>
                         <span id="uiNomeEspaco" class="font-bold text-lg text-slate-900 block leading-none">Carregando estabelecimento...</span>
                         <span class="text-xs text-slate-500">Painel de gestão</span>
@@ -27,13 +28,14 @@
             </div>
 
             <nav class="flex gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
-                <button onclick="irParaAba('agenda')" id="aba-btn-agenda" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-blue-600 text-white">1. Agenda & Clientes</button>
-                <button onclick="irParaAba('historico')" id="aba-btn-historico" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">2. Histórico & Categorias</button>
-                <button onclick="irParaAba('receita')" id="aba-btn-receita" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">3. Receita & Financeiro</button>
-                <button onclick="irParaAba('servicos')" id="aba-btn-servicos" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">4. Atividades</button>
-                <button onclick="irParaAba('perfil')" id="aba-btn-perfil" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">5. Perfil & Equipe</button>
-                <button onclick="irParaAba('vitrine')" id="aba-btn-vitrine" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">6. Vitrine (Site)</button>
-                <a href="assinatura.html" class="whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">Plano e cobrança</a>
+                <button onclick="irParaAba('agenda')" id="aba-btn-agenda" class="owner-nav-item is-current" aria-label="Agenda e clientes"><span aria-hidden="true">📅</span> Agenda & Clientes</button>
+                <button onclick="irParaAba('historico')" id="aba-btn-historico" class="owner-nav-item" aria-label="Histórico e categorias"><span aria-hidden="true">🕘</span> Histórico & Categorias</button>
+                <button onclick="irParaAba('receita')" id="aba-btn-receita" class="owner-nav-item" aria-label="Receita e financeiro"><span aria-hidden="true">💰</span> Receita & Financeiro</button>
+                <button onclick="irParaAba('servicos')" id="aba-btn-servicos" class="owner-nav-item" aria-label="Atividades"><span aria-hidden="true">✂️</span> Atividades</button>
+                <button onclick="irParaAba('perfil')" id="aba-btn-perfil" class="owner-nav-item" aria-label="Perfil e equipe"><span aria-hidden="true">👥</span> Perfil & Equipe</button>
+                <button onclick="irParaAba('vitrine')" id="aba-btn-vitrine" class="owner-nav-item" aria-label="Vitrine do site"><span aria-hidden="true">🪟</span> Vitrine (Site)</button>
+                <a id="menuBillingLink" href="assinatura.html" class="owner-nav-item" aria-label="Plano e cobrança"><span aria-hidden="true">💳</span> Plano e cobrança</a>
+                <button type="button" class="owner-nav-item" onclick="encerrarSessao()" aria-label="Sair da conta"><span aria-hidden="true">↪</span> Sair</button>
             </nav>
         </div>
     </header>
@@ -212,10 +214,14 @@
                     <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between mb-4">
                         <div>
                             <span class="text-xs font-bold text-blue-800 uppercase block mb-1">Código Único da Loja</span>
-                            <span id="codigoLojaPerfil" class="text-sm font-semibold text-slate-500">Aguardando configuração</span>
+                            <span id="codigoLojaPerfil" class="text-sm font-semibold text-slate-500">Gere um código para compartilhar com sua equipe.</span>
                         </div>
-                        <button onclick="navigator.clipboard.writeText(document.getElementById('codigoLojaPerfil').textContent); alert('Código copiado!')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow transition">Copiar Código</button>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="generateEmployeeCode" onclick="gerarCodigoFuncionario()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow transition">Gerar código</button>
+                            <button id="copyEmployeeCode" onclick="copiarCodigoFuncionario()" class="hidden bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg text-xs font-semibold transition">Copiar</button>
+                        </div>
                     </div>
+                    <p id="employeeCodeStatus" class="status-message" role="status" aria-live="polite"></p>
                     <div><label class="block text-xs font-semibold mb-1">Nome da Loja</label><input type="text" id="perfilNomeLoja" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
                     <div><label class="block text-xs font-semibold mb-1">Logo URL</label><input type="text" id="perfilLogo" placeholder="https://..." class="w-full border rounded-lg px-3 py-2 text-sm"></div>
                     <div><label class="block text-xs font-semibold mb-1">Chave PIX da Empresa (Recebedor Padrão)</label><input type="text" id="perfilPix" class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
@@ -224,10 +230,10 @@
 
                 <div class="bg-white p-6 rounded-xl border shadow-sm space-y-4">
                     <h3 class="font-bold text-lg">Equipe Vinculada</h3>
-                    <p class="text-xs text-slate-500">Profissionais que utilizaram seu Código de Loja. Defina a taxa retida.</p>
+                    <p class="text-xs text-slate-500">Funcionários que se cadastraram com o código desta loja.</p>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs sm:text-sm">
-                            <thead><tr class="bg-slate-50 border-b text-[11px] uppercase text-slate-500"><th class="py-2 px-2">Profissional</th><th class="py-2 px-2">PIX Liberado?</th><th class="py-2 px-2">% Loja</th><th class="py-2 px-2 text-right">Ação</th></tr></thead>
+                            <thead><tr class="bg-slate-50 border-b text-[11px] uppercase text-slate-500"><th class="py-2 px-2">Funcionário</th><th class="py-2 px-2">E-mail</th><th class="py-2 px-2">Vinculado em</th></tr></thead>
                             <tbody id="tbodyEquipeAdmin" class="divide-y"></tbody>
                         </table>
                     </div>
@@ -415,6 +421,7 @@
 
         let atividades = [];
         let equipe = [];
+        let equipeContas = [];
         let listaBloqueiosAdmin = [];
         let agendamentosAdmin = [];
         let historicoAdmin = [];
@@ -426,10 +433,10 @@
         function irParaAba(aba) {
             ['agenda', 'historico', 'receita', 'servicos', 'perfil', 'vitrine'].forEach(a => {
                 document.getElementById(`sec-${a}`).classList.add('hidden');
-                document.getElementById(`aba-btn-${a}`).className = 'whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100';
+                document.getElementById(`aba-btn-${a}`).classList.remove('is-current');
             });
             document.getElementById(`sec-${aba}`).classList.remove('hidden');
-            document.getElementById(`aba-btn-${aba}`).className = 'whitespace-nowrap px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-blue-600 text-white';
+            document.getElementById(`aba-btn-${aba}`).classList.add('is-current');
 
             if (aba === 'agenda') renderizarCalendarioAdmin();
             if (aba === 'servicos') renderizarAbaServicos();
@@ -690,19 +697,67 @@
             const selFiltroProf = document.getElementById('filtroProfissionalAgenda');
             selFiltroProf.innerHTML = '<option value="">Todos os Profissionais</option>';
 
-            equipe.forEach((e, idx) => {
+            equipe.forEach((e) => {
                 selFiltroProf.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
+            });
+            equipeContas.forEach((employee) => {
+                const linkedAt = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(employee.linked_at));
                 tbody.innerHTML += `
                     <tr class="border-b">
-                        <td class="py-3 px-2 font-bold">${e.nome}</td>
-                        <td class="py-3 px-2 text-xs"><input type="checkbox" ${e.pix ? 'checked' : ''} onchange="equipe[${idx}].pix = this.checked"></td>
-                        <td class="py-3 px-2"><input type="number" value="${e.taxa}" onchange="equipe[${idx}].taxa = Number(this.value)" class="w-16 border rounded px-2 py-1 text-xs text-center font-bold"> %</td>
-                        <td class="py-3 px-2 text-right"><button onclick="equipe.splice(${idx},1); renderizarAbaPerfil();" class="text-red-600 text-xs font-bold bg-red-50 px-2 py-1 rounded">Remover</button></td>
+                        <td class="py-3 px-2 font-bold">${AppApi.escapeHtml(employee.full_name)}</td>
+                        <td class="py-3 px-2 text-slate-600">${AppApi.escapeHtml(employee.email)}</td>
+                        <td class="py-3 px-2 text-slate-500">${linkedAt}</td>
                     </tr>
                 `;
             });
-            if (equipe.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-slate-400">Nenhum profissional vinculado.</td></tr>';
+            if (equipeContas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="py-6 text-center text-slate-400">Nenhum profissional vinculado.</td></tr>';
+            }
+        }
+
+        async function encerrarSessao() {
+            try {
+                await AppApi.request('/api/saas/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('Não foi possível encerrar a sessão no servidor:', error);
+            } finally {
+                window.location.assign('index.html');
+            }
+        }
+
+        async function carregarEquipeVinculada() {
+            equipeContas = await AppApi.request('/api/saas/employees');
+            renderizarAbaPerfil();
+        }
+
+        async function gerarCodigoFuncionario() {
+            const button = document.getElementById('generateEmployeeCode');
+            button.disabled = true;
+            const status = document.getElementById('employeeCodeStatus');
+            status.textContent = 'Gerando código...';
+            status.dataset.state = '';
+            try {
+                const result = await AppApi.request('/api/saas/employee-code', { method: 'POST' });
+                document.getElementById('codigoLojaPerfil').textContent = result.code;
+                document.getElementById('copyEmployeeCode').classList.remove('hidden');
+                status.textContent = `${result.message} Compartilhe este código apenas com os funcionários.`;
+            } catch (error) {
+                status.textContent = error.message;
+                status.dataset.state = 'error';
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function copiarCodigoFuncionario() {
+            const code = document.getElementById('codigoLojaPerfil').textContent;
+            try {
+                await navigator.clipboard.writeText(code);
+                document.getElementById('employeeCodeStatus').textContent = 'Código copiado.';
+            } catch (error) {
+                document.getElementById('employeeCodeStatus').textContent = 'Não foi possível copiar. Selecione e copie o código manualmente.';
+                document.getElementById('employeeCodeStatus').dataset.state = 'error';
+                console.error('Employee code copy failed:', error);
             }
         }
 
@@ -802,9 +857,15 @@
                 document.getElementById('perfilNomeLoja').value = account.store_name;
                 document.getElementById('previewNomeLoja').textContent = account.store_name;
                 AppApi.setSpaceId(account.space_id);
+                document.getElementById('menuBillingLink').hidden = subscription.status === 'active';
+                await carregarEquipeVinculada();
+                const requestedTab = new URLSearchParams(window.location.search).get('aba');
+                if (['agenda', 'historico', 'receita', 'servicos', 'perfil', 'vitrine'].includes(requestedTab)) {
+                    irParaAba(requestedTab);
+                }
             } catch (error) {
                 if (error.message.includes('Entre na sua conta')) {
-                    window.location.replace('index.html');
+                    window.location.replace('entrar.html?tipo=dono');
                     return;
                 }
                 console.error('Não foi possível carregar a conta do estabelecimento:', error);
