@@ -86,16 +86,20 @@ async function ensureSaasSchema(pool) {
             full_name TEXT NOT NULL,
             email TEXT NOT NULL UNIQUE,
             phone TEXT NOT NULL,
+            photo_url TEXT,
             password_hash TEXT NOT NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        ALTER TABLE saas_customers ADD COLUMN IF NOT EXISTS photo_url TEXT;
         CREATE TABLE IF NOT EXISTS saas_employees (
             id UUID PRIMARY KEY,
             full_name TEXT NOT NULL,
             email TEXT NOT NULL UNIQUE,
+            photo_url TEXT,
             password_hash TEXT NOT NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        ALTER TABLE saas_employees ADD COLUMN IF NOT EXISTS photo_url TEXT;
         CREATE TABLE IF NOT EXISTS saas_employee_spaces (
             employee_id UUID NOT NULL REFERENCES saas_employees(id) ON DELETE CASCADE,
             space_id INTEGER NOT NULL REFERENCES espacos(id) ON DELETE CASCADE,
@@ -176,6 +180,17 @@ function isValidEmail(email) {
     return typeof email === 'string'
         && email.length <= 254
         && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidOptionalImageUrl(value) {
+    if (value === '' || value === null || value === undefined) return true;
+    if (typeof value !== 'string' || value.length > 2048) return false;
+
+    try {
+        return ['http:', 'https:'].includes(new URL(value).protocol);
+    } catch {
+        return false;
+    }
 }
 
 function normalizeWhatsAppPhone(value) {
@@ -1011,7 +1026,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
     app.get('/api/customer/me', requirePortalUser('customer', async (req, res) => {
         const [customerResult, favoritesResult, appointmentsResult, recentVisitsResult] = await Promise.all([
             pool.query(
-                'SELECT id, full_name, email, phone FROM saas_customers WHERE id = $1',
+                'SELECT id, full_name, email, phone, photo_url FROM saas_customers WHERE id = $1',
                 [req.portalUserId]
             ),
             pool.query(`
@@ -1059,20 +1074,24 @@ function createSaasBilling(app, pool, frontendDirectory) {
     }));
 
     app.patch('/api/customer/profile', requirePortalUser('customer', async (req, res) => {
-        const { nome, email, telefone } = req.body || {};
+        const { nome, email, telefone, photo_url: photoUrl } = req.body || {};
         const phone = normalizeWhatsAppPhone(telefone);
         if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 120) {
             return res.status(400).json({ error: 'Informe seu nome completo.' });
         }
         if (!isValidEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
         if (!phone) return res.status(400).json({ error: 'Informe um telefone válido com código do país.' });
+        if (!isValidOptionalImageUrl(photoUrl)) {
+            return res.status(400).json({ error: 'Informe um link de foto HTTP ou HTTPS válido.' });
+        }
         try {
             const result = await pool.query(`
                 UPDATE saas_customers
-                SET full_name = $1, email = $2, phone = $3
-                WHERE id = $4
-                RETURNING id, full_name, email, phone
-            `, [nome.trim(), email.trim().toLowerCase(), phone, req.portalUserId]);
+                SET full_name = $1, email = $2, phone = $3,
+                    photo_url = CASE WHEN $4::boolean THEN NULLIF($5, '') ELSE photo_url END
+                WHERE id = $6
+                RETURNING id, full_name, email, phone, photo_url
+            `, [nome.trim(), email.trim().toLowerCase(), phone, photoUrl !== undefined, photoUrl || null, req.portalUserId]);
             return res.json({ customer: result.rows[0] });
         } catch (error) {
             if (error.code === '23505') {
@@ -1143,7 +1162,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
     app.get('/api/employee/me', requirePortalUser('employee', async (req, res) => {
         const [employeeResult, spacesResult] = await Promise.all([
             pool.query(
-                'SELECT id, full_name, email FROM saas_employees WHERE id = $1',
+                'SELECT id, full_name, email, photo_url FROM saas_employees WHERE id = $1',
                 [req.portalUserId]
             ),
             pool.query(`
@@ -1166,6 +1185,26 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 can_access: effectiveSubscription(space).can_access
             }))
         });
+    }));
+
+    app.patch('/api/employee/profile', requirePortalUser('employee', async (req, res) => {
+        const { photo_url: photoUrl } = req.body || {};
+        if (!isValidOptionalImageUrl(photoUrl)) {
+            return res.status(400).json({ error: 'Informe um link de foto HTTP ou HTTPS válido.' });
+        }
+        try {
+            const result = await pool.query(`
+                UPDATE saas_employees
+                SET photo_url = NULLIF($1, '')
+                WHERE id = $2
+                RETURNING id, full_name, email, photo_url
+            `, [photoUrl || '', req.portalUserId]);
+            if (!result.rows[0]) return res.status(404).json({ error: 'Conta profissional não encontrada.' });
+            return res.json({ employee: result.rows[0] });
+        } catch (error) {
+            console.error('Employee profile update failed:', error);
+            return res.status(500).json({ error: 'Não foi possível atualizar sua foto de perfil.' });
+        }
     }));
 
     app.post('/api/employee/join', requirePortalUser('employee', async (req, res) => {

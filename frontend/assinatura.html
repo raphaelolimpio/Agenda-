@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="portal.css">
     <script src="config.js"></script>
+    <script src="portal-menu.js" defer></script>
     <script src="api.js" defer></script>
     <script src="assinatura.js" defer></script>
 </head>
@@ -17,7 +18,15 @@
             <span class="brand-mark">A+</span>
             <span>Agenda<span class="subscription-brand__accent">+</span></span>
         </a>
-        <nav class="subscription-menu" aria-label="Menu do proprietário">
+        <button type="button" class="mobile-menu-toggle" data-menu-toggle aria-controls="subscriptionMobileMenu" aria-expanded="false" aria-label="Abrir menu">
+            <span></span><span></span><span></span>
+        </button>
+        <nav id="subscriptionMobileMenu" class="subscription-menu mobile-menu-panel" aria-label="Menu do proprietário">
+            <div class="mobile-menu-profile">
+                <img id="subscriptionMenuAvatar" alt="" hidden>
+                <span id="subscriptionMenuAvatarFallback" class="mobile-menu-avatar" aria-hidden="true">A+</span>
+                <span class="mobile-menu-profile__text"><strong id="subscriptionMenuName">Sua loja</strong><small>Perfil da loja</small></span>
+            </div>
             <a href="admin.html?aba=agenda"><span aria-hidden="true">📅</span> Agenda</a>
             <a href="admin.html?aba=historico"><span aria-hidden="true">🕘</span> Histórico</a>
             <a href="admin.html?aba=receita"><span aria-hidden="true">💰</span> Financeiro</a>
@@ -25,10 +34,10 @@
             <a href="admin.html?aba=perfil"><span aria-hidden="true">👥</span> Perfil & Equipe</a>
             <a href="admin.html?aba=vitrine"><span aria-hidden="true">🪟</span> Vitrine</a>
             <a id="subscriptionMenuPlan" href="assinatura.html" aria-current="page"><span aria-hidden="true">💳</span> Plano e cobrança</a>
+            <button id="logoutButton" class="subscription-menu-logout" type="button">↪ Sair da conta</button>
         </nav>
         <div class="subscription-header__actions">
             <a id="headerDashboardLink" href="admin.html" class="subscription-secondary-button">Voltar ao painel</a>
-            <button id="logoutButton" class="subscription-quiet-button" type="button">Sair da conta</button>
         </div>
     </header>
 

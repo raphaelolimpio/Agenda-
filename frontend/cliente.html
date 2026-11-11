@@ -9,20 +9,28 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="portal.css">
     <script src="config.js"></script>
-    <script src="api.js" defer></script>
+    <script src="portal-menu.js" defer></script>
+    <script src="api.js"></script>
 </head>
 <body class="portal-page">
     <header class="portal-header">
         <a href="index.html" class="portal-brand">Agenda<span>+</span></a>
         <div class="portal-header__user">
-            <span>Olá, <strong id="customerGreeting">cliente</strong></span>
-            <button type="button" class="portal-logout" onclick="encerrarSessao()">Sair</button>
+            <button type="button" class="mobile-menu-toggle" data-menu-toggle aria-controls="customerMobileMenu" aria-expanded="false" aria-label="Abrir menu">
+                <span></span><span></span><span></span>
+            </button>
         </div>
-        <nav class="portal-nav" aria-label="Navegação do cliente">
+        <nav id="customerMobileMenu" class="portal-nav mobile-menu-panel" aria-label="Navegação do cliente">
+            <div class="mobile-menu-profile">
+                <img id="customerMenuPhoto" alt="" hidden>
+                <span id="customerMenuAvatar" class="mobile-menu-avatar" aria-hidden="true">C</span>
+                <span class="mobile-menu-profile__text"><strong id="customerMenuName">Cliente</strong><small>Olá, <span id="customerGreeting">cliente</span></small></span>
+            </div>
             <button type="button" class="portal-nav__item is-active" data-panel="stores" onclick="mostrarPainel('stores')"><span aria-hidden="true">🏬</span> Vitrine</button>
             <button type="button" class="portal-nav__item" data-panel="favorites" onclick="mostrarPainel('favorites')"><span aria-hidden="true">♡</span> Favoritas</button>
             <button type="button" class="portal-nav__item" data-panel="appointments" onclick="mostrarPainel('appointments')"><span aria-hidden="true">📅</span> Atendimentos</button>
             <button type="button" class="portal-nav__item" data-panel="profile" onclick="mostrarPainel('profile')"><span aria-hidden="true">👤</span> Meus dados</button>
+            <button type="button" class="portal-nav__item" onclick="encerrarSessao()"><span aria-hidden="true">↪</span> Sair da conta</button>
         </nav>
     </header>
 
@@ -68,6 +76,8 @@
             <form id="customerProfile" class="portal-card portal-profile-form">
                 <h2>Meus dados</h2>
                 <p>Atualize as informações usadas nos seus atendimentos.</p>
+                <label class="portal-label" for="profilePhoto">Foto de perfil (link público)</label>
+                <input id="profilePhoto" type="url" class="portal-input" placeholder="https://...">
                 <label class="portal-label" for="profileName">Nome completo</label>
                 <input id="profileName" class="portal-input" autocomplete="name" required minlength="2" maxlength="120">
                 <label class="portal-label" for="profileEmail">E-mail</label>
@@ -99,6 +109,29 @@
             document.querySelectorAll('.portal-nav__item').forEach((button) => {
                 button.classList.toggle('is-active', button.dataset.panel === name);
             });
+        }
+
+        function atualizarPerfilMenu(customer) {
+            const name = customer.full_name || 'Cliente';
+            const photo = AppApi.getImageUrl(customer.photo_url);
+            document.getElementById('customerMenuName').textContent = name;
+            document.getElementById('customerGreeting').textContent = name.split(' ')[0];
+            const image = document.getElementById('customerMenuPhoto');
+            const fallback = document.getElementById('customerMenuAvatar');
+            fallback.textContent = name.trim().charAt(0).toUpperCase();
+            image.onerror = () => {
+                image.hidden = true;
+                fallback.hidden = false;
+            };
+            if (photo) {
+                image.src = photo;
+                image.hidden = false;
+                fallback.hidden = true;
+            } else {
+                image.removeAttribute('src');
+                image.hidden = true;
+                fallback.hidden = false;
+            }
         }
 
         function storeCard(store) {
@@ -181,11 +214,12 @@
                     body: JSON.stringify({
                         nome: document.getElementById('profileName').value.trim(),
                         email: document.getElementById('profileEmail').value.trim(),
-                        telefone: document.getElementById('profilePhone').value.trim()
+                        telefone: document.getElementById('profilePhone').value.trim(),
+                        photo_url: document.getElementById('profilePhoto').value.trim()
                     })
                 });
                 customerData.customer = result.customer;
-                document.getElementById('customerGreeting').textContent = result.customer.full_name.split(' ')[0];
+                atualizarPerfilMenu(result.customer);
                 status.textContent = 'Dados atualizados.';
                 status.dataset.state = '';
             } catch (error) {
@@ -208,10 +242,11 @@
             try {
                 customerData = await AppApi.request('/api/customer/me');
                 customerData.favorites.forEach((store) => favoriteIds.add(String(store.space_id)));
-                document.getElementById('customerGreeting').textContent = customerData.customer.full_name.split(' ')[0];
+                atualizarPerfilMenu(customerData.customer);
                 document.getElementById('profileName').value = customerData.customer.full_name;
                 document.getElementById('profileEmail').value = customerData.customer.email;
                 document.getElementById('profilePhone').value = `+${customerData.customer.phone}`;
+                document.getElementById('profilePhoto').value = customerData.customer.photo_url || '';
                 renderFavorites();
                 renderAppointments();
                 allStores = await AppApi.request('/espacos');

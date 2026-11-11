@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="portal.css">
     <script src="config.js"></script>
+    <script src="portal-menu.js" defer></script>
     <script src="api.js"></script>
 </head>
 
@@ -18,7 +19,7 @@
     <!-- CABEÇALHO DO COLABORADOR COM SELETOR DE LOJAS -->
     <header class="bg-slate-900 text-white sticky top-0 z-30">
         <div
-            class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex flex-col sm:flex-row items-center justify-between gap-2 py-2 sm:py-0">
+            class="staff-header-layout max-w-7xl mx-auto px-4 sm:px-6 h-16 flex flex-col sm:flex-row items-center justify-between gap-2 py-2 sm:py-0">
             <div class="flex items-center gap-3">
                 <span class="brand-mark brand-mark--light" aria-hidden="true">A+</span>
                 <div>
@@ -26,18 +27,24 @@
                     <span class="text-[11px] text-slate-400">Loja ID Principal: <strong
                             id="colabIdLojaHeader">—</strong></span>
                 </div>
+                <button type="button" class="mobile-menu-toggle" data-menu-toggle aria-controls="staffMobileMenu" aria-expanded="false" aria-label="Abrir menu">
+                    <span></span><span></span><span></span>
+                </button>
             </div>
 
-            <!-- Seletor de Lojas Vinculadas -->
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-slate-400">Loja Ativa:</span>
-                <select id="selectLojaAtiva" onchange="mudarLojaAtiva(this.value)"
-                    class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-semibold">
-                    <option value="" selected>Nenhuma loja vinculada</option>
-                </select>
-            </div>
-
-            <nav class="flex gap-1 overflow-x-auto">
+            <nav id="staffMobileMenu" class="mobile-menu-panel flex gap-1 overflow-x-auto" aria-label="Navegação do profissional">
+                <div class="mobile-menu-profile">
+                    <img id="staffMenuPhoto" alt="" hidden>
+                    <span id="staffMenuAvatar" class="mobile-menu-avatar" aria-hidden="true">P</span>
+                    <span class="mobile-menu-profile__text"><strong id="staffMenuName">Profissional</strong><small>Área profissional</small></span>
+                </div>
+                <label class="mobile-menu-select">
+                    <span>Loja ativa</span>
+                    <select id="selectLojaAtiva" onchange="mudarLojaAtiva(this.value)"
+                        class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-semibold">
+                        <option value="" selected>Nenhuma loja vinculada</option>
+                    </select>
+                </label>
                 <button onclick="mudarAbaColab('agenda')" id="aba-btn-agenda"
                     class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white"><span aria-hidden="true">📅</span> Agenda</button>
                 <button onclick="mudarAbaColab('historico')" id="aba-btn-historico"
@@ -259,7 +266,11 @@
 
             <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome</label><input type="text" id="perfilNome" class="w-full border rounded-lg px-3 py-2 text-sm" disabled></div>
             <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label><input type="email" id="perfilEmail" class="w-full border rounded-lg px-3 py-2 text-sm" disabled></div>
-            <p class="text-xs text-slate-500">Para alterar o acesso, solicite ao administrador da sua conta.</p>
+            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1" for="staffPhotoUrl">Foto de perfil (link público)</label>
+            <input type="url" id="staffPhotoUrl" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="https://...">
+            <button type="button" class="portal-primary" onclick="salvarFotoPerfilColaborador()">Salvar foto</button>
+            <p id="staffProfileStatus" class="status-message" role="status" aria-live="polite"></p>
+            <p class="text-xs text-slate-500">Para alterar o nome ou e-mail de acesso, solicite ao administrador da sua conta.</p>
         </section>
 
     </main>
@@ -415,6 +426,43 @@
             renderizarCalendarioColab();
         }
 
+        function exibirFotoPerfilColaborador(photoUrl) {
+            const image = document.getElementById('staffMenuPhoto');
+            const fallback = document.getElementById('staffMenuAvatar');
+            const imageUrl = AppApi.getImageUrl(photoUrl);
+            image.onerror = () => {
+                image.hidden = true;
+                fallback.hidden = false;
+            };
+            if (imageUrl) {
+                image.src = imageUrl;
+                image.hidden = false;
+                fallback.hidden = true;
+            } else {
+                image.removeAttribute('src');
+                image.hidden = true;
+                fallback.hidden = false;
+            }
+        }
+
+        async function salvarFotoPerfilColaborador() {
+            const status = document.getElementById('staffProfileStatus');
+            status.textContent = 'Salvando foto...';
+            status.dataset.state = '';
+            try {
+                const result = await AppApi.request('/api/employee/profile', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ photo_url: document.getElementById('staffPhotoUrl').value.trim() })
+                });
+                employeeData.employee = result.employee;
+                exibirFotoPerfilColaborador(result.employee.photo_url);
+                status.textContent = 'Foto atualizada.';
+            } catch (error) {
+                status.textContent = error.message;
+                status.dataset.state = 'error';
+            }
+        }
+
         async function vincularEmpresa(event) {
             event.preventDefault();
             const input = document.getElementById('inputNovoIdLoja');
@@ -450,6 +498,10 @@
             try {
                 employeeData = await AppApi.request('/api/employee/me');
                 document.getElementById('colabNomeHeader').textContent = employeeData.employee.full_name;
+                document.getElementById('staffMenuName').textContent = employeeData.employee.full_name;
+                document.getElementById('staffMenuAvatar').textContent = employeeData.employee.full_name.trim().charAt(0).toUpperCase();
+                document.getElementById('staffPhotoUrl').value = employeeData.employee.photo_url || '';
+                exibirFotoPerfilColaborador(employeeData.employee.photo_url);
                 document.getElementById('perfilNome').value = employeeData.employee.full_name;
                 document.getElementById('perfilEmail').value = employeeData.employee.email;
                 const selector = document.getElementById('selectLojaAtiva');

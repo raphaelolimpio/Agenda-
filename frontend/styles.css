@@ -1189,3 +1189,55 @@ body {
         padding: 1.15rem;
     }
 }
+
+@media (max-width: 767px) {
+    body {
+        overflow-x: hidden;
+    }
+
+    #admin-page,
+    #staff-page,
+    #booking-page,
+    .portal-page {
+        min-width: 320px;
+    }
+
+    #admin-page main,
+    #staff-page main,
+    #booking-page main,
+    .portal-main {
+        min-width: 0;
+    }
+
+    #admin-page .section-intro,
+    #staff-page .section-intro,
+    #booking-page .section-intro {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    #admin-page .section-intro h1,
+    #staff-page .section-intro h1,
+    #booking-page .section-intro h1 {
+        font-size: clamp(1.45rem, 7vw, 2rem);
+    }
+
+    #admin-page [class*="grid-cols-"],
+    #staff-page [class*="grid-cols-"],
+    #booking-page [class*="grid-cols-"] {
+        min-width: 0;
+    }
+
+    #booking-page .booking-steps {
+        gap: 0.35rem;
+    }
+
+    #booking-page .booking-steps span {
+        font-size: 0.65rem;
+    }
+
+    .store-card__cover {
+        height: 8.5rem;
+    }
+}

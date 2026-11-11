@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="portal.css">
     <script src="config.js"></script>
+    <script src="portal-menu.js" defer></script>
     <script src="api.js" defer></script>
     <script src="vitrine-admin.js" defer></script>
 </head>
@@ -16,7 +17,7 @@
 
     <!-- CABEÇALHO RESPONSIVO -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="owner-header-layout max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <a href="admin.html" class="brand-mark" aria-label="Voltar ao painel do proprietário">A+</a>
@@ -25,9 +26,17 @@
                         <span class="text-xs text-slate-500">Painel de gestão</span>
                     </div>
                 </div>
+                <button type="button" class="mobile-menu-toggle" data-menu-toggle aria-controls="ownerMobileMenu" aria-expanded="false" aria-label="Abrir menu">
+                    <span></span><span></span><span></span>
+                </button>
             </div>
 
-            <nav class="flex gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
+            <nav id="ownerMobileMenu" class="mobile-menu-panel flex gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar" aria-label="Navegação do proprietário">
+                <div class="mobile-menu-profile">
+                    <img id="ownerMenuAvatar" alt="" hidden>
+                    <span id="ownerMenuAvatarFallback" class="mobile-menu-avatar" aria-hidden="true">A+</span>
+                    <span class="mobile-menu-profile__text"><strong id="ownerMenuName">Carregando loja...</strong><small>Perfil da loja</small></span>
+                </div>
                 <button onclick="irParaAba('agenda')" id="aba-btn-agenda" class="owner-nav-item is-current" aria-label="Agenda e clientes"><span aria-hidden="true">📅</span> Agenda & Clientes</button>
                 <button onclick="irParaAba('historico')" id="aba-btn-historico" class="owner-nav-item" aria-label="Histórico e categorias"><span aria-hidden="true">🕘</span> Histórico & Categorias</button>
                 <button onclick="irParaAba('receita')" id="aba-btn-receita" class="owner-nav-item" aria-label="Receita e financeiro"><span aria-hidden="true">💰</span> Receita & Financeiro</button>
@@ -858,6 +867,7 @@
                     return;
                 }
                 document.getElementById('uiNomeEspaco').textContent = account.store_name;
+                document.getElementById('ownerMenuName').textContent = account.store_name;
                 document.getElementById('perfilNomeLoja').value = account.store_name;
                 document.getElementById('previewNomeLoja').textContent = account.store_name;
                 AppApi.setSpaceId(account.space_id);

@@ -518,3 +518,351 @@
         flex-direction: column;
     }
 }
+
+.mobile-menu-toggle {
+    display: none;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.28rem;
+    border: 1px solid #dbe3ef;
+    border-radius: 0.8rem;
+    background: #fff;
+    color: #12213b;
+}
+
+.mobile-menu-toggle span {
+    width: 1.15rem;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.mobile-menu-profile {
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.35rem 0.35rem 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.mobile-menu-profile > img,
+.mobile-menu-avatar {
+    width: 2.9rem;
+    height: 2.9rem;
+    flex: 0 0 auto;
+    border: 1px solid #dbeafe;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #1246a0;
+    object-fit: cover;
+}
+
+.mobile-menu-avatar {
+    display: grid;
+    place-items: center;
+    font-size: 1rem;
+    font-weight: 850;
+}
+
+.mobile-menu-profile__text {
+    display: grid;
+    min-width: 0;
+    gap: 0.18rem;
+}
+
+.mobile-menu-profile__text strong {
+    overflow: hidden;
+    color: #12213b;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mobile-menu-profile__text small {
+    color: #64748b;
+    font-size: 0.72rem;
+}
+
+.mobile-menu-select {
+    display: none;
+}
+
+.subscription-menu-logout,
+.booking-menu-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.65rem;
+    border-radius: 0.7rem;
+    padding: 0.55rem 0.75rem;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.subscription-menu-logout {
+    border: 0;
+    background: transparent;
+    text-align: left;
+}
+
+.subscription-menu-logout:hover,
+.booking-menu-link:hover {
+    background: #f1f5f9;
+}
+
+@media (max-width: 767px) {
+    .mobile-menu-toggle {
+        display: flex;
+    }
+
+    #admin-page .owner-header-layout,
+    #staff-page .staff-header-layout,
+    .portal-header,
+    .subscription-header,
+    #booking-page .booking-header-layout {
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    #admin-page .owner-header-layout,
+    #staff-page .staff-header-layout {
+        min-height: 4.25rem;
+        height: auto;
+        padding: 0.65rem 1rem;
+    }
+
+    #admin-page .owner-header-layout > div:first-child,
+    #staff-page .staff-header-layout > div:first-child {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    #admin-page #uiNomeEspaco {
+        max-width: min(65vw, 22rem);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mobile-menu-panel,
+    #admin-page nav.mobile-menu-panel,
+    #staff-page nav.mobile-menu-panel,
+    .portal-nav.mobile-menu-panel,
+    .subscription-menu.mobile-menu-panel,
+    #booking-page .booking-menu.mobile-menu-panel {
+        position: absolute;
+        z-index: 60;
+        top: calc(100% + 0.35rem);
+        right: 0.75rem;
+        left: 0.75rem;
+        display: none;
+        width: auto;
+        max-height: min(75dvh, 38rem);
+        flex: initial;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        background: #fff;
+        padding: 0.8rem;
+        box-shadow: 0 20px 50px rgb(15 23 42 / 20%);
+    }
+
+    .mobile-menu-panel[data-open="true"] {
+        display: flex !important;
+    }
+
+    .mobile-menu-profile {
+        display: flex;
+    }
+
+    #admin-page .mobile-menu-panel .owner-nav-item,
+    #staff-page .mobile-menu-panel > button,
+    .portal-nav.mobile-menu-panel .portal-nav__item,
+    .subscription-menu.mobile-menu-panel > a,
+    .subscription-menu.mobile-menu-panel > button,
+    #booking-page .booking-menu > button,
+    #booking-page .booking-menu > a {
+        display: flex;
+        width: 100%;
+        min-height: 2.75rem;
+        flex: 0 0 auto;
+        justify-content: flex-start;
+        border-radius: 0.7rem;
+        padding: 0.65rem 0.75rem;
+        text-align: left;
+        white-space: normal;
+    }
+
+    #staff-page .mobile-menu-panel > button {
+        color: #475569 !important;
+    }
+
+    #admin-page .mobile-menu-panel .owner-nav-item.is-current,
+    #staff-page .mobile-menu-panel #aba-btn-agenda.bg-blue-600,
+    .portal-nav.mobile-menu-panel .portal-nav__item.is-active,
+    .subscription-menu.mobile-menu-panel > a[aria-current="page"],
+    #booking-page .booking-menu #nav-agenda.bg-blue-600 {
+        background: #1246a0;
+        color: #fff !important;
+    }
+
+    #staff-page .mobile-menu-select {
+        display: grid;
+        gap: 0.35rem;
+        padding: 0.5rem 0.2rem;
+        color: #64748b;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    #staff-page .mobile-menu-select select {
+        width: 100%;
+        min-height: 2.7rem;
+        background: #f8fafc;
+        color: #12213b;
+    }
+
+    .portal-header {
+        flex-wrap: nowrap;
+        padding: 0.7rem 1rem;
+    }
+
+    .portal-header__user {
+        margin-left: auto;
+    }
+
+    .portal-main {
+        width: min(100% - 1.25rem, 1200px);
+        margin: 1rem auto;
+    }
+
+    .portal-panel__heading {
+        min-width: 0;
+    }
+
+    .portal-card,
+    .portal-panel,
+    .portal-welcome {
+        min-width: 0;
+    }
+
+    .subscription-header {
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        padding: 0.65rem 1rem;
+    }
+
+    .subscription-menu.mobile-menu-panel {
+        flex: initial;
+    }
+
+    .subscription-header__actions {
+        margin-left: auto;
+    }
+
+    .subscription-header__actions .subscription-secondary-button {
+        min-height: 2.5rem;
+        padding: 0.55rem 0.7rem;
+        font-size: 0.72rem;
+    }
+
+    #booking-page .booking-header-layout {
+        min-height: 4rem;
+        height: auto;
+        padding: 0.65rem 1rem;
+    }
+
+    #booking-page #nomeEstabelecimento {
+        max-width: 55vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #booking-page .booking-menu #nav-perfil img[hidden] {
+        display: none;
+    }
+
+    #admin-page table,
+    #staff-page table,
+    .portal-page table {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #admin-page th,
+    #admin-page td,
+    #staff-page th,
+    #staff-page td,
+    .portal-page th,
+    .portal-page td {
+        white-space: nowrap;
+    }
+
+    #admin-page .grid,
+    #staff-page .grid,
+    .portal-page .grid {
+        min-width: 0;
+    }
+
+    #admin-page input,
+    #admin-page select,
+    #admin-page textarea,
+    #staff-page input,
+    #staff-page select,
+    #staff-page textarea,
+    .portal-page input,
+    .portal-page select,
+    .portal-page textarea {
+        max-width: 100%;
+    }
+
+    .marketplace-directory__heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .marketplace-filters {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .marketplace-filter:first-child {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 420px) {
+    .mobile-menu-panel,
+    #admin-page nav.mobile-menu-panel,
+    #staff-page nav.mobile-menu-panel,
+    .portal-nav.mobile-menu-panel,
+    .subscription-menu.mobile-menu-panel,
+    #booking-page .booking-menu.mobile-menu-panel {
+        right: 0.5rem;
+        left: 0.5rem;
+    }
+
+    .subscription-header__actions .subscription-secondary-button {
+        max-width: 7rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

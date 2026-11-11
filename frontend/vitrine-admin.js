@@ -125,6 +125,22 @@
             document.getElementById('vitrineLogo').value = settings.logo_url || '';
             document.getElementById('vitrineDesc').value = settings.descricao || '';
             document.getElementById('perfilNomeLoja').value = settings.nome || document.getElementById('perfilNomeLoja').value;
+            const menuAvatar = document.getElementById('ownerMenuAvatar');
+            const menuAvatarFallback = document.getElementById('ownerMenuAvatarFallback');
+            const logoUrl = AppApi.getImageUrl(settings.logo_url);
+            if (logoUrl) {
+                menuAvatar.src = logoUrl;
+                menuAvatar.hidden = false;
+                menuAvatarFallback.hidden = true;
+                menuAvatar.onerror = () => {
+                    menuAvatar.hidden = true;
+                    menuAvatarFallback.hidden = false;
+                };
+            } else {
+                menuAvatar.removeAttribute('src');
+                menuAvatar.hidden = true;
+                menuAvatarFallback.hidden = false;
+            }
 
             colorFields.forEach(({ picker, input, property }) => {
                 const color = settings[property] || document.getElementById(input).value;
@@ -190,6 +206,7 @@
             }
             const storeName = document.getElementById('uiNomeEspaco');
             if (storeName) storeName.textContent = account.store_name;
+            document.getElementById('ownerMenuName').textContent = account.store_name;
             spaceId = String(account.space_id);
             AppApi.setSpaceId(spaceId);
             document.getElementById('linkVisualizarVitrine').href = `vitrine.html?loja=${encodeURIComponent(spaceId)}&origem=painel`;

@@ -643,3 +643,83 @@ test('owner authorization returns a retryable response when database queries tim
     assert.equal(response.statusCode, 503);
     assert.match(response.payload.error, /banco de dados demorou/);
 });
+
+test('customer and employee profiles validate and persist optional photo URLs', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const pool = {
+        async query(sql, values = []) {
+            if (sql.includes('SELECT user_id')) {
+                return { rows: [{ user_id: `${values[1]}-id` }] };
+            }
+            if (sql.includes('UPDATE saas_customers')) {
+                return {
+                    rows: [{
+                        id: values[5],
+                        full_name: values[0],
+                        email: values[1],
+                        phone: values[2],
+                        photo_url: values[4]
+                    }]
+                };
+            }
+            if (sql.includes('UPDATE saas_employees')) {
+                return {
+                    rows: [{
+                        id: values[1],
+                        full_name: 'Profissional',
+                        email: 'profissional@example.com',
+                        photo_url: values[0] || null
+                    }]
+                };
+            }
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = () => ({
+        statusCode: 200,
+        payload: null,
+        status(code) {
+            this.statusCode = code;
+            return this;
+        },
+        json(body) {
+            this.payload = body;
+            return this;
+        }
+    });
+    const cookie = `agenda_session=${'a'.repeat(64)}`;
+    const customerResponse = response();
+    await routes.get('PATCH /api/customer/profile')({
+        headers: { cookie },
+        body: {
+            nome: 'Cliente Exemplo',
+            email: 'cliente@example.com',
+            telefone: '+5511999999999',
+            photo_url: 'https://images.example.com/cliente.jpg'
+        }
+    }, customerResponse);
+    assert.equal(customerResponse.statusCode, 200);
+    assert.equal(customerResponse.payload.customer.photo_url, 'https://images.example.com/cliente.jpg');
+
+    const invalidPhotoResponse = response();
+    await routes.get('PATCH /api/employee/profile')({
+        headers: { cookie },
+        body: { photo_url: 'javascript:alert(1)' }
+    }, invalidPhotoResponse);
+    assert.equal(invalidPhotoResponse.statusCode, 400);
+
+    const employeeResponse = response();
+    await routes.get('PATCH /api/employee/profile')({
+        headers: { cookie },
+        body: { photo_url: 'https://images.example.com/profissional.jpg' }
+    }, employeeResponse);
+    assert.equal(employeeResponse.statusCode, 200);
+    assert.equal(employeeResponse.payload.employee.photo_url, 'https://images.example.com/profissional.jpg');
+});

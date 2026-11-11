@@ -40,6 +40,25 @@ async function loadSubscription() {
         : 'Cobrança iniciada após confirmar o pagamento.';
     document.getElementById('accountStore').textContent = account.store_name;
     document.getElementById('accountOwner').textContent = `${account.full_name} · ${account.email}`;
+    document.getElementById('subscriptionMenuName').textContent = account.store_name;
+    document.getElementById('subscriptionMenuAvatarFallback').textContent = account.store_name.trim().charAt(0).toUpperCase();
+    try {
+        const store = await AppApi.request(`/espacos/${encodeURIComponent(account.space_id)}/vitrine`);
+        const avatar = document.getElementById('subscriptionMenuAvatar');
+        const fallback = document.getElementById('subscriptionMenuAvatarFallback');
+        const logoUrl = AppApi.getImageUrl(store.logo_url);
+        if (logoUrl) {
+            avatar.src = logoUrl;
+            avatar.hidden = false;
+            fallback.hidden = true;
+            avatar.onerror = () => {
+                avatar.hidden = true;
+                fallback.hidden = false;
+            };
+        }
+    } catch (error) {
+        console.error('Não foi possível carregar a logo da loja para o menu:', error);
+    }
     document.getElementById('subscriptionStatus').textContent = statusNames[subscription.status] || 'Status atualizado';
     document.getElementById('trialEnd').textContent = formatDate(subscription.trial_ends_at);
     document.getElementById('nextPayment').textContent = formatDate(subscription.next_payment_at);
