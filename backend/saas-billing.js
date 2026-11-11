@@ -331,15 +331,24 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 return await handler(req, res, next);
             } catch (error) {
                 console.error('SaaS account request failed:', error);
-                return res.status(500).json({ error: 'Não foi possível validar sua conta.' });
+                const timedOut = ['57014', '55P03', 'ETIMEDOUT'].includes(error.code)
+                    || /timeout/i.test(error.message || '');
+                return res.status(timedOut ? 503 : 500).json({
+                    error: timedOut
+                        ? 'O banco de dados demorou para responder. Tente novamente em instantes.'
+                        : 'Não foi possível validar sua conta.'
+                });
             }
         };
     }
 
     function requireOwnedSpace(handler) {
         return async (req, res, next) => {
+            const startedAt = Date.now();
+            let phase = 'schema';
             try {
                 await ensureSchema();
+                phase = 'owner_session';
                 const account = await getAccountForRequest(req);
                 if (!account) return res.status(401).json({ error: 'Entre na sua conta para continuar.' });
                 if (!/^\d+$/.test(req.params.id || '')) {
@@ -352,10 +361,26 @@ function createSaasBilling(app, pool, frontendDirectory) {
                     return res.status(402).json({ error: 'Sua assinatura não está ativa.' });
                 }
                 req.saasAccount = account;
+                console.info('Owner space authorized:', {
+                    space_id: req.params.id,
+                    duration_ms: Date.now() - startedAt
+                });
                 return await handler(req, res, next);
             } catch (error) {
-                console.error('SaaS establishment authorization failed:', error);
-                return res.status(500).json({ error: 'Não foi possível validar o estabelecimento.' });
+                console.error('SaaS establishment authorization failed:', {
+                    space_id: req.params.id,
+                    phase,
+                    duration_ms: Date.now() - startedAt,
+                    code: error.code,
+                    message: error.message
+                });
+                const timedOut = ['57014', '55P03', 'ETIMEDOUT'].includes(error.code)
+                    || /timeout/i.test(error.message || '');
+                return res.status(timedOut ? 503 : 500).json({
+                    error: timedOut
+                        ? 'O banco de dados demorou para responder. Tente novamente em instantes.'
+                        : 'Não foi possível validar o estabelecimento.'
+                });
             }
         };
     }

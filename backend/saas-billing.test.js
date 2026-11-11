@@ -613,3 +613,33 @@ test('vitrine writes are limited to the signed-in account establishment', async 
     await middleware({ ...request, params: { id: '43' } }, deniedResponse);
     assert.equal(deniedResponse.statusCode, 403);
 });
+
+test('owner authorization returns a retryable response when database queries time out', async () => {
+    const app = { get() {}, post() {}, patch() {}, delete() {} };
+    const pool = {
+        async query() {
+            const error = new Error('statement timeout');
+            error.code = '57014';
+            throw error;
+        }
+    };
+    const billing = createSaasBilling(app, pool, 'frontend');
+    const middleware = billing.requireOwnedSpace(() => {});
+    const response = {
+        statusCode: null,
+        payload: null,
+        status(status) {
+            this.statusCode = status;
+            return this;
+        },
+        json(payload) {
+            this.payload = payload;
+            return this;
+        }
+    };
+
+    await middleware({ headers: { cookie: `agenda_session=${'a'.repeat(64)}` }, params: { id: '42' } }, response);
+
+    assert.equal(response.statusCode, 503);
+    assert.match(response.payload.error, /banco de dados demorou/);
+});

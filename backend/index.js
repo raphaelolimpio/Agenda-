@@ -43,7 +43,9 @@ app.use((req, res, next) => {
 // Conexão com o PostgreSQL
 const pool = new Pool({
     ...require('./database-config').getDatabaseConfig(process.env.DATABASE_URL),
-    connectionTimeoutMillis: 10000
+    connectionTimeoutMillis: 10000,
+    lock_timeout: 5000,
+    statement_timeout: 15000
 });
 const frontendDirectory = path.join(__dirname, '..', 'frontend');
 const saasBilling = createSaasBilling(app, pool, frontendDirectory);
@@ -149,6 +151,8 @@ app.get('/espacos/:id/vitrine', async (req, res) => {
 
 app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace, async (req, res) => {
     const { id } = req.params;
+    let phase = 'validate';
+    const startedAt = Date.now();
     const {
         segmento,
         banner_url,
@@ -174,16 +178,20 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace, async (req, res) 
     }
 
     try {
+        phase = 'vitrine_schema';
         await ensureVitrineSchema();
+        phase = 'acquire_connection';
         const client = await pool.connect();
         let transactionStarted = false;
         let result;
         try {
+            phase = 'begin_transaction';
             await client.query('BEGIN');
             transactionStarted = true;
             await client.query("SET LOCAL lock_timeout = '5s'");
             await client.query("SET LOCAL statement_timeout = '15s'");
 
+            phase = 'check_space';
             const spaceResult = await client.query('SELECT id FROM espacos WHERE id = $1', [id]);
             if (spaceResult.rows.length === 0) {
                 await client.query('ROLLBACK');
@@ -191,6 +199,7 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace, async (req, res) 
                 return res.status(404).json({ error: 'Estabelecimento não encontrado.' });
             }
 
+            phase = 'save_vitrine';
             result = await client.query(`
                 INSERT INTO configuracoes_vitrine
                     (espaco_id, segmento, banner_url, descricao, logo_url, cor_primaria, cor_destaque, cor_fundo, atualizado_em)
@@ -207,6 +216,7 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace, async (req, res) 
                 RETURNING *
             `, [id, segmento.trim(), banner_url || '', descricao.trim(), logo_url || '', cor_primaria, cor_destaque, cor_fundo]);
 
+            phase = 'commit';
             await client.query('COMMIT');
             transactionStarted = false;
         } catch (error) {
@@ -221,10 +231,18 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace, async (req, res) 
         } finally {
             client.release();
         }
+        console.info('Vitrine update committed:', { space_id: id, duration_ms: Date.now() - startedAt });
         res.json(result.rows[0]);
     } catch (err) {
-        console.error('Erro ao salvar vitrine:', err);
-        const timedOut = err.code === '57014' || err.code === '55P03' || err.code === 'ETIMEDOUT';
+        console.error('Erro ao salvar vitrine:', {
+            space_id: id,
+            phase,
+            duration_ms: Date.now() - startedAt,
+            code: err.code,
+            message: err.message
+        });
+        const timedOut = ['57014', '55P03', 'ETIMEDOUT'].includes(err.code)
+            || /timeout/i.test(err.message || '');
         res.status(timedOut ? 503 : 500).json({
             error: timedOut
                 ? 'O banco de dados está ocupado. Nenhuma alteração foi confirmada; tente novamente em instantes.'
