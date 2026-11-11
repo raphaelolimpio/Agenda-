@@ -149,7 +149,7 @@ app.get('/espacos/:id/vitrine', async (req, res) => {
     }
 });
 
-app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace, async (req, res) => {
+app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace(async (req, res) => {
     const { id } = req.params;
     let phase = 'validate';
     const startedAt = Date.now();
@@ -249,7 +249,7 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace, async (req, res) 
                 : 'Não foi possível salvar as configurações da vitrine.'
         });
     }
-});
+}));
 
 app.get('/espacos/:id/servicos', async (req, res) => {
     const { id } = req.params;
