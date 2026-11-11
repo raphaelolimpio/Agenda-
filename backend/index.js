@@ -41,7 +41,10 @@ app.use((req, res, next) => {
 });
 
 // Conexão com o PostgreSQL
-const pool = new Pool(require('./database-config').getDatabaseConfig(process.env.DATABASE_URL));
+const pool = new Pool({
+    ...require('./database-config').getDatabaseConfig(process.env.DATABASE_URL),
+    connectionTimeoutMillis: 10000
+});
 const frontendDirectory = path.join(__dirname, '..', 'frontend');
 const saasBilling = createSaasBilling(app, pool, frontendDirectory);
 
@@ -172,29 +175,61 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace, async (req, res) 
 
     try {
         await ensureVitrineSchema();
-        const spaceResult = await pool.query('SELECT id FROM espacos WHERE id = $1', [id]);
-        if (spaceResult.rows.length === 0) return res.status(404).json({ error: 'Estabelecimento não encontrado.' });
+        const client = await pool.connect();
+        let transactionStarted = false;
+        let result;
+        try {
+            await client.query('BEGIN');
+            transactionStarted = true;
+            await client.query("SET LOCAL lock_timeout = '5s'");
+            await client.query("SET LOCAL statement_timeout = '15s'");
 
-        const result = await pool.query(`
-            INSERT INTO configuracoes_vitrine
-                (espaco_id, segmento, banner_url, descricao, logo_url, cor_primaria, cor_destaque, cor_fundo, atualizado_em)
-            VALUES ($1, $2, NULLIF($3, ''), $4, NULLIF($5, ''), $6, $7, $8, NOW())
-            ON CONFLICT (espaco_id) DO UPDATE SET
-                segmento = EXCLUDED.segmento,
-                banner_url = EXCLUDED.banner_url,
-                descricao = EXCLUDED.descricao,
-                logo_url = EXCLUDED.logo_url,
-                cor_primaria = EXCLUDED.cor_primaria,
-                cor_destaque = EXCLUDED.cor_destaque,
-                cor_fundo = EXCLUDED.cor_fundo,
-                atualizado_em = NOW()
-            RETURNING *
-        `, [id, segmento.trim(), banner_url || '', descricao.trim(), logo_url || '', cor_primaria, cor_destaque, cor_fundo]);
+            const spaceResult = await client.query('SELECT id FROM espacos WHERE id = $1', [id]);
+            if (spaceResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                transactionStarted = false;
+                return res.status(404).json({ error: 'Estabelecimento não encontrado.' });
+            }
 
+            result = await client.query(`
+                INSERT INTO configuracoes_vitrine
+                    (espaco_id, segmento, banner_url, descricao, logo_url, cor_primaria, cor_destaque, cor_fundo, atualizado_em)
+                VALUES ($1, $2, NULLIF($3, ''), $4, NULLIF($5, ''), $6, $7, $8, NOW())
+                ON CONFLICT (espaco_id) DO UPDATE SET
+                    segmento = EXCLUDED.segmento,
+                    banner_url = EXCLUDED.banner_url,
+                    descricao = EXCLUDED.descricao,
+                    logo_url = EXCLUDED.logo_url,
+                    cor_primaria = EXCLUDED.cor_primaria,
+                    cor_destaque = EXCLUDED.cor_destaque,
+                    cor_fundo = EXCLUDED.cor_fundo,
+                    atualizado_em = NOW()
+                RETURNING *
+            `, [id, segmento.trim(), banner_url || '', descricao.trim(), logo_url || '', cor_primaria, cor_destaque, cor_fundo]);
+
+            await client.query('COMMIT');
+            transactionStarted = false;
+        } catch (error) {
+            if (transactionStarted) {
+                try {
+                    await client.query('ROLLBACK');
+                } catch (rollbackError) {
+                    console.error('Vitrine update rollback failed:', rollbackError);
+                }
+            }
+            throw error;
+        } finally {
+            client.release();
+        }
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Erro ao salvar vitrine:', err);
-        res.status(500).json({ error: 'Não foi possível salvar as configurações da vitrine.' });
+        const timedOut = err.code === '57014' || err.code === '55P03' || err.code === 'ETIMEDOUT';
+        res.status(timedOut ? 503 : 500).json({
+            error: timedOut
+                ? 'O banco de dados está ocupado. Nenhuma alteração foi confirmada; tente novamente em instantes.'
+                : 'Não foi possível salvar as configurações da vitrine.'
+        });
     }
 });
 
