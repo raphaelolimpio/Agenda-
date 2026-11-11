@@ -131,7 +131,7 @@
                                 <h3 class="font-bold text-lg text-slate-900 mt-3">${AppApi.escapeHtml(loja.nome)}</h3>
                                 <p class="text-sm text-slate-500 mt-2">${AppApi.escapeHtml(loja.descricao || 'Conheça nossos serviços e encontre um horário para você.')}</p>
                             </div>
-                            <a href="vitrine.html?loja=${encodeURIComponent(loja.id)}" class="mt-5 block w-full text-center bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl text-sm transition">Conhecer estabelecimento</a>
+                            <a href="${loja.public_slug ? `/${encodeURIComponent(loja.public_slug)}` : `vitrine.html?loja=${encodeURIComponent(loja.id)}`}" class="mt-5 block w-full text-center bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl text-sm transition">Conhecer estabelecimento</a>
                         </div>
                     </article>
                 `;

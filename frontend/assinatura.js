@@ -65,7 +65,6 @@ async function loadSubscription() {
 
     const dashboardLink = document.getElementById('dashboardLink');
     dashboardLink.hidden = !subscription.can_access;
-    document.getElementById('headerDashboardLink').hidden = !subscription.can_access;
     document.getElementById('subscriptionMenuPlan').hidden = subscription.status === 'active';
 
     const checkoutButton = document.getElementById('checkoutButton');

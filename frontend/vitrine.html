@@ -36,6 +36,7 @@
                 </a>
             </div>
             <p id="vitrineDescricao" class="text-sm sm:text-base text-slate-600 mt-6 max-w-3xl leading-relaxed"></p>
+            <nav id="vitrineRedesSociais" class="mt-5 flex flex-wrap gap-3" aria-label="Redes sociais da loja" hidden></nav>
         </section>
 
         <section class="mt-10">
@@ -54,8 +55,10 @@
     </main>
     <script>
         (function () {
-            const spaceId = AppApi.getSpaceId();
             const params = new URLSearchParams(window.location.search);
+            const requestedSlug = params.get('slug');
+            const requestedSpaceId = AppApi.getSpaceId();
+            let spaceId;
             if (params.get('origem') === 'painel') {
                 const backLink = document.getElementById('linkVoltarVitrine');
                 backLink.href = 'admin.html?aba=vitrine';
@@ -64,13 +67,56 @@
             }
             const money = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
 
+            function safeExternalUrl(value) {
+                if (typeof value !== 'string' || !value.trim()) return '';
+                try {
+                    const url = new URL(value);
+                    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+                } catch (urlError) {
+                    console.warn('Link social inválido ignorado na vitrine:', urlError);
+                    return '';
+                }
+            }
+
+            function renderSocialLinks(store) {
+                const container = document.getElementById('vitrineRedesSociais');
+                const links = [];
+                const instagram = String(store.instagram_handle || '').replace(/^@/, '');
+                if (/^[a-zA-Z0-9._]{1,30}$/.test(instagram)) {
+                    links.push({ label: `Instagram @${instagram}`, url: `https://www.instagram.com/${encodeURIComponent(instagram)}/` });
+                }
+                [
+                    ['Facebook', store.facebook_url],
+                    ['TikTok', store.tiktok_url],
+                    ['YouTube', store.youtube_url]
+                ].forEach(([label, value]) => {
+                    const url = safeExternalUrl(value);
+                    if (url) links.push({ label, url });
+                });
+
+                container.replaceChildren(...links.map(({ label, url }) => {
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = label;
+                    link.className = 'rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-600';
+                    return link;
+                }));
+                container.hidden = links.length === 0;
+            }
+
             async function carregarVitrine() {
                 const error = document.getElementById('vitrineErro');
                 try {
-                    const [store, services] = await Promise.all([
-                        AppApi.request(`/espacos/${encodeURIComponent(spaceId)}/vitrine`),
-                        AppApi.request(`/espacos/${encodeURIComponent(spaceId)}/servicos`)
-                    ]);
+                    if (!requestedSlug && !requestedSpaceId) {
+                        throw new Error('Não foi informado o endereço desta loja.');
+                    }
+                    const store = requestedSlug
+                        ? await AppApi.request(`/api/public/vitrines/${encodeURIComponent(requestedSlug)}`)
+                        : await AppApi.request(`/espacos/${encodeURIComponent(requestedSpaceId)}/vitrine`);
+                    spaceId = String(store.id);
+                    const services = await AppApi.request(`/espacos/${encodeURIComponent(spaceId)}/servicos`);
                     AppApi.request('/api/customer/recent-visits', {
                         method: 'POST',
                         body: JSON.stringify({ space_id: spaceId })
@@ -83,6 +129,7 @@
                     document.getElementById('vitrineNome').textContent = store.nome;
                     document.getElementById('vitrineSegmento').textContent = store.segmento || store.nicho || 'Serviços';
                     document.getElementById('vitrineDescricao').textContent = store.descricao || 'Conheça nossos serviços e agende seu próximo atendimento.';
+                    renderSocialLinks(store);
                     const banner = AppApi.getImageUrl(store.banner_url);
                     if (banner) document.getElementById('vitrineBanner').style.backgroundImage = `url("${banner.replace(/["\\]/g, '\\$&')}")`;
 

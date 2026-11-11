@@ -54,7 +54,8 @@ let vitrineSchemaReady;
 
 async function ensureVitrineSchema() {
     if (!vitrineSchemaReady) {
-        vitrineSchemaReady = pool.query(`
+        vitrineSchemaReady = (async () => {
+            await pool.query(`
             CREATE TABLE IF NOT EXISTS configuracoes_vitrine (
                 espaco_id BIGINT PRIMARY KEY,
                 segmento TEXT NOT NULL DEFAULT 'outros',
@@ -64,9 +65,28 @@ async function ensureVitrineSchema() {
                 cor_primaria CHAR(7) NOT NULL DEFAULT '#1246A0',
                 cor_destaque CHAR(7) NOT NULL DEFAULT '#F97316',
                 cor_fundo CHAR(7) NOT NULL DEFAULT '#F3F6FB',
+                public_slug TEXT,
+                instagram_handle TEXT,
+                facebook_url TEXT,
+                tiktok_url TEXT,
+                youtube_url TEXT,
                 atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
-        `).catch((error) => {
+            `);
+            await pool.query(`
+                ALTER TABLE configuracoes_vitrine
+                    ADD COLUMN IF NOT EXISTS public_slug TEXT,
+                    ADD COLUMN IF NOT EXISTS instagram_handle TEXT,
+                    ADD COLUMN IF NOT EXISTS facebook_url TEXT,
+                    ADD COLUMN IF NOT EXISTS tiktok_url TEXT,
+                    ADD COLUMN IF NOT EXISTS youtube_url TEXT
+            `);
+            await pool.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS configuracoes_vitrine_public_slug_unique
+                    ON configuracoes_vitrine (public_slug)
+                    WHERE public_slug IS NOT NULL
+            `);
+        })().catch((error) => {
             vitrineSchemaReady = undefined;
             throw error;
         });
@@ -94,6 +114,38 @@ function isValidOptionalUrl(value) {
     }
 }
 
+const reservedPublicSlugs = new Set([
+    'admin', 'api', 'assinatura', 'agendar', 'cliente', 'colaborador',
+    'entrar', 'espacos', 'index', 'marketplace', 'recuperar-senha',
+    'status', 'vitrine'
+]);
+
+function isValidPublicSlug(value) {
+    return typeof value === 'string'
+        && value.length <= 60
+        && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
+        && !reservedPublicSlugs.has(value);
+}
+
+function createPublicSlug(name, id) {
+    const base = String(name || 'loja')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 44)
+        .replace(/-+$/g, '') || 'loja';
+    return `${base}-${id}`;
+}
+
+function normalizeInstagramHandle(value) {
+    if (value === undefined || value === null) return '';
+    if (typeof value !== 'string') return null;
+    const handle = value.trim().replace(/^@/, '');
+    return handle === '' || /^[a-zA-Z0-9._]{1,30}$/.test(handle) ? handle : null;
+}
+
 app.get('/espacos', async (req, res) => {
     try {
         await ensureVitrineSchema();
@@ -109,7 +161,8 @@ app.get('/espacos', async (req, res) => {
                    COALESCE(v.logo_url, e.logo_url) AS logo_url,
                    COALESCE(v.cor_primaria, '#1246A0') AS cor_primaria,
                    COALESCE(v.cor_destaque, '#F97316') AS cor_destaque,
-                   COALESCE(v.cor_fundo, '#F3F6FB') AS cor_fundo
+                   COALESCE(v.cor_fundo, '#F3F6FB') AS cor_fundo,
+                   v.public_slug
             FROM espacos e
             LEFT JOIN configuracoes_vitrine v ON v.espaco_id = e.id
             ORDER BY e.nome
@@ -135,7 +188,9 @@ app.get('/espacos/:id/vitrine', async (req, res) => {
                    COALESCE(v.logo_url, e.logo_url) AS logo_url,
                    COALESCE(v.cor_primaria, '#1246A0') AS cor_primaria,
                    COALESCE(v.cor_destaque, '#F97316') AS cor_destaque,
-                   COALESCE(v.cor_fundo, '#F3F6FB') AS cor_fundo
+                   COALESCE(v.cor_fundo, '#F3F6FB') AS cor_fundo,
+                   v.public_slug, v.instagram_handle, v.facebook_url,
+                   v.tiktok_url, v.youtube_url
             FROM espacos e
             LEFT JOIN configuracoes_vitrine v ON v.espaco_id = e.id
             WHERE e.id = $1
@@ -145,6 +200,36 @@ app.get('/espacos/:id/vitrine', async (req, res) => {
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Erro ao buscar vitrine:', err);
+        res.status(500).json({ error: 'Não foi possível carregar a vitrine.' });
+    }
+});
+
+app.get('/api/public/vitrines/:slug', async (req, res) => {
+    const slug = String(req.params.slug || '').toLowerCase();
+    if (!isValidPublicSlug(slug)) return res.status(404).json({ error: 'Vitrine não encontrada.' });
+
+    try {
+        await ensureVitrineSchema();
+        const result = await pool.query(`
+            SELECT e.id, e.nome, e.nicho,
+                   COALESCE(v.segmento, e.nicho, 'outros') AS segmento,
+                   COALESCE(v.descricao, '') AS descricao,
+                   v.banner_url,
+                   COALESCE(v.logo_url, e.logo_url) AS logo_url,
+                   COALESCE(v.cor_primaria, '#1246A0') AS cor_primaria,
+                   COALESCE(v.cor_destaque, '#F97316') AS cor_destaque,
+                   COALESCE(v.cor_fundo, '#F3F6FB') AS cor_fundo,
+                   v.public_slug, v.instagram_handle, v.facebook_url,
+                   v.tiktok_url, v.youtube_url
+            FROM configuracoes_vitrine v
+            JOIN espacos e ON e.id = v.espaco_id
+            WHERE v.public_slug = $1
+        `, [slug]);
+
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Vitrine não encontrada.' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Erro ao buscar vitrine pública:', err);
         res.status(500).json({ error: 'Não foi possível carregar a vitrine.' });
     }
 });
@@ -160,8 +245,15 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace(async (req, res) =
         logo_url,
         cor_primaria,
         cor_destaque,
-        cor_fundo
+        cor_fundo,
+        public_slug,
+        instagram_handle,
+        facebook_url,
+        tiktok_url,
+        youtube_url
     } = req.body;
+    const requestedSlug = typeof public_slug === 'string' ? public_slug.trim().toLowerCase() : '';
+    const normalizedInstagram = normalizeInstagramHandle(instagram_handle);
 
     if (!isValidSpaceId(id)) return res.status(400).json({ error: 'ID de estabelecimento inválido.' });
     if (typeof segmento !== 'string' || !segmento.trim() || segmento.length > 80) {
@@ -172,6 +264,15 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace(async (req, res) =
     }
     if (!isValidOptionalUrl(banner_url) || !isValidOptionalUrl(logo_url)) {
         return res.status(400).json({ error: 'As imagens devem usar endereços HTTP ou HTTPS válidos.' });
+    }
+    if (requestedSlug && !isValidPublicSlug(requestedSlug)) {
+        return res.status(400).json({ error: 'Use um endereço com letras minúsculas, números e hífens, sem espaços ou acentos.' });
+    }
+    if (normalizedInstagram === null) {
+        return res.status(400).json({ error: 'Informe um usuário válido do Instagram, sem incluir o endereço completo.' });
+    }
+    if (![facebook_url, tiktok_url, youtube_url].every((url) => isValidOptionalUrl(url === undefined ? '' : url))) {
+        return res.status(400).json({ error: 'Os links sociais devem usar endereços HTTP ou HTTPS válidos.' });
     }
     if (![cor_primaria, cor_destaque, cor_fundo].every(isValidColor)) {
         return res.status(400).json({ error: 'Informe as três cores no formato hexadecimal #RRGGBB.' });
@@ -192,18 +293,34 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace(async (req, res) =
             await client.query("SET LOCAL statement_timeout = '15s'");
 
             phase = 'check_space';
-            const spaceResult = await client.query('SELECT id FROM espacos WHERE id = $1', [id]);
+            const spaceResult = await client.query(`
+                SELECT e.id, e.nome, v.public_slug, v.instagram_handle,
+                       v.facebook_url, v.tiktok_url, v.youtube_url
+                FROM espacos e
+                LEFT JOIN configuracoes_vitrine v ON v.espaco_id = e.id
+                WHERE e.id = $1
+            `, [id]);
             if (spaceResult.rows.length === 0) {
                 await client.query('ROLLBACK');
                 transactionStarted = false;
                 return res.status(404).json({ error: 'Estabelecimento não encontrado.' });
             }
 
+            const currentVitrine = spaceResult.rows[0];
+            const publicSlug = requestedSlug || currentVitrine.public_slug || createPublicSlug(currentVitrine.nome, id);
+            const savedInstagram = instagram_handle === undefined
+                ? currentVitrine.instagram_handle || ''
+                : normalizedInstagram || '';
+            const savedFacebook = facebook_url === undefined ? currentVitrine.facebook_url || '' : facebook_url || '';
+            const savedTikTok = tiktok_url === undefined ? currentVitrine.tiktok_url || '' : tiktok_url || '';
+            const savedYouTube = youtube_url === undefined ? currentVitrine.youtube_url || '' : youtube_url || '';
             phase = 'save_vitrine';
             result = await client.query(`
                 INSERT INTO configuracoes_vitrine
-                    (espaco_id, segmento, banner_url, descricao, logo_url, cor_primaria, cor_destaque, cor_fundo, atualizado_em)
-                VALUES ($1, $2, NULLIF($3, ''), $4, NULLIF($5, ''), $6, $7, $8, NOW())
+                    (espaco_id, segmento, banner_url, descricao, logo_url, cor_primaria, cor_destaque, cor_fundo,
+                     public_slug, instagram_handle, facebook_url, tiktok_url, youtube_url, atualizado_em)
+                VALUES ($1, $2, NULLIF($3, ''), $4, NULLIF($5, ''), $6, $7, $8, $9, NULLIF($10, ''),
+                        NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NOW())
                 ON CONFLICT (espaco_id) DO UPDATE SET
                     segmento = EXCLUDED.segmento,
                     banner_url = EXCLUDED.banner_url,
@@ -212,9 +329,28 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace(async (req, res) =
                     cor_primaria = EXCLUDED.cor_primaria,
                     cor_destaque = EXCLUDED.cor_destaque,
                     cor_fundo = EXCLUDED.cor_fundo,
+                    public_slug = EXCLUDED.public_slug,
+                    instagram_handle = EXCLUDED.instagram_handle,
+                    facebook_url = EXCLUDED.facebook_url,
+                    tiktok_url = EXCLUDED.tiktok_url,
+                    youtube_url = EXCLUDED.youtube_url,
                     atualizado_em = NOW()
                 RETURNING *
-            `, [id, segmento.trim(), banner_url || '', descricao.trim(), logo_url || '', cor_primaria, cor_destaque, cor_fundo]);
+            `, [
+                id,
+                segmento.trim(),
+                banner_url || '',
+                descricao.trim(),
+                logo_url || '',
+                cor_primaria,
+                cor_destaque,
+                cor_fundo,
+                publicSlug,
+                savedInstagram,
+                savedFacebook,
+                savedTikTok,
+                savedYouTube
+            ]);
 
             phase = 'commit';
             await client.query('COMMIT');
@@ -243,6 +379,9 @@ app.put('/espacos/:id/vitrine', saasBilling.requireOwnedSpace(async (req, res) =
         });
         const timedOut = ['57014', '55P03', 'ETIMEDOUT'].includes(err.code)
             || /timeout/i.test(err.message || '');
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'Este endereço público já está sendo usado por outra loja. Escolha outro.' });
+        }
         res.status(timedOut ? 503 : 500).json({
             error: timedOut
                 ? 'O banco de dados está ocupado. Nenhuma alteração foi confirmada; tente novamente em instantes.'

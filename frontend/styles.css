@@ -472,6 +472,10 @@ table th {
     overflow-wrap: anywhere;
 }
 
+.subscription-account {
+    min-width: 0;
+}
+
 .subscription-status {
     display: flex;
     align-items: center;
@@ -515,6 +519,8 @@ table th {
 
 .subscription-secondary-button {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border: 1px solid var(--line);
     background: white;
     color: var(--ink);

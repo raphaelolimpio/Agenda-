@@ -1,5 +1,6 @@
 (function () {
     let spaceId;
+    let savedPublicSlug = '';
     const status = document.getElementById('vitrineStatus');
     const failedImagePreviews = new Set();
     const colorFields = [
@@ -11,6 +12,35 @@
     function setStatus(message, state) {
         status.textContent = message;
         status.dataset.state = state || '';
+    }
+
+    function slugifyStoreName(name) {
+        const base = String(name || 'loja')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 44)
+            .replace(/-+$/g, '') || 'loja';
+        return `${base}-${spaceId}`;
+    }
+
+    function updatePublicAddress() {
+        const slug = document.getElementById('vitrineSlug').value.trim().toLowerCase();
+        const isValid = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && slug.length <= 60;
+        const url = isValid ? `${window.location.origin}/${slug}` : '';
+        document.getElementById('vitrineUrlPublica').value = url;
+        const link = document.getElementById('linkUrlPublica');
+        if (savedPublicSlug) {
+            link.href = `/${encodeURIComponent(savedPublicSlug)}`;
+            link.textContent = slug === savedPublicSlug
+                ? 'Abrir endereço publicado'
+                : 'Abrir endereço atualmente publicado (salve para ativar o novo)';
+        } else {
+            link.removeAttribute('href');
+            link.textContent = isValid ? 'Salve as configurações para publicar este endereço' : 'Informe um endereço válido para a loja';
+        }
     }
 
     function updateImagePreview(elementId, url) {
@@ -73,6 +103,11 @@
             banner_url: document.getElementById('vitrineBanner').value.trim(),
             logo_url: document.getElementById('vitrineLogo').value.trim(),
             descricao: document.getElementById('vitrineDesc').value.trim(),
+            public_slug: document.getElementById('vitrineSlug').value.trim().toLowerCase(),
+            instagram_handle: document.getElementById('vitrineInstagram').value.trim(),
+            facebook_url: document.getElementById('vitrineFacebook').value.trim(),
+            tiktok_url: document.getElementById('vitrineTikTok').value.trim(),
+            youtube_url: document.getElementById('vitrineYouTube').value.trim(),
             cor_primaria: document.getElementById('vitrineCorPrimaria').value.trim(),
             cor_destaque: document.getElementById('vitrineCorDestaque').value.trim(),
             cor_fundo: document.getElementById('vitrineCorFundo').value.trim()
@@ -115,6 +150,10 @@
         document.getElementById(id).addEventListener('change', updatePreview);
     });
     document.getElementById('perfilNomeLoja').addEventListener('input', updatePreview);
+    document.getElementById('vitrineSlug').addEventListener('input', updatePublicAddress);
+    document.getElementById('linkUrlPublica').addEventListener('click', (event) => {
+        if (!savedPublicSlug) event.preventDefault();
+    });
 
     async function loadVitrine() {
         setStatus('Carregando configurações...', '');
@@ -125,6 +164,14 @@
             document.getElementById('vitrineLogo').value = settings.logo_url || '';
             document.getElementById('vitrineDesc').value = settings.descricao || '';
             document.getElementById('perfilNomeLoja').value = settings.nome || document.getElementById('perfilNomeLoja').value;
+            savedPublicSlug = settings.public_slug || '';
+            document.getElementById('vitrineSlug').value = savedPublicSlug || slugifyStoreName(settings.nome);
+            document.getElementById('vitrineInstagram').value = settings.instagram_handle || '';
+            document.getElementById('vitrineFacebook').value = settings.facebook_url || '';
+            document.getElementById('vitrineTikTok').value = settings.tiktok_url || '';
+            document.getElementById('vitrineYouTube').value = settings.youtube_url || '';
+            updatePublicAddress();
+            document.getElementById('vitrineUrlPrefixo').textContent = `${window.location.host}/`;
             const menuAvatar = document.getElementById('ownerMenuAvatar');
             const menuAvatarFallback = document.getElementById('ownerMenuAvatarFallback');
             const logoUrl = AppApi.getImageUrl(settings.logo_url);
@@ -166,19 +213,26 @@
             setStatus('Use cores hexadecimais válidas no formato #RRGGBB.', 'error');
             return;
         }
+        const slug = payload.public_slug;
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 60) {
+            setStatus('Use um endereço com letras minúsculas, números e hífens, sem espaços ou acentos.', 'error');
+            return;
+        }
 
         button.disabled = true;
         setStatus('Salvando identidade visual...', '');
         const saveController = new AbortController();
         const saveTimeout = setTimeout(() => saveController.abort(), 20000);
         try {
-            await AppApi.request(`/espacos/${encodeURIComponent(spaceId)}/vitrine`, {
+            const savedSettings = await AppApi.request(`/espacos/${encodeURIComponent(spaceId)}/vitrine`, {
                 method: 'PUT',
                 body: JSON.stringify(payload),
                 signal: saveController.signal
             });
+            savedPublicSlug = savedSettings.public_slug || slug;
+            updatePublicAddress();
             updatePreview();
-            setStatus('Vitrine salva. As cores e informações já estão disponíveis para os clientes.', 'success');
+            setStatus('Vitrine salva. O endereço exclusivo e as informações já estão disponíveis para os clientes.', 'success');
         } catch (error) {
             const message = error.name === 'AbortError'
                 ? 'O salvamento demorou mais de 20 segundos. Verifique a conexão e tente novamente.'
@@ -210,6 +264,7 @@
             spaceId = String(account.space_id);
             AppApi.setSpaceId(spaceId);
             document.getElementById('linkVisualizarVitrine').href = `vitrine.html?loja=${encodeURIComponent(spaceId)}&origem=painel`;
+            document.getElementById('vitrineUrlPrefixo').textContent = `${window.location.host}/`;
             await loadVitrine();
         } catch (error) {
             setStatus(error.message, 'error');
