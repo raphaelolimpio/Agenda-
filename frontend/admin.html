@@ -81,6 +81,10 @@
                         <p class="text-xs text-slate-500">Dias com compromissos ou bloqueios sinalizados no calendário</p>
                     </div>
                     <div class="flex items-center gap-2">
+                        <div class="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-semibold">
+                            <button type="button" onclick="navegarCalendarioAdmin(-1)" aria-label="Período anterior" class="px-3 py-1.5 bg-white text-slate-700">‹</button>
+                            <button type="button" onclick="navegarCalendarioAdmin(1)" aria-label="Próximo período" class="px-3 py-1.5 bg-white text-slate-700 border-l">›</button>
+                        </div>
                         <button onclick="abrirModalBloqueio()" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                             🔒 Trancar / Bloquear
                         </button>
@@ -126,6 +130,9 @@
                     </div>
 
                     <div class="flex gap-2">
+                        <select id="filtroHorarioAgenda" onchange="renderizarTabelaAgenda()" aria-label="Filtrar por horário" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
+                            <option value="">Todos os Horários</option>
+                        </select>
                         <select id="filtroProfissionalAgenda" onchange="renderizarTabelaAgenda()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
                             <option value="">Todos os Profissionais</option>
                         </select>
@@ -136,6 +143,7 @@
                         </select>
                     </div>
                 </div>
+                <p id="agendaLoadStatus" class="px-4 text-xs text-slate-500" role="status" aria-live="polite"></p>
 
                 <div class="overflow-x-auto px-4 pb-4">
                     <table class="w-full text-left border-collapse text-xs sm:text-sm min-w-[700px]">
@@ -146,7 +154,7 @@
                                 <th class="py-3 px-4">Serviço</th>
                                 <th class="py-3 px-4">Profissional</th>
                                 <th class="py-3 px-4">Status</th>
-                                <th class="py-3 px-4 text-right">Ações</th>
+                                <th class="py-3 px-4 text-right">Pagamento</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyAgendaAdmin" class="divide-y divide-slate-200"></tbody>
@@ -244,8 +252,9 @@
                     <p id="employeeCodeStatus" class="status-message" role="status" aria-live="polite"></p>
                     <div><label class="block text-xs font-semibold mb-1">Nome da Loja</label><input type="text" id="perfilNomeLoja" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
                     <div><label class="block text-xs font-semibold mb-1">Logo URL</label><input type="text" id="perfilLogo" placeholder="https://..." class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                    <div><label class="block text-xs font-semibold mb-1">Chave PIX da Empresa (Recebedor Padrão)</label><input type="text" id="perfilPix" class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
-                    <button onclick="alert('Configurações salvas!')" class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold">Salvar Configurações</button>
+                    <div><label class="block text-xs font-semibold mb-1">Chave PIX da Empresa (Recebedor Padrão)</label><input type="text" id="perfilPix" maxlength="200" class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
+                    <button type="button" onclick="salvarChavePix()" class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold">Salvar chave PIX</button>
+                    <p id="pixSettingsStatus" class="status-message" role="status" aria-live="polite"></p>
                 </div>
 
                 <div class="bg-white p-6 rounded-xl border shadow-sm space-y-4">
@@ -475,6 +484,7 @@
         // ESTADO GLOBAL DO ADMIN (NÃO DUPLICADO)
         const hojeAdmin = new Date();
         let dataFiltroSelecionada = `${hojeAdmin.getFullYear()}-${String(hojeAdmin.getMonth() + 1).padStart(2, '0')}-${String(hojeAdmin.getDate()).padStart(2, '0')}`;
+        let dataBaseCalendarioAdmin = new Date(hojeAdmin.getFullYear(), hojeAdmin.getMonth(), hojeAdmin.getDate());
         let modoVisaoCalendario = 'mes';
         let chartInstance = null;
 
@@ -486,6 +496,7 @@
         let listaBloqueiosAdmin = [];
         let horariosFuncionamentoAdmin = [];
         let agendamentosAdmin = [];
+        let requisicaoAgendaAdmin = 0;
         let historicoAdmin = [];
 
         // Helpers
@@ -516,29 +527,109 @@
             modoVisaoCalendario = modo;
             document.getElementById('cal-btn-mes').className = modo === 'mes' ? 'px-3 py-1.5 bg-blue-600 text-white' : 'px-3 py-1.5 bg-white text-slate-700';
             document.getElementById('cal-btn-semana').className = modo === 'semana' ? 'px-3 py-1.5 bg-blue-600 text-white border-l' : 'px-3 py-1.5 bg-white text-slate-700 border-l';
+            dataBaseCalendarioAdmin = new Date(`${dataFiltroSelecionada}T12:00:00`);
             renderizarCalendarioAdmin();
+            carregarAgendamentosAdmin();
+        }
+
+        function navegarCalendarioAdmin(direction) {
+            if (modoVisaoCalendario === 'mes') {
+                dataBaseCalendarioAdmin.setDate(1);
+                dataBaseCalendarioAdmin.setMonth(dataBaseCalendarioAdmin.getMonth() + direction);
+                dataFiltroSelecionada = `${dataBaseCalendarioAdmin.getFullYear()}-${String(dataBaseCalendarioAdmin.getMonth() + 1).padStart(2, '0')}-01`;
+            } else {
+                dataBaseCalendarioAdmin.setDate(dataBaseCalendarioAdmin.getDate() + direction * 7);
+                const selectedDate = new Date(`${dataFiltroSelecionada}T12:00:00`);
+                selectedDate.setDate(selectedDate.getDate() + direction * 7);
+                dataFiltroSelecionada = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+            }
+            renderizarCalendarioAdmin();
+            carregarAgendamentosAdmin();
         }
 
         function selecionarDataEspecifica(dataIso) {
             dataFiltroSelecionada = dataIso;
+            dataBaseCalendarioAdmin = new Date(`${dataIso}T12:00:00`);
             document.getElementById('labelDataSelecionada').textContent = dataIso.split('-').reverse().join('/');
             renderizarCalendarioAdmin();
+        }
+
+        function formatarDataIsoAdmin(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function obterIntervaloCalendarioAdmin() {
+            const anchor = new Date(dataBaseCalendarioAdmin);
+            const start = modoVisaoCalendario === 'semana'
+                ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
+                : new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+            start.setDate(start.getDate() - start.getDay());
+            const dayCount = modoVisaoCalendario === 'semana'
+                ? 7
+                : Math.ceil((new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate() + new Date(anchor.getFullYear(), anchor.getMonth(), 1).getDay()) / 7) * 7;
+            const end = new Date(start);
+            end.setDate(end.getDate() + dayCount);
+            return { start, end, dayCount };
+        }
+
+        async function carregarAgendamentosAdmin() {
+            if (!accountAtual?.space_id) return;
+            const requestId = ++requisicaoAgendaAdmin;
+            const { start, end } = obterIntervaloCalendarioAdmin();
+            const status = document.getElementById('agendaLoadStatus');
+            status.textContent = 'Carregando agendamentos...';
+            try {
+                const query = new URLSearchParams({
+                    from: formatarDataIsoAdmin(start),
+                    to: formatarDataIsoAdmin(end)
+                });
+                const result = await AppApi.request(`/api/saas/spaces/${accountAtual.space_id}/appointments?${query}`);
+                if (requestId !== requisicaoAgendaAdmin) return;
+                agendamentosAdmin = result.appointments.map((appointment) => ({
+                    id: appointment.id,
+                    servico_id: appointment.servico_id,
+                    cliente: appointment.cliente_nome,
+                    tel: appointment.cliente_telefone,
+                    data: appointment.data,
+                    hora: appointment.hora,
+                    prof_id: appointment.saas_professional_id,
+                    prof_nome: appointment.profissional_nome,
+                    servico_nome: appointment.servico_nome || 'Atendimento',
+                    valor: Number(appointment.valor) || 0,
+                    forma_pagamento: appointment.forma_pagamento || 'local',
+                    status: appointment.status
+                }));
+                status.textContent = agendamentosAdmin.length
+                    ? `${agendamentosAdmin.length} atendimento(s) no período.`
+                    : 'Nenhum atendimento neste período.';
+                status.dataset.state = '';
+                renderizarCalendarioAdmin();
+            } catch (error) {
+                if (requestId !== requisicaoAgendaAdmin) return;
+                agendamentosAdmin = [];
+                status.textContent = error.message;
+                status.dataset.state = 'error';
+                renderizarCalendarioAdmin();
+            }
         }
 
         function renderizarCalendarioAdmin() {
             const grade = document.getElementById('gridCalendarioAdmin');
             grade.innerHTML = '';
-            const inicioMes = new Date(hojeAdmin.getFullYear(), hojeAdmin.getMonth(), 1);
-            const dataInicio = modoVisaoCalendario === 'semana' ? new Date(hojeAdmin) : new Date(inicioMes);
+            const anchor = new Date(dataBaseCalendarioAdmin);
+            const inicioMes = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+            const dataInicio = modoVisaoCalendario === 'semana'
+                ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
+                : new Date(inicioMes);
             dataInicio.setDate(dataInicio.getDate() - dataInicio.getDay());
-            const diasDoMes = new Date(hojeAdmin.getFullYear(), hojeAdmin.getMonth() + 1, 0).getDate();
+            const diasDoMes = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
             const diasExibidos = modoVisaoCalendario === 'semana'
                 ? 7
                 : Math.ceil((inicioMes.getDay() + diasDoMes) / 7) * 7;
             document.getElementById('labelMesAnoCalendario').textContent = new Intl.DateTimeFormat('pt-BR', {
                 month: 'long',
                 year: 'numeric'
-            }).format(hojeAdmin);
+            }).format(anchor);
             document.getElementById('labelDataSelecionada').textContent = dataFiltroSelecionada.split('-').reverse().join('/');
 
             for (let i = 0; i < diasExibidos; i++) {
@@ -551,7 +642,8 @@
                     && ((b.tipoRecorrencia === 'especifico' && b.valor === iso)
                         || (b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana)
                         || b.tipoRecorrencia === 'diario_recorrente'));
-                const temCompromisso = agendamentosAdmin.some(a => a.data === iso);
+                const totalCompromissos = agendamentosAdmin.filter(a => a.data === iso).length;
+                const temCompromisso = totalCompromissos > 0;
                 const selecionado = dataFiltroSelecionada === iso;
 
                 let estilo = 'bg-white hover:border-blue-500 text-slate-700';
@@ -560,7 +652,7 @@
 
                 let ponto = '';
                 if (bloqueado) ponto = '<span class="w-1.5 h-1.5 bg-red-500 rounded-full mt-1"></span>';
-                else if (temCompromisso) ponto = '<span class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1"></span>';
+                else if (temCompromisso) ponto = `<span class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1" title="${totalCompromissos} atendimento(s)"></span>`;
                 else ponto = '';
 
                 grade.innerHTML += `<button type="button" aria-label="${d.toLocaleDateString('pt-BR')}" onclick="selecionarDataEspecifica('${iso}')" class="p-2 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[48px] ${estilo}"><span class="text-xs font-bold">${d.getDate()}</span>${ponto}</button>`;
@@ -575,12 +667,23 @@
             
             const filtroStatus = document.getElementById('filtroStatusAgenda').value;
             const filtroProf = document.getElementById('filtroProfissionalAgenda').value;
+            const horariosDoDia = [...new Set(agendamentosAdmin
+                .filter((appointment) => appointment.data === dataFiltroSelecionada)
+                .map((appointment) => appointment.hora))]
+                .sort();
+            const horarioSelect = document.getElementById('filtroHorarioAgenda');
+            const selectedHour = horarioSelect.value;
+            horarioSelect.innerHTML = '<option value="">Todos os Horários</option>';
+            horariosDoDia.forEach((time) => horarioSelect.add(new Option(time, time)));
+            if (horariosDoDia.includes(selectedHour)) horarioSelect.value = selectedHour;
+            const filtroHorario = horarioSelect.value;
 
             // Filtro centralizado que puxa APENAS a data clicada no calendário (dataFiltroSelecionada)
             const filtrados = agendamentosAdmin.filter(a => {
                 if (a.data !== dataFiltroSelecionada) return false;
                 if (filtroStatus && a.status !== filtroStatus) return false;
                 if (filtroProf && a.prof_id != filtroProf) return false;
+                if (filtroHorario && a.hora !== filtroHorario) return false;
                 return true;
             });
 
@@ -590,21 +693,19 @@
             }
 
             filtrados.forEach(c => {
-                const serv = getServico(c.servico_id);
                 const prof = getProfissional(c.prof_id);
-                const badge = c.status === 'pago' ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✅ Pago</span>` : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ A Pagar</span>`;
+                const badge = c.status === 'pago' ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✅ Pago</span>` : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ Confirmado · Pendente</span>`;
+                const paymentMethod = c.forma_pagamento === 'pix' ? 'PIX' : 'No local';
+                const paymentStatus = c.status === 'pago' ? 'Pagamento confirmado' : 'Pagamento a confirmar';
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 border-b">
-                        <td class="py-3 px-4 font-medium">${c.cliente}<div class="text-[10px] text-slate-400">${c.tel}</div></td>
-                        <td class="py-3 px-4">${c.hora}</td>
-                        <td class="py-3 px-4">${serv ? serv.nome : 'N/A'}<div class="text-[10px] text-slate-500">R$ ${serv ? serv.preco.toFixed(2) : 0}</div></td>
-                        <td class="py-3 px-4 text-slate-600">${prof ? prof.nome : 'N/A'}</td>
+                        <td class="py-3 px-4 font-medium">${AppApi.escapeHtml(c.cliente)}<div class="text-[10px] text-slate-400">${AppApi.escapeHtml(c.tel)}</div></td>
+                        <td class="py-3 px-4 font-semibold">${AppApi.escapeHtml(c.hora)}</td>
+                        <td class="py-3 px-4">${AppApi.escapeHtml(c.servico_nome)}<div class="text-[10px] text-slate-500">R$ ${Number(c.valor).toFixed(2)} · ${paymentMethod}</div></td>
+                        <td class="py-3 px-4 text-slate-600">${AppApi.escapeHtml(prof?.nome || c.prof_nome || 'N/A')}</td>
                         <td class="py-3 px-4">${badge}</td>
-                        <td class="py-3 px-4 text-right space-x-1">
-                            <button onclick="concluirDaAgenda(${c.id})" class="px-2 py-1.5 rounded bg-blue-50 text-blue-600 text-xs font-semibold">✔ Concluir</button>
-                            <button onclick="excluirDaAgenda(${c.id})" class="px-2 py-1.5 rounded bg-red-50 text-red-600 text-xs font-semibold">Excluir</button>
-                        </td>
+                        <td class="py-3 px-4 text-right text-xs ${c.status === 'pago' ? 'text-emerald-700' : 'text-slate-400'}">${paymentStatus}</td>
                     </tr>
                 `;
             });
@@ -961,6 +1062,27 @@
             } finally {
                 window.location.assign('index.html');
             }
+
+            async function carregarChavePix() {
+                const result = await AppApi.request('/api/saas/payment-settings');
+                document.getElementById('perfilPix').value = result.pix_key || '';
+            }
+
+            async function salvarChavePix() {
+                const status = document.getElementById('pixSettingsStatus');
+                status.textContent = 'Salvando chave PIX...';
+                status.dataset.state = '';
+                try {
+                    await AppApi.request('/api/saas/payment-settings', {
+                        method: 'PATCH',
+                        body: JSON.stringify({ pix_key: document.getElementById('perfilPix').value.trim() })
+                    });
+                    status.textContent = 'Chave PIX salva. Ela ficará disponível para os clientes no agendamento.';
+                } catch (error) {
+                    status.textContent = error.message;
+                    status.dataset.state = 'error';
+                }
+            }
         }
 
         async function carregarEquipeVinculada() {
@@ -1150,6 +1272,8 @@
                 await carregarEquipeVinculada();
                 await carregarServicos();
                 await carregarExpedienteAdmin();
+                await carregarChavePix();
+                await carregarAgendamentosAdmin();
                 const requestedTab = new URLSearchParams(window.location.search).get('aba');
                 if (['agenda', 'historico', 'receita', 'servicos', 'perfil', 'vitrine'].includes(requestedTab)) {
                     irParaAba(requestedTab);

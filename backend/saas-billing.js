@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const path = require('path');
 const { isValidScheduleBlock } = require('./schedule-utils');
+const { getUtcWeekday } = require('./date-utils');
 
 const SESSION_COOKIE = 'agenda_session';
 const SESSION_DAYS = 30;
@@ -37,6 +38,7 @@ async function ensureSaasSchema(pool) {
         ALTER TABLE saas_accounts ADD COLUMN IF NOT EXISTS space_id INTEGER;
         ALTER TABLE saas_accounts ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT;
         ALTER TABLE saas_accounts ADD COLUMN IF NOT EXISTS whatsapp_opt_in_at TIMESTAMPTZ;
+        ALTER TABLE saas_accounts ADD COLUMN IF NOT EXISTS pix_key TEXT;
         CREATE UNIQUE INDEX IF NOT EXISTS saas_accounts_space_id_idx ON saas_accounts(space_id);
         DO $saas$
         BEGIN
@@ -175,7 +177,9 @@ async function ensureSaasSchema(pool) {
         ALTER TABLE agendamentos
             ADD COLUMN IF NOT EXISTS saas_cliente_id UUID REFERENCES saas_customers(id) ON DELETE SET NULL,
             ADD COLUMN IF NOT EXISTS saas_professional_type TEXT,
-            ADD COLUMN IF NOT EXISTS saas_professional_id UUID;
+            ADD COLUMN IF NOT EXISTS saas_professional_id UUID,
+            ADD COLUMN IF NOT EXISTS forma_pagamento TEXT,
+            ADD COLUMN IF NOT EXISTS valor_servico NUMERIC(10, 2);
         DO $saas$
         BEGIN
             IF EXISTS (
@@ -562,6 +566,15 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 return result.rows.map(scheduleBlockFromRow);
             }
 
+            async function getPublicPaymentSettings(spaceId) {
+                await ensureSchema();
+                const result = await pool.query(
+                    'SELECT pix_key FROM saas_accounts WHERE space_id = $1',
+                    [spaceId]
+                );
+                return { pix_key: result.rows[0]?.pix_key || '' };
+            }
+
             app.get('/api/saas/spaces/:id/schedule', requireOwnedSpace(async (req, res) => {
                 const [hoursResult, blocksResult] = await Promise.all([
                     pool.query(`
@@ -704,7 +717,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                                a.data_hora_inicio::date::text AS local_date,
                                to_char(a.data_hora_inicio, 'HH24:MI') AS local_time,
                                a.cliente_nome, a.cliente_telefone, a.status,
-                               s.nome AS service_name, s.preco AS service_price
+                               s.nome AS service_name, COALESCE(a.valor_servico, s.preco, 0) AS service_price
                         FROM agendamentos a
                         JOIN espacos e ON e.id = a.espaco_id
                         LEFT JOIN servicos s ON s.id = a.servico_id
@@ -1289,6 +1302,83 @@ function createSaasBilling(app, pool, frontendDirectory) {
         res.json({ account, subscription });
     }));
 
+    app.get('/api/saas/payment-settings', requireAccount(async (req, res) => {
+        try {
+            const result = await pool.query(
+                'SELECT pix_key FROM saas_accounts WHERE id = $1',
+                [req.saasAccount.id]
+            );
+            return res.json({ pix_key: result.rows[0]?.pix_key || '' });
+        } catch (error) {
+            console.error('Payment settings retrieval failed:', error);
+            return res.status(500).json({ error: 'Não foi possível carregar a chave PIX.' });
+        }
+    }));
+
+    app.patch('/api/saas/payment-settings', requireAccount(async (req, res) => {
+        const pixKey = req.body?.pix_key;
+        if (typeof pixKey !== 'string' || pixKey.trim().length > 200) {
+            return res.status(400).json({ error: 'A chave PIX deve ter até 200 caracteres.' });
+        }
+        try {
+            const result = await pool.query(`
+                UPDATE saas_accounts
+                SET pix_key = NULLIF($1, '')
+                WHERE id = $2
+                RETURNING pix_key
+            `, [pixKey.trim(), req.saasAccount.id]);
+            if (!result.rows[0]) return res.status(404).json({ error: 'Conta do estabelecimento não encontrada.' });
+            return res.json({ pix_key: result.rows[0].pix_key || '' });
+        } catch (error) {
+            console.error('Payment settings update failed:', error);
+            return res.status(500).json({ error: 'Não foi possível salvar a chave PIX.' });
+        }
+    }));
+
+    app.get('/api/saas/spaces/:id/appointments', requireOwnedSpace(async (req, res) => {
+        const { from, to } = req.query || {};
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '')
+            || !/^\d{4}-\d{2}-\d{2}$/.test(to || '')
+            || getUtcWeekday(from) === null
+            || getUtcWeekday(to) === null
+            || from >= to) {
+            return res.status(400).json({ error: 'Informe um período válido para consultar a agenda.' });
+        }
+        try {
+            const result = await pool.query(`
+                SELECT a.id, a.servico_id, a.saas_professional_id, a.saas_professional_type,
+                       a.data_hora_inicio::date::text AS data,
+                       to_char(a.data_hora_inicio, 'HH24:MI') AS hora,
+                       a.cliente_nome, a.cliente_telefone, a.status, a.forma_pagamento,
+                       s.nome AS servico_nome, COALESCE(a.valor_servico, s.preco, 0) AS valor,
+                       COALESCE(employee.full_name, owner.full_name, 'Profissional') AS profissional_nome
+                FROM agendamentos a
+                LEFT JOIN servicos s ON s.id = a.servico_id
+                LEFT JOIN saas_employees employee
+                    ON a.saas_professional_type = 'employee'
+                   AND employee.id = a.saas_professional_id
+                LEFT JOIN saas_accounts owner
+                    ON a.saas_professional_type = 'owner'
+                   AND owner.id = a.saas_professional_id
+                WHERE a.espaco_id = $1
+                  AND a.data_hora_inicio >= $2::date
+                  AND a.data_hora_inicio < $3::date
+                  AND a.status NOT IN ('cancelado', 'cancelada', 'concluido', 'concluído')
+                ORDER BY a.data_hora_inicio, a.id
+            `, [req.params.id, from, to]);
+            return res.json({
+                appointments: result.rows.map((appointment) => ({
+                    ...appointment,
+                    valor: Number(appointment.valor) || 0,
+                    status: appointment.status === 'pago' ? 'pago' : 'agendado'
+                }))
+            });
+        } catch (error) {
+            console.error('Owner appointment schedule retrieval failed:', error);
+            return res.status(500).json({ error: 'Não foi possível carregar os agendamentos da loja.' });
+        }
+    }));
+
     app.post('/api/saas/employee-code', requireAccount(async (req, res) => {
         const account = req.saasAccount;
         if (!account.space_id) return res.status(403).json({ error: 'Sua conta não possui um estabelecimento vinculado.' });
@@ -1594,7 +1684,8 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 `, [req.portalUserId]),
                 pool.query(`
                     SELECT a.id, a.espaco_id AS space_id, e.nome AS store_name,
-                           s.nome AS service_name, a.data_hora_inicio, a.data_hora_fim, a.status
+                           s.nome AS service_name, COALESCE(a.valor_servico, s.preco, 0) AS service_price,
+                           a.forma_pagamento, a.data_hora_inicio, a.data_hora_fim, a.status
                     FROM agendamentos a
                     JOIN espacos e ON e.id = a.espaco_id
                     LEFT JOIN servicos s ON s.id = a.servico_id
@@ -1623,8 +1714,14 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 customer: customerResult.rows[0],
                 favorites: favoritesResult.rows,
                 recent_visits: recentVisitsResult.rows,
-                upcoming,
-                history
+                upcoming: upcoming.map((appointment) => ({
+                    ...appointment,
+                    service_price: Number(appointment.service_price) || 0
+                })),
+                history: history.map((appointment) => ({
+                    ...appointment,
+                    service_price: Number(appointment.service_price) || 0
+                }))
             });
         } catch (error) {
             console.error('Customer portal data retrieval failed:', error);
@@ -2079,6 +2176,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
             await ensureSchema();
             return readServicesForSpace(spaceId);
         },
+        getPublicPaymentSettings,
         getScheduleBlocksForSpace,
         cancelOverdueSubscriptions
     };

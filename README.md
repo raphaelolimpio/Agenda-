@@ -14,6 +14,8 @@ As vitrines públicas podem ser acessadas pelo endereço exclusivo da loja sem l
 
 Bloqueios definidos pelo proprietário valem para a agenda da loja e são exibidos aos profissionais vinculados. Bloqueios pessoais de um profissional e seus atendimentos reservados são compartilhados entre todas as lojas a que ele está vinculado. A agenda do profissional permite alternar entre uma loja e a visão de todas as lojas.
 
+O proprietário pode cadastrar uma chave PIX no perfil da loja. Quando configurada, ela aparece no agendamento como opção de pagamento; a reserva é registrada como pendente e o pagamento precisa ser confirmado pela loja. A agenda do proprietário carrega os agendamentos persistidos, com valor, forma de pagamento e filtros por data, profissional e horário.
+
 As sessões são independentes por navegador/dispositivo. A opção **Manter conectado neste dispositivo** cria uma sessão persistente; sair invalida somente a sessão atual.
 
 ## Cobrança

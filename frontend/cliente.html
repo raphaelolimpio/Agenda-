@@ -180,7 +180,9 @@
         function renderAppointments() {
             const renderList = (items) => items.length
                 ? items.map((appointment) => `<article class="portal-appointment">
-                    <div><strong>${AppApi.escapeHtml(appointment.store_name)}</strong><span>${AppApi.escapeHtml(appointment.service_name || 'Atendimento')}</span></div>
+                    <div><strong>${AppApi.escapeHtml(appointment.store_name)}</strong><span>${AppApi.escapeHtml(appointment.service_name || 'Atendimento')}</span>
+                        <small>Valor: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(appointment.service_price) || 0)} · Pagamento: ${appointment.forma_pagamento === 'pix' ? 'PIX pendente de confirmação' : 'no local'}</small>
+                    </div>
                     <time>${formatDate(appointment.data_hora_inicio)}</time>
                     <span class="portal-badge">${AppApi.escapeHtml(appointment.status || 'Em aberto')}</span>
                 </article>`).join('')

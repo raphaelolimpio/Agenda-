@@ -178,7 +178,15 @@
                         <label class="block text-xs font-semibold uppercase text-slate-500">Forma de Pagamento</label>
                         <div class="grid grid-cols-2 gap-2">
                             <button type="button" onclick="selecionarPagamento('local')" id="btn-pag-local" class="py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700">🏢 Pagar no Local</button>
-                            <button type="button" id="btn-pag-pix" disabled class="py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-400 disabled:cursor-not-allowed">💠 PIX indisponível</button>
+                            <button type="button" onclick="selecionarPagamento('pix')" id="btn-pag-pix" disabled class="py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-400 disabled:cursor-not-allowed">💠 PIX indisponível</button>
+                        </div>
+                        <div id="pixPaymentInstructions" hidden class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 space-y-2">
+                            <p>Faça o PIX para a chave da loja e aguarde a confirmação do pagamento pelo estabelecimento. A reserva do horário não confirma o pagamento.</p>
+                            <div class="flex items-center gap-2">
+                                <code id="bookingPixKey" class="min-w-0 flex-1 break-all font-semibold"></code>
+                                <button type="button" onclick="copiarChavePix()" class="shrink-0 rounded-md bg-white px-2.5 py-1.5 font-semibold text-blue-700 border border-blue-200">Copiar chave</button>
+                            </div>
+                            <p id="pixCopyStatus" role="status" aria-live="polite"></p>
                         </div>
                     </div>
 
@@ -232,6 +240,7 @@
         let profissionalSelecionado = null;
         let formaPagamento = 'local';
         let servicosDisponiveis = [];
+        let chavePixLoja = '';
         let diaEscolhidoPeloUsuario = false;
 
         inicializarAgendamento();
@@ -263,6 +272,12 @@
         async function carregarEstabelecimento() {
             try {
                 const espaco = await AppApi.request(`/espacos/${encodeURIComponent(ESPACO_ID)}/vitrine`);
+                chavePixLoja = typeof espaco.pix_key === 'string' ? espaco.pix_key.trim() : '';
+                const pixButton = document.getElementById('btn-pag-pix');
+                pixButton.disabled = !chavePixLoja;
+                pixButton.textContent = chavePixLoja ? '💠 PIX' : '💠 PIX indisponível';
+                document.getElementById('bookingPixKey').textContent = chavePixLoja;
+                document.getElementById('pixPaymentInstructions').hidden = formaPagamento !== 'pix' || !chavePixLoja;
                 document.title = `Agendar atendimento | ${espaco.nome}`;
                 document.getElementById('nomeEstabelecimento').textContent = espaco.nome;
                 document.getElementById('bookingStoreLink').href =
@@ -299,11 +314,10 @@
                 const requestedServiceId = new URLSearchParams(window.location.search).get('servico');
                 if (servicosDisponiveis.some((service) => String(service.id) === requestedServiceId)) {
                     select.value = requestedServiceId;
-                    atualizarPrecoServico();
                 }
                 document.getElementById('serviceAvailabilityStatus').textContent = '';
-                document.getElementById('resumoValor').textContent = '—';
-                exibirEstadoAgendamento('Horários disponíveis podem ser consultados. A confirmação online ainda não está disponível.');
+                atualizarPrecoServico();
+                exibirEstadoAgendamento('Escolha um horário disponível para confirmar seu atendimento.');
             } catch (error) {
                 select.innerHTML = '';
                 select.add(new Option('Não foi possível carregar os serviços.', ''));
@@ -649,6 +663,7 @@
         }
 
         function selecionarPagamento(tipo) {
+            if (tipo === 'pix' && !chavePixLoja) return;
             formaPagamento = tipo;
             document.getElementById('btn-pag-local').className = tipo === 'local'
                 ? 'py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700'
@@ -656,6 +671,17 @@
             document.getElementById('btn-pag-pix').className = tipo === 'pix'
                 ? 'py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700'
                 : 'py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600';
+            document.getElementById('pixPaymentInstructions').hidden = tipo !== 'pix';
+        }
+
+        async function copiarChavePix() {
+            try {
+                await navigator.clipboard.writeText(chavePixLoja);
+                document.getElementById('pixCopyStatus').textContent = 'Chave PIX copiada.';
+            } catch (error) {
+                console.error('Não foi possível copiar a chave PIX:', error);
+                document.getElementById('pixCopyStatus').textContent = 'Não foi possível copiar automaticamente. Selecione e copie a chave acima.';
+            }
         }
 
         async function finalizarAgendamento() {
@@ -674,6 +700,7 @@
                         servico_id: document.getElementById('selectServico').value,
                         data: dataSelecionadaGlobal,
                         horario: horarioSelecionado,
+                        forma_pagamento: formaPagamento,
                         profissional_id: profissionalSelecionado?.id || null,
                         profissional_tipo: profissionalSelecionado?.type || null,
                         timezone_offset_minutes: new Date(`${dataSelecionadaGlobal}T${horarioSelecionado}:00`).getTimezoneOffset()

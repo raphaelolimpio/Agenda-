@@ -1197,6 +1197,113 @@ test('employee schedule blocks are saved as personal cross-store blocks', async 
     assert.equal(insertValues[2], 'employee-id');
 });
 
+test('owner appointment schedule returns dates, prices, payment method and customer details', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const appointmentQuery = [];
+    const pool = {
+        async query(sql, values = []) {
+            if (sql.includes('FROM saas_sessions session')) {
+                return {
+                    rows: [{
+                        id: 'owner-id',
+                        space_id: 42,
+                        full_name: 'Dono',
+                        provider_status: 'authorized',
+                        next_payment_at: '2027-01-01T00:00:00Z'
+                    }]
+                };
+            }
+            if (sql.includes('FROM agendamentos a')) {
+                appointmentQuery.push({ sql, values });
+                return {
+                    rows: [{
+                        id: 12,
+                        servico_id: 3,
+                        saas_professional_id: 'employee-id',
+                        saas_professional_type: 'employee',
+                        data: '2026-11-13',
+                        hora: '08:00',
+                        cliente_nome: 'Cliente',
+                        cliente_telefone: '5511999999999',
+                        status: 'confirmado',
+                        forma_pagamento: 'pix',
+                        servico_nome: 'Aula',
+                        valor: '200.00',
+                        profissional_nome: 'Profissional'
+                    }]
+                };
+            }
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+    };
+
+    await routes.get('GET /api/saas/spaces/:id/appointments')({
+        headers: { cookie: `agenda_session=${'d'.repeat(64)}` },
+        params: { id: '42' },
+        query: { from: '2026-11-08', to: '2026-11-15' }
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.appointments[0].valor, 200);
+    assert.equal(response.body.appointments[0].status, 'agendado');
+    assert.equal(response.body.appointments[0].forma_pagamento, 'pix');
+    assert.deepEqual(appointmentQuery[0].values, ['42', '2026-11-08', '2026-11-15']);
+});
+
+test('owner can save PIX key for public booking instructions', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    let updateValues;
+    const pool = {
+        async query(sql, values = []) {
+            if (sql.includes('FROM saas_sessions session')) {
+                return { rows: [{ id: 'owner-id', space_id: 42, provider_status: 'authorized' }] };
+            }
+            if (sql.includes('UPDATE saas_accounts') && sql.includes('pix_key')) {
+                updateValues = values;
+                return { rows: [{ pix_key: 'pix@loja.com.br' }] };
+            }
+            if (sql.includes('SELECT pix_key FROM saas_accounts WHERE space_id')) {
+                return { rows: [{ pix_key: 'pix@loja.com.br' }] };
+            }
+            return { rows: [] };
+        }
+    };
+    const billing = createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+    };
+
+    await routes.get('PATCH /api/saas/payment-settings')({
+        headers: { cookie: `agenda_session=${'e'.repeat(64)}` },
+        body: { pix_key: ' pix@loja.com.br ' }
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.pix_key, 'pix@loja.com.br');
+    assert.deepEqual(updateValues, ['pix@loja.com.br', 'owner-id']);
+    assert.deepEqual(await billing.getPublicPaymentSettings(42), { pix_key: 'pix@loja.com.br' });
+});
+
 test('customer profile data endpoint returns all customer portal sections', async () => {
     const routes = new Map();
     const app = {

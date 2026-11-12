@@ -204,7 +204,8 @@ app.get('/espacos/:id/vitrine', async (req, res) => {
         `, [id]);
 
         if (result.rows.length === 0) return res.status(404).json({ error: 'Estabelecimento não encontrado.' });
-        res.json(result.rows[0]);
+        const paymentSettings = await saasBilling.getPublicPaymentSettings(id);
+        res.json({ ...result.rows[0], pix_key: paymentSettings.pix_key });
     } catch (err) {
         console.error('Erro ao buscar vitrine:', err);
         res.status(500).json({ error: 'Não foi possível carregar a vitrine.' });
@@ -550,12 +551,14 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
         servico_id: serviceId,
         data,
         horario,
+        forma_pagamento: paymentMethod,
         timezone_offset_minutes: timezoneOffset
     } = req.body || {};
     if (!isValidSpaceId(id)) return res.status(400).json({ error: 'ID de estabelecimento inválido.' });
     if (!/^\d+$/.test(String(serviceId || '')) || !/^\d{4}-\d{2}-\d{2}$/.test(data || '')
         || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(horario || '')
-        || !Number.isInteger(timezoneOffset) || Math.abs(timezoneOffset) > 840) {
+    || !['local', 'pix'].includes(paymentMethod)
+    || !Number.isInteger(timezoneOffset) || Math.abs(timezoneOffset) > 840) {
         return res.status(400).json({ error: 'Selecione um serviço, data e horário válidos.' });
     }
     const professionalId = typeof req.body.profissional_id === 'string' ? req.body.profissional_id.toLowerCase() : '';
@@ -611,12 +614,22 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
         }
 
         const serviceResult = await client.query(
-            'SELECT id, duracao_minutos FROM servicos WHERE id = $1 AND espaco_id = $2',
+            'SELECT id, duracao_minutos, preco FROM servicos WHERE id = $1 AND espaco_id = $2',
             [serviceId, id]
         );
         if (serviceResult.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Serviço não encontrado neste estabelecimento.' });
+        }
+        if (paymentMethod === 'pix') {
+            const paymentSettings = await client.query(
+                'SELECT pix_key FROM saas_accounts WHERE space_id = $1',
+                [id]
+            );
+            if (!paymentSettings.rows[0]?.pix_key) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({ error: 'A loja ainda não configurou uma chave PIX. Escolha pagar no local.' });
+            }
         }
         const professionalResult = await client.query(`
             SELECT professional_id AS id, professional_type AS type
@@ -712,12 +725,12 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
         const appointmentResult = await client.query(`
             INSERT INTO agendamentos
                 (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status,
-                 saas_cliente_id, saas_professional_type, saas_professional_id)
+                 saas_cliente_id, saas_professional_type, saas_professional_id, forma_pagamento, valor_servico)
             VALUES (
                 $1, $2, $3, $4, $5::timestamp,
-                $5::timestamp + ($6 * INTERVAL '1 minute'), 'confirmado', $7, $8, $9
+                $5::timestamp + ($6 * INTERVAL '1 minute'), 'confirmado', $7, $8, $9, $10, $11
             )
-            RETURNING id, espaco_id, servico_id, data_hora_inicio, data_hora_fim, status
+            RETURNING id, espaco_id, servico_id, data_hora_inicio, data_hora_fim, status, forma_pagamento
         `, [
             id,
             serviceId,
@@ -727,10 +740,21 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
             duration,
             customer.id,
             professional?.type || null,
-            professional?.id || null
+            professional?.id || null,
+            paymentMethod,
+            serviceResult.rows[0].preco
         ]);
         await client.query('COMMIT');
-        return res.status(201).json({ message: 'Atendimento confirmado.', appointment: appointmentResult.rows[0] });
+        return res.status(201).json({
+            message: paymentMethod === 'pix'
+                ? 'Horário reservado. O pagamento via PIX ainda precisa ser feito e confirmado pela loja.'
+                : 'Horário reservado. O pagamento será feito no local.',
+            appointment: {
+                ...appointmentResult.rows[0],
+                valor: Number(serviceResult.rows[0].preco) || 0,
+                pagamento_status: 'pendente'
+            }
+        });
     } catch (error) {
         await client.query('ROLLBACK').catch((rollbackError) => {
             console.error('Appointment booking rollback failed:', rollbackError);
