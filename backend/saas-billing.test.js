@@ -823,6 +823,85 @@ test('owner can persist a commission percentage only for a linked employee', asy
     assert.equal(response.body.commission.company_percentage, '35.50');
 });
 
+test('owner service creation persists catalog data and selected professionals', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const accountId = '123e4567-e89b-12d3-a456-426614174000';
+    const employeeId = '223e4567-e89b-12d3-a456-426614174000';
+    const serviceId = 12;
+    const account = {
+        id: accountId,
+        space_id: 42,
+        provider_status: 'authorized',
+        amount_brl: '50.00',
+        trial_days: 7,
+        trial_ends_at: null,
+        next_payment_at: null,
+        checkout_url: null
+    };
+    const clientQueries = [];
+    const client = {
+        async query(sql, values = []) {
+            clientQueries.push({ sql, values });
+            if (sql.includes('INSERT INTO servicos')) return { rows: [{ id: serviceId }] };
+            if (sql.includes('FROM saas_employee_spaces')) return { rows: [{ id: employeeId }] };
+            if (sql.includes('FROM saas_accounts')) return { rows: [{ id: accountId }] };
+            return { rows: [] };
+        },
+        release() {}
+    };
+    const pool = {
+        async query(sql) {
+            if (sql.includes('FROM saas_sessions session')) return { rows: [account] };
+            return { rows: [] };
+        },
+        async connect() { return client; }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+    };
+
+    await routes.get('POST /api/saas/spaces/:id/services')({
+        headers: { cookie: `agenda_session=${'a'.repeat(64)}` },
+        params: { id: '42' },
+        body: {
+            nome: 'Aula de Pilates',
+            categoria: 'Saúde',
+            duracao_minutos: 60,
+            preco: 200,
+            profissionais: [accountId, employeeId]
+        }
+    }, response);
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.id, serviceId);
+    assert.ok(clientQueries.some(({ sql, values }) =>
+        sql.includes('INSERT INTO servicos')
+        && values[1] === 'Aula de Pilates'
+        && values[3] === 60
+        && values[4] === 200
+    ));
+    assert.ok(clientQueries.some(({ sql, values }) =>
+        sql.includes('saas_service_professionals')
+        && values[2] === 'owner'
+        && values[3] === accountId
+    ));
+    assert.ok(clientQueries.some(({ sql, values }) =>
+        sql.includes('saas_service_professionals')
+        && values[2] === 'employee'
+        && values[3] === employeeId
+    ));
+    assert.ok(clientQueries.some(({ sql }) => sql === 'COMMIT'));
+});
+
 test('employee profile includes linked stores even without a subscription row', async () => {
     const routes = new Map();
     const app = {
@@ -878,8 +957,10 @@ test('customer profile data endpoint returns all customer portal sections', asyn
         patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
         delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
     };
+    const queries = [];
     const pool = {
         async query(sql) {
+            queries.push(sql);
             if (sql.includes('SELECT user_id')) return { rows: [{ user_id: 'customer-id' }] };
             if (sql.includes('FROM saas_customers')) {
                 return { rows: [{ id: 'customer-id', full_name: 'Cliente', email: 'cliente@example.com', phone: '5511999999999' }] };
@@ -904,4 +985,5 @@ test('customer profile data endpoint returns all customer portal sections', asyn
     assert.deepEqual(response.body.recent_visits, []);
     assert.deepEqual(response.body.upcoming, []);
     assert.deepEqual(response.body.history, []);
+    assert.ok(queries.some((sql) => sql.includes('a.saas_cliente_id = $1')));
 });

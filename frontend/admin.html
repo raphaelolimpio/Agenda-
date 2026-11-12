@@ -209,6 +209,7 @@
                         <tbody id="tbodyServicos" class="divide-y"></tbody>
                     </table>
                 </div>
+                <p id="serviceStatus" class="status-message" role="status" aria-live="polite"></p>
             </div>
         </section>
 
@@ -455,7 +456,8 @@
                     <div id="listaCheckboxProfissionais" class="space-y-1.5 border p-2 rounded max-h-32 overflow-y-auto"></div>
                 </div>
             </div>
-            <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="fecharModais()" class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button><button onclick="salvarServico()" class="px-4 py-2 rounded bg-blue-600 text-white text-xs font-bold">Salvar Atividade</button></div>
+            <p id="serviceModalStatus" class="status-message" role="status" aria-live="polite"></p>
+            <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="fecharModais()" class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button><button id="saveServiceButton" onclick="salvarServico()" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold">Salvar Atividade</button></div>
         </div>
     </div>
 
@@ -689,15 +691,15 @@
                 return;
             }
             atividades.forEach((s, idx) => {
-                const nomesProfs = s.profs.map(pid => { const p = getProfissional(pid); return p ? p.nome : ''; }).join(', ');
+                const nomesProfs = s.profs.map(pid => { const p = getProfissional(pid); return p ? p.nome : ''; }).filter(Boolean).join(', ');
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 border-b">
-                        <td class="py-3 px-4 font-bold text-slate-900">${s.nome}</td>
-                        <td class="py-3 px-4 text-slate-600">${s.cat}</td>
+                        <td class="py-3 px-4 font-bold text-slate-900">${AppApi.escapeHtml(s.nome)}</td>
+                        <td class="py-3 px-4 text-slate-600">${AppApi.escapeHtml(s.cat)}</td>
                         <td class="py-3 px-4">${s.duracao} min</td>
-                        <td class="py-3 px-4 font-semibold text-emerald-700">R$ ${s.preco.toFixed(2)}</td>
-                        <td class="py-3 px-4 text-xs text-slate-500">${nomesProfs || 'Nenhum'}</td>
-                        <td class="py-3 px-4 text-right space-x-1"><button onclick="abrirModalServico(${idx})" class="px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-semibold">Editar</button><button onclick="atividades.splice(${idx},1); renderizarAbaServicos()" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-semibold">Excluir</button></td>
+                        <td class="py-3 px-4 font-semibold text-emerald-700">R$ ${Number(s.preco).toFixed(2)}</td>
+                        <td class="py-3 px-4 text-xs text-slate-500">${AppApi.escapeHtml(nomesProfs || 'Nenhum')}</td>
+                        <td class="py-3 px-4 text-right space-x-1"><button onclick="abrirModalServico(${idx})" class="px-2 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-semibold">Editar</button><button onclick="excluirServico(${idx})" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs font-semibold">Excluir</button></td>
                     </tr>
                 `;
             });
@@ -707,13 +709,15 @@
             document.getElementById('servicoEditIndex').value = index;
             const divProfs = document.getElementById('listaCheckboxProfissionais');
             divProfs.innerHTML = '';
+            document.getElementById('serviceModalStatus').textContent = '';
+            document.getElementById('serviceModalStatus').dataset.state = '';
             
             let pIds = [];
             if (index >= 0) {
                 const s = atividades[index];
                 document.getElementById('tituloModalServico').textContent = '✏️ Editar Atividade';
                 document.getElementById('servNome').value = s.nome; document.getElementById('servCat').value = s.cat; document.getElementById('servDur').value = s.duracao; document.getElementById('servPreco').value = s.preco;
-                pIds = s.profs;
+                pIds = s.profs || [];
             } else {
                 document.getElementById('tituloModalServico').textContent = 'Nova Atividade';
                 document.getElementById('servNome').value = ''; document.getElementById('servCat').value = ''; document.getElementById('servDur').value = '30'; document.getElementById('servPreco').value = '';
@@ -726,18 +730,93 @@
             document.getElementById('modalServico').classList.remove('hidden');
         }
 
-        function salvarServico() {
+        async function salvarServico() {
             const idx = Number(document.getElementById('servicoEditIndex').value);
             const nome = document.getElementById('servNome').value.trim();
             const checks = document.querySelectorAll('input[name="profCheck"]:checked');
             const profs = Array.from(checks).map(c => c.value);
-            
-            if (!nome) return alert('Insira o nome!');
-            const obj = { id: idx >= 0 ? atividades[idx].id : Date.now(), nome, cat: document.getElementById('servCat').value || 'Geral', duracao: Number(document.getElementById('servDur').value || 30), preco: Number(document.getElementById('servPreco').value || 0), profs };
-            
-            if (idx >= 0) atividades[idx] = obj; else atividades.push(obj);
-            fecharModais();
-            renderizarAbaServicos();
+            const duration = Number(document.getElementById('servDur').value);
+            const price = Number(document.getElementById('servPreco').value);
+            const status = document.getElementById('serviceModalStatus');
+            const button = document.getElementById('saveServiceButton');
+            if (!nome || !Number.isInteger(duration) || duration < 1 || !Number.isFinite(price) || price < 0) {
+                status.textContent = 'Informe nome, duração e preço válidos.';
+                status.dataset.state = 'error';
+                return;
+            }
+            const payload = {
+                nome,
+                categoria: document.getElementById('servCat').value.trim() || 'Geral',
+                duracao_minutos: duration,
+                preco: price,
+                profissionais: profs
+            };
+            const serviceStatus = document.getElementById('serviceStatus');
+            button.disabled = true;
+            status.textContent = 'Salvando serviço...';
+            status.dataset.state = '';
+            try {
+                const spaceId = encodeURIComponent(accountAtual.space_id);
+                if (idx >= 0) {
+                    await AppApi.request(`/api/saas/spaces/${spaceId}/services/${encodeURIComponent(atividades[idx].id)}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    await AppApi.request(`/api/saas/spaces/${spaceId}/services`, {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+                }
+                await carregarServicos();
+                fecharModais();
+                serviceStatus.textContent = 'Serviço salvo e publicado na vitrine.';
+                serviceStatus.dataset.state = '';
+            } catch (error) {
+                status.textContent = error.message;
+                status.dataset.state = 'error';
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function carregarServicos() {
+            const status = document.getElementById('serviceStatus');
+            try {
+                const spaceId = encodeURIComponent(accountAtual.space_id);
+                const services = await AppApi.request(`/api/saas/spaces/${spaceId}/services`);
+                atividades = services.map((service) => ({
+                    id: service.id,
+                    nome: service.nome,
+                    cat: service.categoria || 'Geral',
+                    duracao: Number(service.duracao_minutos),
+                    preco: Number(service.preco),
+                    profs: (service.profissionais || []).map((professional) => String(professional.id))
+                }));
+                status.textContent = '';
+                status.dataset.state = '';
+                renderizarAbaServicos();
+            } catch (error) {
+                status.textContent = error.message;
+                status.dataset.state = 'error';
+                document.getElementById('tbodyServicos').innerHTML = '<tr><td colspan="6" class="py-6 text-center text-red-600">Não foi possível carregar os serviços.</td></tr>';
+            }
+        }
+
+        async function excluirServico(index) {
+            const service = atividades[index];
+            if (!service || !window.confirm(`Excluir o serviço "${service.nome}"?`)) return;
+            const status = document.getElementById('serviceStatus');
+            try {
+                await AppApi.request(`/api/saas/spaces/${encodeURIComponent(accountAtual.space_id)}/services/${encodeURIComponent(service.id)}`, {
+                    method: 'DELETE'
+                });
+                await carregarServicos();
+                status.textContent = 'Serviço excluído.';
+            } catch (error) {
+                status.textContent = error.message;
+                status.dataset.state = 'error';
+            }
         }
 
         // ==========================================================
@@ -977,6 +1056,7 @@
                 AppApi.setSpaceId(account.space_id);
                 document.getElementById('menuBillingLink').hidden = subscription.status === 'active';
                 await carregarEquipeVinculada();
+                await carregarServicos();
                 const requestedTab = new URLSearchParams(window.location.search).get('aba');
                 if (['agenda', 'historico', 'receita', 'servicos', 'perfil', 'vitrine'].includes(requestedTab)) {
                     irParaAba(requestedTab);

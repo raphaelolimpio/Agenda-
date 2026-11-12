@@ -601,7 +601,7 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
 
         const appointmentResult = await client.query(`
             INSERT INTO agendamentos
-                (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status, cliente_id)
+                (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status, saas_cliente_id)
             VALUES (
                 $1, $2, $3, $4, $5::timestamp,
                 $5::timestamp + ($6 * INTERVAL '1 minute'),
@@ -710,7 +710,7 @@ app.post('/espacos/:id/chat', async (req, res) => {
                 // 2. Salvar no Banco de Dados
                 await pool.query(
                     `INSERT INTO agendamentos
-                        (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status, cliente_id)
+                        (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status, saas_cliente_id)
                      VALUES ($1, $2, $3, $4, $5, $6, 'confirmado', $7)`,
                     [
                         id,

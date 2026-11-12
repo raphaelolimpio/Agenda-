@@ -115,6 +115,15 @@ async function ensureSaasSchema(pool) {
             code_hash CHAR(64) NOT NULL UNIQUE,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        CREATE TABLE IF NOT EXISTS saas_service_professionals (
+            space_id INTEGER NOT NULL REFERENCES espacos(id) ON DELETE CASCADE,
+            service_id TEXT NOT NULL,
+            professional_type TEXT NOT NULL CHECK (professional_type IN ('owner', 'employee')),
+            professional_id UUID NOT NULL,
+            PRIMARY KEY (space_id, service_id, professional_type, professional_id)
+        );
+        CREATE INDEX IF NOT EXISTS saas_service_professionals_service_idx
+            ON saas_service_professionals(space_id, service_id);
         CREATE TABLE IF NOT EXISTS saas_portal_sessions (
             token_hash CHAR(64) PRIMARY KEY,
             user_type TEXT NOT NULL CHECK (user_type IN ('customer', 'employee')),
@@ -137,7 +146,26 @@ async function ensureSaasSchema(pool) {
             PRIMARY KEY (customer_id, space_id)
         );
         ALTER TABLE agendamentos
-            ADD COLUMN IF NOT EXISTS cliente_id UUID REFERENCES saas_customers(id) ON DELETE SET NULL;
+            ADD COLUMN IF NOT EXISTS saas_cliente_id UUID REFERENCES saas_customers(id) ON DELETE SET NULL;
+        DO $saas$
+        BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'agendamentos'
+                  AND column_name = 'cliente_id'
+                  AND data_type = 'uuid'
+            ) THEN
+                EXECUTE '
+                    UPDATE agendamentos a
+                    SET saas_cliente_id = a.cliente_id
+                    FROM saas_customers c
+                    WHERE c.id = a.cliente_id AND a.saas_cliente_id IS NULL
+                ';
+            END IF;
+        END
+        $saas$;
     `);
 }
 
@@ -997,6 +1025,228 @@ function createSaasBilling(app, pool, frontendDirectory) {
         }
     }));
 
+    async function readServicesForSpace(spaceId) {
+        const [servicesResult, professionalsResult] = await Promise.all([
+            pool.query(`
+                SELECT id, nome, categoria, duracao_minutos, preco
+                FROM servicos
+                WHERE espaco_id = $1
+                ORDER BY nome
+            `, [spaceId]),
+            pool.query(`
+                SELECT sp.service_id, sp.professional_id, sp.professional_type,
+                       CASE
+                           WHEN sp.professional_type = 'employee' THEN e.full_name
+                           ELSE a.full_name
+                       END AS professional_name
+                FROM saas_service_professionals sp
+                LEFT JOIN saas_employees e
+                    ON sp.professional_type = 'employee' AND e.id = sp.professional_id
+                LEFT JOIN saas_accounts a
+                    ON sp.professional_type = 'owner' AND a.id = sp.professional_id
+                WHERE sp.space_id = $1
+                ORDER BY professional_name
+            `, [spaceId])
+        ]);
+        const professionalsByService = new Map();
+        professionalsResult.rows.forEach((professional) => {
+            const serviceId = String(professional.service_id);
+            if (!professionalsByService.has(serviceId)) professionalsByService.set(serviceId, []);
+            professionalsByService.get(serviceId).push({
+                id: professional.professional_id,
+                type: professional.professional_type,
+                nome: professional.professional_name
+            });
+        });
+        return servicesResult.rows.map((service) => ({
+            ...service,
+            profissionais: professionalsByService.get(String(service.id)) || []
+        }));
+    }
+
+    async function saveServiceProfessionals(client, spaceId, serviceId, professionalIds) {
+        if (!Array.isArray(professionalIds) || professionalIds.length > 100
+            || professionalIds.some((id) => typeof id !== 'string'
+                || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(id))) {
+            return { error: 'Selecione profissionais válidos para o serviço.' };
+        }
+
+        const uniqueIds = [...new Set(professionalIds.map((id) => id.toLowerCase()))];
+        if (uniqueIds.length !== professionalIds.length) {
+            return { error: 'Um profissional foi selecionado mais de uma vez.' };
+        }
+        const employeesResult = await client.query(`
+            SELECT e.id
+            FROM saas_employee_spaces es
+            JOIN saas_employees e ON e.id = es.employee_id
+            WHERE es.space_id = $1 AND e.id = ANY($2::uuid[])
+        `, [spaceId, uniqueIds]);
+        const employeeIds = new Set(employeesResult.rows.map((employee) => String(employee.id).toLowerCase()));
+        const ownerResult = uniqueIds.length
+            ? await client.query('SELECT id FROM saas_accounts WHERE space_id = $1 AND id = ANY($2::uuid[])', [spaceId, uniqueIds])
+            : { rows: [] };
+        const ownerIds = new Set(ownerResult.rows.map((owner) => String(owner.id).toLowerCase()));
+        const validIds = new Set([...employeeIds, ...ownerIds]);
+        if (uniqueIds.some((id) => !validIds.has(id))) {
+            return { error: 'Um ou mais profissionais não pertencem a esta loja.' };
+        }
+
+        await client.query(
+            'DELETE FROM saas_service_professionals WHERE space_id = $1 AND service_id = $2',
+            [spaceId, String(serviceId)]
+        );
+        for (const id of uniqueIds) {
+            const type = ownerIds.has(id) ? 'owner' : 'employee';
+            await client.query(`
+                INSERT INTO saas_service_professionals
+                    (space_id, service_id, professional_type, professional_id)
+                VALUES ($1, $2, $3, $4)
+            `, [spaceId, String(serviceId), type, id]);
+        }
+        return null;
+    }
+
+    app.get('/api/saas/spaces/:id/services', requireOwnedSpace(async (req, res) => {
+        try {
+            return res.json(await readServicesForSpace(req.saasAccount.space_id));
+        } catch (error) {
+            console.error('Owner service list retrieval failed:', error);
+            return res.status(500).json({ error: 'Não foi possível carregar os serviços da loja.' });
+        }
+    }));
+
+    app.post('/api/saas/spaces/:id/services', requireOwnedSpace(async (req, res) => {
+        const { nome, categoria, duracao_minutos: duration, preco, profissionais } = req.body || {};
+        const price = Number(preco);
+        const serviceDuration = Number(duration);
+        if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 150
+            || (categoria !== undefined && (typeof categoria !== 'string' || categoria.trim().length > 80))
+            || !Number.isInteger(serviceDuration) || serviceDuration < 1 || serviceDuration > 1440
+            || !Number.isFinite(price) || price < 0 || price > 1000000) {
+            return res.status(400).json({ error: 'Informe nome, categoria, duração e preço válidos para o serviço.' });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const inserted = await client.query(`
+                INSERT INTO servicos (espaco_id, nome, categoria, duracao_minutos, preco)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING id
+            `, [
+                req.saasAccount.space_id,
+                nome.trim(),
+                typeof categoria === 'string' && categoria.trim() ? categoria.trim() : 'Geral',
+                serviceDuration,
+                price
+            ]);
+            const serviceId = inserted.rows[0]?.id;
+            if (serviceId === undefined) throw new Error('Service insert did not return an ID.');
+            const assignmentError = await saveServiceProfessionals(
+                client, req.saasAccount.space_id, serviceId, profissionais || []
+            );
+            if (assignmentError) {
+                await client.query('ROLLBACK');
+                return res.status(400).json(assignmentError);
+            }
+            await client.query('COMMIT');
+            return res.status(201).json({ message: 'Serviço cadastrado.', id: serviceId });
+        } catch (error) {
+            await client.query('ROLLBACK').catch((rollbackError) => {
+                console.error('Service creation rollback failed:', rollbackError);
+            });
+            console.error('Owner service creation failed:', error);
+            return res.status(500).json({ error: 'Não foi possível cadastrar o serviço.' });
+        } finally {
+            client.release();
+        }
+    }));
+
+    app.patch('/api/saas/spaces/:id/services/:serviceId', requireOwnedSpace(async (req, res) => {
+        const { serviceId } = req.params;
+        const { nome, categoria, duracao_minutos: duration, preco, profissionais } = req.body || {};
+        const price = Number(preco);
+        const serviceDuration = Number(duration);
+        if (!/^\d+$/.test(serviceId || '')
+            || typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 150
+            || (categoria !== undefined && (typeof categoria !== 'string' || categoria.trim().length > 80))
+            || !Number.isInteger(serviceDuration) || serviceDuration < 1 || serviceDuration > 1440
+            || !Number.isFinite(price) || price < 0 || price > 1000000) {
+            return res.status(400).json({ error: 'Informe nome, categoria, duração e preço válidos para o serviço.' });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const updated = await client.query(`
+                UPDATE servicos
+                SET nome = $1, categoria = $2, duracao_minutos = $3, preco = $4
+                WHERE id = $5 AND espaco_id = $6
+                RETURNING id
+            `, [
+                nome.trim(),
+                typeof categoria === 'string' && categoria.trim() ? categoria.trim() : 'Geral',
+                serviceDuration,
+                price,
+                serviceId,
+                req.saasAccount.space_id
+            ]);
+            if (!updated.rows[0]) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'Serviço não encontrado nesta loja.' });
+            }
+            const assignmentError = await saveServiceProfessionals(
+                client, req.saasAccount.space_id, serviceId, profissionais || []
+            );
+            if (assignmentError) {
+                await client.query('ROLLBACK');
+                return res.status(400).json(assignmentError);
+            }
+            await client.query('COMMIT');
+            return res.json({ message: 'Serviço atualizado.' });
+        } catch (error) {
+            await client.query('ROLLBACK').catch((rollbackError) => {
+                console.error('Service update rollback failed:', rollbackError);
+            });
+            console.error('Owner service update failed:', error);
+            return res.status(500).json({ error: 'Não foi possível atualizar o serviço.' });
+        } finally {
+            client.release();
+        }
+    }));
+
+    app.delete('/api/saas/spaces/:id/services/:serviceId', requireOwnedSpace(async (req, res) => {
+        if (!/^\d+$/.test(req.params.serviceId || '')) {
+            return res.status(400).json({ error: 'Serviço inválido.' });
+        }
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            await client.query(
+                'DELETE FROM saas_service_professionals WHERE space_id = $1 AND service_id = $2',
+                [req.saasAccount.space_id, req.params.serviceId]
+            );
+            const deleted = await client.query(
+                'DELETE FROM servicos WHERE id = $1 AND espaco_id = $2 RETURNING id',
+                [req.params.serviceId, req.saasAccount.space_id]
+            );
+            if (!deleted.rows[0]) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'Serviço não encontrado nesta loja.' });
+            }
+            await client.query('COMMIT');
+            return res.json({ message: 'Serviço excluído.' });
+        } catch (error) {
+            await client.query('ROLLBACK').catch((rollbackError) => {
+                console.error('Service deletion rollback failed:', rollbackError);
+            });
+            console.error('Owner service deletion failed:', error);
+            return res.status(500).json({ error: 'Não foi possível excluir o serviço.' });
+        } finally {
+            client.release();
+        }
+    }));
+
     app.patch('/api/saas/employees/:employeeId/commission', requireAccount(async (req, res) => {
         const { employeeId } = req.params;
         const percentage = req.body?.company_percentage;
@@ -1043,7 +1293,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                     FROM agendamentos a
                     JOIN espacos e ON e.id = a.espaco_id
                     LEFT JOIN servicos s ON s.id = a.servico_id
-                    WHERE a.cliente_id = $1
+                    WHERE a.saas_cliente_id = $1
                     ORDER BY a.data_hora_inicio DESC
                 `, [req.portalUserId]),
                 pool.query(`
