@@ -39,7 +39,7 @@
                     <span class="mobile-menu-profile__text"><strong id="staffMenuName">Profissional</strong><small>Área profissional</small></span>
                 </div>
                 <label class="mobile-menu-select">
-                    <span>Loja ativa</span>
+                    <span>Agenda</span>
                     <select id="selectLojaAtiva" onchange="mudarLojaAtiva(this.value)"
                         class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-semibold">
                         <option value="" selected>Nenhuma loja vinculada</option>
@@ -147,7 +147,7 @@
                             <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b">
                                 <th class="py-3 px-4">Cliente</th>
                                 <th class="py-3 px-4">Horário</th>
-                                <th class="py-3 px-4">Serviço</th>
+                                <th class="py-3 px-4">Serviço / Loja</th>
                                 <th class="py-3 px-4">Valor</th>
                                 <th class="py-3 px-4">Status</th>
                                 <th class="py-3 px-4 text-right">Ações</th>
@@ -402,6 +402,20 @@
         const lojasColaboradorMap = {};
 
         function obterLojaAtiva() {
+            if (lojaAtivaId === 'todas') {
+                const stores = Object.values(lojasColaboradorMap);
+                return {
+                    nome: 'Todas as lojas',
+                    idLoja: 'Todas',
+                    taxa: 0,
+                    agenda: stores.flatMap((store) => store.agenda.map((appointment) => ({
+                        ...appointment,
+                        store_name: store.nome,
+                        space_id: store.idLoja
+                    }))),
+                    historico: stores.flatMap((store) => store.historico)
+                };
+            }
             return lojasColaboradorMap[lojaAtivaId] || { nome: '', idLoja: '—', taxa: 0, agenda: [], historico: [] };
         }
 
@@ -419,7 +433,7 @@
         }
 
         function mudarLojaAtiva(lojaId) {
-            lojaAtivaId = lojaId ? Number(lojaId) : '';
+            lojaAtivaId = lojaId === 'todas' ? 'todas' : (lojaId ? Number(lojaId) : '');
             const loja = obterLojaAtiva();
             document.getElementById('colabIdLojaHeader').textContent = loja.idLoja;
             const nomeColaborador = document.getElementById('colabNomeHeader').textContent.trim().split(/[ (]/)[0];
@@ -515,6 +529,7 @@
                 selector.innerHTML = '';
                 Object.keys(lojasColaboradorMap).forEach((key) => delete lojasColaboradorMap[key]);
                 const activeSpaces = employeeData.spaces.filter((space) => space.can_access);
+                if (activeSpaces.length > 1) selector.add(new Option('Todas as lojas', 'todas'));
                 employeeData.spaces.forEach((space) => {
                     const option = new Option(
                         space.can_access ? space.store_name : `${space.store_name} — plano suspenso`,
@@ -531,8 +546,9 @@
                     };
                 });
                 if (activeSpaces.length) {
-                    selector.value = String(activeSpaces[0].space_id);
+                    selector.value = activeSpaces.length > 1 ? 'todas' : String(activeSpaces[0].space_id);
                     mudarLojaAtiva(selector.value);
+                    await carregarAgendaColab();
                     document.getElementById('joinCompanyStatus').textContent = '';
                 } else {
                     selector.add(new Option('Nenhuma empresa ativa', ''));
@@ -591,10 +607,14 @@
                 const diaSemana = d.getDay();
                 const numeroDia = d.getDate();
 
-                const bloqueado = listaBloqueiosColab.some(b =>
-                    (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'especifico' && b.valor === iso) ||
-                    (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana)
-                );
+                const bloqueiosLojaAtiva = listaBloqueiosColab.filter((block) =>
+                    block.scope === 'employee'
+                    || lojaAtivaId === 'todas'
+                    || String(block.spaceId) === String(lojaAtivaId));
+                const bloqueado = bloqueiosLojaAtiva.some(b => b.tipoAlvo === 'dia'
+                    && ((b.tipoRecorrencia === 'especifico' && b.valor === iso)
+                        || (b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana)
+                        || b.tipoRecorrencia === 'diario_recorrente'));
 
                 const temCompromisso = loja.agenda.some(a => a.data === iso);
                 const selecionado = dataSelecionadaColab === iso;
@@ -651,15 +671,12 @@
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50">
-                        <td class="py-3 px-4 font-medium">${c.cliente}<div class="text-xs text-slate-400">${c.tel}</div></td>
+                        <td class="py-3 px-4 font-medium">${AppApi.escapeHtml(c.cliente)}<div class="text-xs text-slate-400">${AppApi.escapeHtml(c.tel)}</div></td>
                         <td class="py-3 px-4">${c.hora}</td>
-                        <td class="py-3 px-4">${c.servico}</td>
-                        <td class="py-3 px-4 font-semibold">R$ ${c.valor.toFixed(2)}</td>
+                        <td class="py-3 px-4">${AppApi.escapeHtml(c.servico)}${c.store_name ? `<div class="text-[10px] text-slate-400">${AppApi.escapeHtml(c.store_name)}</div>` : ''}</td>
+                        <td class="py-3 px-4 font-semibold">R$ ${Number(c.valor).toFixed(2)}</td>
                         <td class="py-3 px-4">${badge}</td>
-                        <td class="py-3 px-4 text-right space-x-1">
-                            <button onclick="abrirModalRemarcar(${c.id})" class="px-2.5 py-1 rounded bg-blue-50 text-blue-600 text-xs font-semibold">📅 Remarcar</button>
-                            <button onclick="excluirDaAgendaColab(${c.id})" class="px-2.5 py-1 rounded bg-red-50 text-red-600 text-xs font-semibold">🗑️ Excluir</button>
-                        </td>
+                        <td class="py-3 px-4 text-right text-xs text-slate-400">Fale com a loja para alterar</td>
                     </tr>
                 `;
             });
@@ -672,33 +689,44 @@
             const container = document.getElementById('listaBloqueiosAtivosColab');
             container.innerHTML = '';
 
-            if (listaBloqueiosColab.length === 0) {
+            const displayedBlocks = listaBloqueiosColab.filter((block) =>
+                block.scope === 'employee'
+                || lojaAtivaId === 'todas'
+                || String(block.spaceId) === String(lojaAtivaId));
+            if (displayedBlocks.length === 0) {
                 container.innerHTML = `<p class="text-xs text-slate-400">Nenhum dia ou horário trancado no momento.</p>`;
                 return;
             }
 
-            listaBloqueiosColab.forEach((b, idx) => {
-                let regraTxt = b.tipoRecorrencia === 'especifico' ? `Data: ${b.valor}` : (b.tipoRecorrencia === 'semana_recorrente' ? `Toda semana (Dia ${b.valor})` : `Diário (${b.horaInicio} às ${b.horaFim})`);
+            displayedBlocks.forEach((b) => {
+                const idx = listaBloqueiosColab.indexOf(b);
+                let regraTxt = b.tipoRecorrencia === 'especifico' ? `Data: ${b.valor}` : (b.tipoRecorrencia === 'semana_recorrente' ? `Toda semana (Dia ${b.valor})` : (b.tipoAlvo === 'horario' ? `Diário (${b.horaInicio} às ${b.horaFim})` : 'Todos os dias'));
+                const ownerBlock = b.scope === 'store';
 
                 container.innerHTML += `
                     <div class="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
                         <div>
-                            <p class="font-bold text-slate-800">${b.motivo} <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase font-semibold">${b.tipoAlvo}</span></p>
-                            <p class="text-xs text-slate-500">Regra: ${regraTxt}</p>
+                            <p class="font-bold text-slate-800">${AppApi.escapeHtml(b.motivo)} <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase font-semibold">${AppApi.escapeHtml(b.tipoAlvo)}</span></p>
+                            <p class="text-xs text-slate-500">Regra: ${regraTxt}${ownerBlock ? ` · ${AppApi.escapeHtml(b.storeName || 'Bloqueio da loja')}` : ' · Todas as lojas vinculadas'}</p>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="abrirModalTrancarAgenda(${idx})" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded text-xs font-semibold">✏️ Editar</button>
-                            <button onclick="removerBloqueioColab(${idx})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">🔓 Liberar</button>
+                            ${ownerBlock ? '<span class="text-xs text-slate-500">Definido pela loja</span>' : `<button onclick="abrirModalTrancarAgenda(${idx})" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded text-xs font-semibold">✏️ Editar</button>
+                            <button onclick="removerBloqueioColab(${idx})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">🔓 Liberar</button>`}
                         </div>
                     </div>
                 `;
             });
         }
 
-        function removerBloqueioColab(index) {
-            listaBloqueiosColab.splice(index, 1);
-            renderizarCalendarioColab();
-            alert('🔓 Bloqueio removido! O dia/horário está livre novamente.');
+        async function removerBloqueioColab(index) {
+            const block = listaBloqueiosColab[index];
+            try {
+                await AppApi.request(`/api/employee/schedule/blocks/${block.id}`, { method: 'DELETE' });
+                listaBloqueiosColab.splice(index, 1);
+                renderizarCalendarioColab();
+            } catch (error) {
+                alert(error.message);
+            }
         }
 
         // =========================================================================
@@ -737,7 +765,7 @@
             document.getElementById('divBloqDiaSemana').classList.toggle('hidden', tipoRec !== 'semana_recorrente');
         }
 
-        function salvarBloqueioTrancamento() {
+        async function salvarBloqueioTrancamento() {
             const editIndex = Number(document.getElementById('bloqEditIndex').value);
             const tipoAlvo = document.getElementById('bloqTipoAlvo').value;
             const tipoRec = document.getElementById('bloqTipoRecorrencia').value;
@@ -749,7 +777,6 @@
             else valor = 'todos_os_dias';
 
             const dadosBloqueio = {
-                id: editIndex >= 0 ? listaBloqueiosColab[editIndex].id : Date.now(),
                 tipoAlvo,
                 tipoRecorrencia: tipoRec,
                 valor,
@@ -758,15 +785,45 @@
                 horaFim: tipoAlvo === 'horario' ? document.getElementById('bloqHoraFim').value : null
             };
 
-            if (editIndex >= 0) {
-                listaBloqueiosColab[editIndex] = dadosBloqueio;
-            } else {
-                listaBloqueiosColab.push(dadosBloqueio);
+            try {
+                const existing = editIndex >= 0 ? listaBloqueiosColab[editIndex] : null;
+                const result = await AppApi.request(
+                    existing ? `/api/employee/schedule/blocks/${existing.id}` : '/api/employee/schedule/blocks',
+                    { method: existing ? 'PATCH' : 'POST', body: JSON.stringify(dadosBloqueio) }
+                );
+                if (existing) listaBloqueiosColab[editIndex] = result.block;
+                else listaBloqueiosColab.push(result.block);
+                fecharModais();
+                renderizarCalendarioColab();
+            } catch (error) {
+                alert(error.message);
             }
+        }
 
-            fecharModais();
+        async function carregarAgendaColab() {
+            const query = lojaAtivaId && lojaAtivaId !== 'todas' ? `?space_id=${lojaAtivaId}` : '';
+            const schedule = await AppApi.request(`/api/employee/schedule${query}`);
+            listaBloqueiosColab = schedule.blocks || [];
+            Object.values(lojasColaboradorMap).forEach((store) => {
+                store.agenda = [];
+                store.historico = [];
+            });
+            (schedule.appointments || []).forEach((appointment) => {
+                const store = lojasColaboradorMap[appointment.space_id];
+                if (!store) return;
+                store.agenda.push({
+                    id: appointment.id,
+                    data: appointment.data,
+                    hora: appointment.hora,
+                    cliente: appointment.cliente,
+                    tel: appointment.telefone,
+                    status: appointment.status,
+                    servico: appointment.servico,
+                    valor: appointment.valor,
+                    store_name: appointment.store_name
+                });
+            });
             renderizarCalendarioColab();
-            alert('🔒 Bloqueio salvo com sucesso!');
         }
 
         function excluirDaAgendaColab(id) {

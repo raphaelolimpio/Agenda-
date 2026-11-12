@@ -7,6 +7,11 @@ const dotenv = require('dotenv');
 const { createSaasBilling, effectiveSubscription } = require('./saas-billing');
 const { isAllowedOrigin } = require('./origin-policy');
 const { getUtcWeekday } = require('./date-utils');
+const {
+    appointmentBlocksProfessional,
+    appointmentOverlaps,
+    isBlockedPeriod
+} = require('./schedule-utils');
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -442,13 +447,11 @@ app.get('/espacos/:id/horarios-disponiveis', async (req, res) => {
         if (professionalId && !selectedProfessional) {
             return res.status(400).json({ error: 'Este profissional não está vinculado ao serviço.' });
         }
-        const duracaoMinutos = Number(service.duracao_minutos);
-
+        const duration = Number(service.duracao_minutos);
         const configRes = await pool.query(
             'SELECT hora_inicio, hora_fim, ativo FROM configuracoes_horarios WHERE espaco_id = $1 AND dia_semana = $2',
             [id, diaSemana]
         );
-
         if (configRes.rows.length === 0) {
             return res.json({
                 horarios_livres: [],
@@ -459,59 +462,73 @@ app.get('/espacos/:id/horarios-disponiveis', async (req, res) => {
             return res.json({ horarios_livres: [], mensagem: 'O estabelecimento não atende neste dia.' });
         }
 
-        const { hora_inicio, hora_fim } = configRes.rows[0];
-
-        const inicioDia = `${data} 00:00:00`;
-        const fimDia = `${data} 23:59:59`;
-        const agendamentosRes = await pool.query(
-            `SELECT data_hora_inicio, data_hora_fim, saas_professional_type, saas_professional_id
-             FROM agendamentos
-             WHERE espaco_id = $1 AND data_hora_inicio BETWEEN $2 AND $3 AND status = $4`,
-            [id, inicioDia, fimDia, 'confirmado']
-        );
-        const agendamentos = agendamentosRes.rows;
-
-        let slotsLivres = [];
-        let [horaAtualH, horaAtualM] = hora_inicio.split(':').map(Number);
-        const [horaFimH, horaFimM] = hora_fim.split(':').map(Number);
-
-        while (horaAtualH < horaFimH || (horaAtualH === horaFimH && horaAtualM < horaFimM)) {
-            let slotInicioStr = `${String(horaAtualH).padStart(2, '0')}:${String(horaAtualM).padStart(2, '0')}`;
-
-            let totalMinutosInicio = horaAtualH * 60 + horaAtualM + duracaoMinutos;
-            let slotFimH = Math.floor(totalMinutosInicio / 60);
-            let slotFimM = totalMinutosInicio % 60;
-
-            let slotFimStr = `${String(slotFimH).padStart(2, '0')}:${String(slotFimM).padStart(2, '0')}`;
-
-            if (slotFimH > horaFimH || (slotFimH === horaFimH && slotFimM > horaFimM)) {
-                break;
-            }
-
-            let slotInicioDate = new Date(`${data} ${slotInicioStr}:00`);
-            let slotFimDate = new Date(`${data} ${slotFimStr}:00`);
-
-            let temConflito = agendamentos.some(ag => {
-                if (selectedProfessional && ag.saas_professional_id
-                    && (ag.saas_professional_type !== selectedProfessional.type
-                        || ag.saas_professional_id.toLowerCase() !== selectedProfessional.id.toLowerCase())) {
-                    return false;
-                }
-                let agInicio = new Date(ag.data_hora_inicio);
-                let agFim = new Date(ag.data_hora_fim);
-                return slotInicioDate < agFim && slotFimDate > agInicio;
-            });
-
-            if (!temConflito) {
-                slotsLivres.push(slotInicioStr);
-            }
-
-            horaAtualM += duracaoMinutos;
-            if (horaAtualM >= 60) {
-                horaAtualH += Math.floor(horaAtualM / 60);
-                horaAtualM = horaAtualM % 60;
-            }
+        if (!Number.isInteger(duration) || duration < 1) {
+            return res.status(500).json({ error: 'A duração configurada para o serviço é inválida.' });
         }
+
+        const { hora_inicio: openingTime, hora_fim: closingTime } = configRes.rows[0];
+        const openingMinutes = Number(String(openingTime).slice(0, 2)) * 60 + Number(String(openingTime).slice(3, 5));
+        const closingMinutes = Number(String(closingTime).slice(0, 2)) * 60 + Number(String(closingTime).slice(3, 5));
+        const professionals = selectedProfessional
+            ? [selectedProfessional]
+            : service.profissionais.length ? service.profissionais : [null];
+        const blocksByProfessional = await Promise.all(professionals.map((professional) =>
+            saasBilling.getScheduleBlocksForSpace(
+                id,
+                professional?.type === 'employee' ? professional.id : null
+            )));
+        const appointmentsByProfessional = await Promise.all(professionals.map(async (professional) => {
+            const storeResult = await pool.query(`
+                SELECT espaco_id AS space_id,
+                       data_hora_inicio::date::text AS local_date,
+                       data_hora_fim::date::text AS end_date,
+                       to_char(data_hora_inicio, 'HH24:MI') AS start_time,
+                       to_char(data_hora_fim, 'HH24:MI') AS end_time,
+                       saas_professional_type, saas_professional_id
+                FROM agendamentos
+                WHERE espaco_id = $1
+                  AND data_hora_inicio < ($2::date + INTERVAL '1 day')
+                  AND data_hora_fim > $2::date
+                  AND status IN ('confirmado', 'agendado', 'pago')
+            `, [id, data]);
+            let appointments = storeResult.rows;
+            if (professional?.type === 'employee') {
+                const otherSpacesResult = await pool.query(`
+                    SELECT espaco_id AS space_id,
+                           data_hora_inicio::date::text AS local_date,
+                           data_hora_fim::date::text AS end_date,
+                           to_char(data_hora_inicio, 'HH24:MI') AS start_time,
+                           to_char(data_hora_fim, 'HH24:MI') AS end_time,
+                           saas_professional_type, saas_professional_id
+                    FROM agendamentos
+                    WHERE espaco_id <> $1
+                      AND saas_professional_type = 'employee'
+                      AND saas_professional_id = $2
+                      AND data_hora_inicio < ($3::date + INTERVAL '1 day')
+                      AND data_hora_fim > $3::date
+                      AND status IN ('confirmado', 'agendado', 'pago')
+                `, [id, professional.id, data]);
+                appointments = appointments.concat(otherSpacesResult.rows);
+            }
+            return appointments;
+        }));
+
+        const slotsSet = new Set();
+        professionals.forEach((professional, professionalIndex) => {
+            for (let startMinutes = openingMinutes; startMinutes + duration <= closingMinutes; startMinutes += duration) {
+                const endMinutes = startMinutes + duration;
+                const startTime = `${String(Math.floor(startMinutes / 60)).padStart(2, '0')}:${String(startMinutes % 60).padStart(2, '0')}`;
+                const blocked = isBlockedPeriod(blocksByProfessional[professionalIndex], data, startMinutes, endMinutes);
+                if (blocked) continue;
+
+                const hasConflict = appointmentsByProfessional[professionalIndex].some((appointment) => {
+                    return appointmentBlocksProfessional(appointment, professional, id)
+                        && appointmentOverlaps(data, startMinutes, endMinutes, appointment);
+                });
+                if (!hasConflict) slotsSet.add(startTime);
+            }
+        });
+        const slotsLivres = [...slotsSet].sort();
 
         res.json({
             data,
@@ -541,7 +558,7 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
         || !Number.isInteger(timezoneOffset) || Math.abs(timezoneOffset) > 840) {
         return res.status(400).json({ error: 'Selecione um serviço, data e horário válidos.' });
     }
-    const professionalId = typeof req.body.profissional_id === 'string' ? req.body.profissional_id : '';
+    const professionalId = typeof req.body.profissional_id === 'string' ? req.body.profissional_id.toLowerCase() : '';
     const professionalType = typeof req.body.profissional_tipo === 'string' ? req.body.profissional_tipo : '';
     if ((professionalId || professionalType)
         && (!/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(professionalId)
@@ -578,6 +595,9 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
     try {
         await client.query('BEGIN');
         await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${id}:${data}`]);
+        if (professionalId && professionalType === 'employee') {
+            await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`employee:${professionalId}:${data}`]);
+        }
 
         const ownerSubscription = await client.query(`
             SELECT s.provider_status, s.trial_ends_at, s.next_payment_at
@@ -639,26 +659,48 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
         const [openHour, openMinute] = String(hours.hora_inicio).slice(0, 5).split(':').map(Number);
         const startMinutes = startHour * 60 + startMinute;
         const closeMinutes = closeHour * 60 + closeMinute;
+        const openMinutes = openHour * 60 + openMinute;
         const endMinutes = startMinutes + duration;
         if (!Number.isFinite(duration) || duration < 1
-            || startMinutes < openHour * 60 + openMinute
+            || startMinutes < openMinutes
+            || (startMinutes - openMinutes) % duration !== 0
             || endMinutes > closeMinutes) {
             await client.query('ROLLBACK');
             return res.status(409).json({ error: 'O horário escolhido está fora do expediente.' });
+        }
+
+        const scheduleBlocks = await saasBilling.getScheduleBlocksForSpace(
+            id,
+            professional?.type === 'employee' ? professional.id : null,
+            client
+        );
+        if (isBlockedPeriod(scheduleBlocks, data, startMinutes, endMinutes)) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: 'Esse horário está bloqueado. Escolha outro horário.' });
         }
 
         const conflictResult = await client.query(`
             SELECT EXISTS (
                 SELECT 1
                 FROM agendamentos
-                WHERE espaco_id = $1
-                  AND status = 'confirmado'
+                WHERE status IN ('confirmado', 'agendado', 'pago')
                   AND data_hora_inicio < ($2::timestamp + ($3 * INTERVAL '1 minute'))
                   AND data_hora_fim > $2::timestamp
                   AND (
-                      $4::uuid IS NULL
-                      OR saas_professional_id IS NULL
-                      OR (saas_professional_type = $5 AND saas_professional_id = $4::uuid)
+                      (
+                          espaco_id = $1
+                          AND (
+                              $4::uuid IS NULL
+                              OR saas_professional_id IS NULL
+                              OR (saas_professional_type = $5 AND saas_professional_id = $4::uuid)
+                          )
+                      )
+                      OR (
+                          $5 = 'employee'
+                          AND espaco_id <> $1
+                          AND saas_professional_type = 'employee'
+                          AND saas_professional_id = $4::uuid
+                      )
                   )
             ) AS has_conflict
         `, [id, startTimestamp, duration, professional?.id || null, professional?.type || null]);

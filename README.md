@@ -10,7 +10,9 @@ Na seção **Perfil & Equipe**, o dono pode definir o percentual de cada atendim
 
 Os serviços cadastrados em **Atividades** são salvos no estabelecimento e publicados na vitrine e na tela de agendamento. O dono pode atribuir cada serviço a si mesmo e aos funcionários vinculados; o cliente escolhe entre os profissionais associados ao serviço, e o agendamento mantém essa atribuição.
 
-As vitrines públicas podem ser acessadas pelo endereço exclusivo da loja sem login. Para escolher um serviço e iniciar o agendamento, o cliente entra na conta; após o login, o serviço escolhido é mantido. A tela de agendamento e a área do cliente oferecem navegação de volta para a loja. Os horários ao público usam somente os horários de funcionamento cadastrados; dias sem configuração não recebem horários por padrão.
+As vitrines públicas podem ser acessadas pelo endereço exclusivo da loja sem login. Para escolher um serviço e iniciar o agendamento, o cliente entra na conta; após o login, o serviço escolhido é mantido. A tela de agendamento e a área do cliente oferecem navegação de volta para a loja. O proprietário configura o expediente semanal no painel; os horários ao público usam somente esses períodos e dias sem configuração não recebem horários por padrão.
+
+Bloqueios definidos pelo proprietário valem para a agenda da loja e são exibidos aos profissionais vinculados. Bloqueios pessoais de um profissional e seus atendimentos reservados são compartilhados entre todas as lojas a que ele está vinculado. A agenda do profissional permite alternar entre uma loja e a visão de todas as lojas.
 
 As sessões são independentes por navegador/dispositivo. A opção **Manter conectado neste dispositivo** cria uma sessão persistente; sair invalida somente a sessão atual.
 

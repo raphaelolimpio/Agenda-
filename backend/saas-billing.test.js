@@ -12,12 +12,76 @@ const {
 const { getDatabaseConfig } = require('./database-config');
 const { isAllowedOrigin } = require('./origin-policy');
 const { getUtcWeekday } = require('./date-utils');
+const {
+    appointmentBlocksProfessional,
+    appointmentOverlaps,
+    isBlockedPeriod,
+    isValidScheduleBlock
+} = require('./schedule-utils');
 
 test('calendar dates use the same weekday regardless of server timezone', () => {
     assert.equal(getUtcWeekday('2026-11-19'), 4);
     assert.equal(getUtcWeekday('2026-11-22'), 0);
     assert.equal(getUtcWeekday('2026-02-29'), null);
     assert.equal(getUtcWeekday('2026-11-19T00:00:00Z'), null);
+});
+
+test('schedule blocks apply by date, recurring weekday, and across midnight', () => {
+    const blocks = [
+        {
+            tipoAlvo: 'dia',
+            tipoRecorrencia: 'especifico',
+            valor: '2026-11-19'
+        },
+        {
+            tipoAlvo: 'horario',
+            tipoRecorrencia: 'semana_recorrente',
+            valor: '4',
+            horaInicio: '22:00',
+            horaFim: '02:00'
+        }
+    ];
+
+    assert.equal(isBlockedPeriod(blocks, '2026-11-19', 9 * 60, 10 * 60), true);
+    assert.equal(isBlockedPeriod(blocks, '2026-11-26', 23 * 60, 23 * 60 + 30), true);
+    assert.equal(isBlockedPeriod(blocks, '2026-11-27', 60, 90), true);
+    assert.equal(isBlockedPeriod(blocks, '2026-11-27', 9 * 60, 10 * 60), false);
+});
+
+test('schedule block validation rejects malformed dates and time ranges', () => {
+    assert.equal(isValidScheduleBlock({
+        tipoAlvo: 'dia',
+        tipoRecorrencia: 'especifico',
+        valor: '2026-02-29',
+        motivo: 'Folga'
+    }), false);
+    assert.equal(isValidScheduleBlock({
+        tipoAlvo: 'horario',
+        tipoRecorrencia: 'diario_recorrente',
+        valor: 'todos_os_dias',
+        horaInicio: '09:00',
+        horaFim: '09:00',
+        motivo: 'Almoço'
+    }), false);
+});
+
+test('employee appointments block overlapping times at every linked store only for that employee', () => {
+    const employee = { type: 'employee', id: 'employee-a' };
+    const otherEmployee = { type: 'employee', id: 'employee-b' };
+    const crossStoreAppointment = {
+        space_id: 43,
+        local_date: '2026-11-19',
+        end_date: '2026-11-19',
+        start_time: '10:00',
+        end_time: '11:00',
+        saas_professional_type: 'employee',
+        saas_professional_id: 'EMPLOYEE-A'
+    };
+
+    assert.equal(appointmentBlocksProfessional(crossStoreAppointment, employee, 42), true);
+    assert.equal(appointmentOverlaps('2026-11-19', 10 * 60 + 30, 11 * 60 + 30, crossStoreAppointment), true);
+    assert.equal(appointmentBlocksProfessional(crossStoreAppointment, otherEmployee, 42), false);
+    assert.equal(appointmentOverlaps('2026-11-19', 11 * 60, 12 * 60, crossStoreAppointment), false);
 });
 
 test('origin policy allows only the configured site and this project Vercel deployments', () => {
@@ -1017,6 +1081,120 @@ test('employee profile includes linked stores even without a subscription row', 
     assert.equal(response.body.spaces[0].store_name, 'Loja Exemplo');
     assert.equal(response.body.spaces[0].company_percentage, 25);
     assert.equal(response.body.spaces[0].can_access, false);
+});
+
+test('employee schedule combines linked-store appointments with store and personal blocks', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const pool = {
+        async query(sql) {
+            if (sql.includes('SELECT user_id')) return { rows: [{ user_id: 'employee-id' }] };
+            if (sql.includes('FROM saas_employee_spaces')) {
+                return { rows: [{ space_id: 42, store_name: 'Loja A' }, { space_id: 43, store_name: 'Loja B' }] };
+            }
+            if (sql.includes('FROM saas_schedule_blocks b')) {
+                return {
+                    rows: [
+                        {
+                            id: 'block-store',
+                            owner_space_id: 42,
+                            employee_id: null,
+                            tipo_alvo: 'dia',
+                            tipo_recorrencia: 'especifico',
+                            valor: '2026-11-19',
+                            motivo: 'Fechado',
+                            store_name: 'Loja A'
+                        },
+                        {
+                            id: 'block-employee',
+                            owner_space_id: null,
+                            employee_id: 'employee-id',
+                            tipo_alvo: 'dia',
+                            tipo_recorrencia: 'semana_recorrente',
+                            valor: '1',
+                            motivo: 'Folga'
+                        }
+                    ]
+                };
+            }
+            if (sql.includes('FROM agendamentos a')) {
+                return {
+                    rows: [
+                        {
+                            id: 1, space_id: 42, store_name: 'Loja A', local_date: '2026-11-19',
+                            local_time: '10:00', cliente_nome: 'Cliente A', cliente_telefone: '111',
+                            status: 'confirmado', service_name: 'Corte', service_price: '40.00'
+                        },
+                        {
+                            id: 2, space_id: 43, store_name: 'Loja B', local_date: '2026-11-19',
+                            local_time: '11:00', cliente_nome: 'Cliente B', cliente_telefone: '222',
+                            status: 'pago', service_name: 'Barba', service_price: '25.00'
+                        }
+                    ]
+                };
+            }
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+    };
+
+    await routes.get('GET /api/employee/schedule')({
+        headers: { cookie: `agenda_session=${'b'.repeat(64)}` },
+        query: {}
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body.appointments.map((appointment) => appointment.space_id), [42, 43]);
+    assert.deepEqual(response.body.blocks.map((block) => block.scope), ['store', 'employee']);
+});
+
+test('employee schedule blocks are saved as personal cross-store blocks', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    let insertValues;
+    const pool = {
+        async query(sql, values = []) {
+            if (sql.includes('SELECT user_id')) return { rows: [{ user_id: 'employee-id' }] };
+            if (sql.includes('INSERT INTO saas_schedule_blocks')) insertValues = values;
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+    };
+
+    await routes.get('POST /api/employee/schedule/blocks')({
+        headers: { cookie: `agenda_session=${'c'.repeat(64)}` },
+        body: {
+            tipoAlvo: 'dia',
+            tipoRecorrencia: 'especifico',
+            valor: '2026-11-19',
+            motivo: 'Consulta'
+        }
+    }, response);
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.block.scope, 'employee');
+    assert.equal(insertValues[1], null);
+    assert.equal(insertValues[2], 'employee-id');
 });
 
 test('customer profile data endpoint returns all customer portal sections', async () => {

@@ -63,6 +63,16 @@
                 </div>
             </div>
 
+            <section class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                <div>
+                    <h2 class="text-sm font-bold text-slate-900">Expediente da loja</h2>
+                    <p class="text-xs text-slate-500">Apenas estes horários serão oferecidos para agendamento. Dias sem expediente ficam indisponíveis.</p>
+                </div>
+                <div id="horariosFuncionamentoAdmin" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"></div>
+                <button type="button" onclick="salvarExpedienteAdmin()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold">Salvar expediente</button>
+                <p id="expedienteStatusAdmin" class="text-xs" role="status" aria-live="polite"></p>
+            </section>
+
             <!-- Calendário Interativo -->
             <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -474,6 +484,7 @@
         let equipeAtividades = [];
         let accountAtual = null;
         let listaBloqueiosAdmin = [];
+        let horariosFuncionamentoAdmin = [];
         let agendamentosAdmin = [];
         let historicoAdmin = [];
 
@@ -536,7 +547,10 @@
                 const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 const diaSemana = d.getDay();
                 
-                const bloqueado = listaBloqueiosAdmin.some(b => (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'especifico' && b.valor === iso) || (b.tipoAlvo === 'dia' && b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana));
+                const bloqueado = listaBloqueiosAdmin.some(b => b.tipoAlvo === 'dia'
+                    && ((b.tipoRecorrencia === 'especifico' && b.valor === iso)
+                        || (b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana)
+                        || b.tipoRecorrencia === 'diario_recorrente'));
                 const temCompromisso = agendamentosAdmin.some(a => a.data === iso);
                 const selecionado = dataFiltroSelecionada === iso;
 
@@ -642,7 +656,7 @@
             document.getElementById('modalBloqueio').classList.remove('hidden');
         }
 
-        function salvarBloqueio() {
+        async function salvarBloqueio() {
             const idx = Number(document.getElementById('bloqEditIndex').value);
             const tipoAlvo = document.getElementById('bloqTipoAlvo').value;
             const tipoRec = document.getElementById('bloqTipoRecorrencia').value;
@@ -650,11 +664,32 @@
             
             let valor = tipoRec === 'especifico' ? document.getElementById('bloqDataInput').value : (tipoRec === 'semana_recorrente' ? document.getElementById('bloqDiaSemanaSelect').value : 'todos');
             
-            const obj = { id: idx >= 0 ? listaBloqueiosAdmin[idx].id : Date.now(), tipoAlvo, tipoRecorrencia: tipoRec, valor, motivo, horaInicio: tipoAlvo === 'horario' ? document.getElementById('bloqHoraInicio').value : null, horaFim: tipoAlvo === 'horario' ? document.getElementById('bloqHoraFim').value : null };
-            
-            if (idx >= 0) listaBloqueiosAdmin[idx] = obj; else listaBloqueiosAdmin.push(obj);
-            fecharModais();
-            renderizarCalendarioAdmin();
+            const block = { tipoAlvo, tipoRecorrencia: tipoRec, valor, motivo, horaInicio: tipoAlvo === 'horario' ? document.getElementById('bloqHoraInicio').value : null, horaFim: tipoAlvo === 'horario' ? document.getElementById('bloqHoraFim').value : null };
+            const spaceId = accountAtual.space_id;
+            const endpoint = `/api/saas/spaces/${spaceId}/schedule/blocks`;
+            try {
+                const result = await AppApi.request(idx >= 0 ? `${endpoint}/${listaBloqueiosAdmin[idx].id}` : endpoint, {
+                    method: idx >= 0 ? 'PATCH' : 'POST',
+                    body: JSON.stringify(block)
+                });
+                if (idx >= 0) listaBloqueiosAdmin[idx] = result.block;
+                else listaBloqueiosAdmin.push(result.block);
+                fecharModais();
+                renderizarCalendarioAdmin();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function removerBloqueioAdmin(index) {
+            const block = listaBloqueiosAdmin[index];
+            try {
+                await AppApi.request(`/api/saas/spaces/${accountAtual.space_id}/schedule/blocks/${block.id}`, { method: 'DELETE' });
+                listaBloqueiosAdmin.splice(index, 1);
+                renderizarCalendarioAdmin();
+            } catch (error) {
+                alert(error.message);
+            }
         }
 
         function renderizarPainelBloqueiosAtivos() {
@@ -669,15 +704,72 @@
                 div.innerHTML += `
                     <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50/70 shadow-sm">
                         <div>
-                            <p class="font-bold text-slate-800">${b.motivo} <span class="text-[9px] uppercase bg-red-100 text-red-600 px-2 rounded ml-1 shadow-sm">${b.tipoAlvo}</span></p>
+                            <p class="font-bold text-slate-800">${AppApi.escapeHtml(b.motivo)} <span class="text-[9px] uppercase bg-red-100 text-red-600 px-2 rounded ml-1 shadow-sm">${AppApi.escapeHtml(b.tipoAlvo)}</span></p>
                             <p class="text-[11px] text-slate-500 font-medium mt-0.5">Regra: ${regra}</p>
                         </div>
                         <div class="flex gap-2">
                             <button onclick="abrirModalBloqueio(${i})" class="text-xs font-semibold bg-white border px-3 py-1.5 rounded-lg hover:bg-slate-100 shadow-sm transition">✏️ Editar</button>
-                            <button onclick="listaBloqueiosAdmin.splice(${i},1); renderizarCalendarioAdmin();" class="text-xs font-semibold bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 shadow-sm transition">🗑️ Remover</button>
+                            <button onclick="removerBloqueioAdmin(${i})" class="text-xs font-semibold bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 shadow-sm transition">🗑️ Remover</button>
                         </div>
                     </div>`;
             });
+        }
+
+        const diasExpedienteAdmin = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        function renderizarExpedienteAdmin() {
+            const container = document.getElementById('horariosFuncionamentoAdmin');
+            container.innerHTML = horariosFuncionamentoAdmin.map((day) => `
+                <div class="rounded-lg border border-slate-200 p-3 space-y-2">
+                    <label class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                        <input type="checkbox" data-dia="${day.dia_semana}" data-campo="ativo" ${day.ativo ? 'checked' : ''}>
+                        ${diasExpedienteAdmin[day.dia_semana]}
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input aria-label="Abertura ${diasExpedienteAdmin[day.dia_semana]}" type="time" data-dia="${day.dia_semana}" data-campo="hora_inicio" value="${day.hora_inicio}" ${day.ativo ? '' : 'disabled'} class="w-full border rounded p-1.5 text-xs">
+                        <input aria-label="Fechamento ${diasExpedienteAdmin[day.dia_semana]}" type="time" data-dia="${day.dia_semana}" data-campo="hora_fim" value="${day.hora_fim}" ${day.ativo ? '' : 'disabled'} class="w-full border rounded p-1.5 text-xs">
+                    </div>
+                </div>
+            `).join('');
+            container.querySelectorAll('input').forEach((input) => input.addEventListener('change', () => {
+                const day = horariosFuncionamentoAdmin[Number(input.dataset.dia)];
+                if (input.dataset.campo === 'ativo') {
+                    day.ativo = input.checked;
+                    renderizarExpedienteAdmin();
+                } else {
+                    day[input.dataset.campo] = input.value;
+                }
+            }));
+        }
+
+        async function carregarExpedienteAdmin() {
+            const result = await AppApi.request(`/api/saas/spaces/${accountAtual.space_id}/schedule`);
+            horariosFuncionamentoAdmin = Array.from({ length: 7 }, (_, dia) => {
+                const configured = result.hours.find((day) => Number(day.dia_semana) === dia);
+                return {
+                    dia_semana: dia,
+                    ativo: Boolean(configured?.ativo),
+                    hora_inicio: configured ? String(configured.hora_inicio).slice(0, 5) : '',
+                    hora_fim: configured ? String(configured.hora_fim).slice(0, 5) : ''
+                };
+            });
+            listaBloqueiosAdmin = result.blocks || [];
+            renderizarExpedienteAdmin();
+            renderizarCalendarioAdmin();
+        }
+
+        async function salvarExpedienteAdmin() {
+            const status = document.getElementById('expedienteStatusAdmin');
+            status.textContent = 'Salvando...';
+            try {
+                await AppApi.request(`/api/saas/spaces/${accountAtual.space_id}/schedule/hours`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ hours: horariosFuncionamentoAdmin })
+                });
+                status.textContent = 'Expediente salvo.';
+            } catch (error) {
+                status.textContent = error.message;
+                status.classList.add('text-red-600');
+            }
         }
 
         // ==========================================================
@@ -1057,6 +1149,7 @@
                 document.getElementById('menuBillingLink').hidden = subscription.status === 'active';
                 await carregarEquipeVinculada();
                 await carregarServicos();
+                await carregarExpedienteAdmin();
                 const requestedTab = new URLSearchParams(window.location.search).get('aba');
                 if (['agenda', 'historico', 'receita', 'servicos', 'perfil', 'vitrine'].includes(requestedTab)) {
                     irParaAba(requestedTab);
