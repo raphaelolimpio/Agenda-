@@ -397,13 +397,7 @@ app.get('/espacos/:id/servicos', async (req, res) => {
     if (!isValidSpaceId(id)) return res.status(400).json({ error: 'ID de estabelecimento inválido.' });
 
     try {
-        const result = await pool.query(`
-            SELECT id, nome, categoria, duracao_minutos, preco
-            FROM servicos
-            WHERE espaco_id = $1
-            ORDER BY nome
-        `, [id]);
-        res.json(result.rows);
+        res.json(await saasBilling.getPublicServicesForSpace(id));
     } catch (err) {
         console.error('Erro ao buscar serviços:', err);
         res.status(500).json({ error: 'Não foi possível carregar os serviços.' });
@@ -429,22 +423,40 @@ app.get('/espacos/:id/horarios-disponiveis', async (req, res) => {
     if (!isValidSpaceId(id)) return res.status(400).json({ error: 'ID de estabelecimento inválido.' });
     if (diaSemana === null) return res.status(400).json({ error: 'Data inválida.' });
     if (!/^\d+$/.test(String(servico_id || ''))) return res.status(400).json({ error: 'Serviço inválido.' });
+    const professionalId = req.query.profissional_id ? String(req.query.profissional_id) : '';
+    const professionalType = req.query.profissional_tipo ? String(req.query.profissional_tipo) : '';
+    if ((professionalId || professionalType)
+        && (!/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(professionalId)
+            || !['owner', 'employee'].includes(professionalType))) {
+        return res.status(400).json({ error: 'Profissional inválido.' });
+    }
 
     try {
-        const servicoRes = await pool.query(
-            'SELECT duracao_minutos FROM servicos WHERE id = $1 AND espaco_id = $2',
-            [servico_id, id]
-        );
-        if (servicoRes.rows.length === 0) return res.status(404).json({ error: 'Serviço não encontrado' });
-        const duracaoMinutos = servicoRes.rows[0].duracao_minutos;
+        const services = await saasBilling.getPublicServicesForSpace(id);
+        const service = services.find((item) => String(item.id) === String(servico_id));
+        if (!service) return res.status(404).json({ error: 'Serviço não encontrado' });
+        const selectedProfessional = professionalId
+            ? service.profissionais.find((item) =>
+                item.type === professionalType && item.id.toLowerCase() === professionalId.toLowerCase())
+            : null;
+        if (professionalId && !selectedProfessional) {
+            return res.status(400).json({ error: 'Este profissional não está vinculado ao serviço.' });
+        }
+        const duracaoMinutos = Number(service.duracao_minutos);
 
         const configRes = await pool.query(
             'SELECT hora_inicio, hora_fim, ativo FROM configuracoes_horarios WHERE espaco_id = $1 AND dia_semana = $2',
             [id, diaSemana]
         );
 
-        if (configRes.rows.length === 0 || !configRes.rows[0].ativo) {
-            return res.json({ horarios_livres: [], mensagem: 'Estabelecimento fechado neste dia.' });
+        if (configRes.rows.length === 0) {
+            return res.json({
+                horarios_livres: [],
+                mensagem: 'Os horários de funcionamento ainda não foram configurados para este dia.'
+            });
+        }
+        if (!configRes.rows[0].ativo) {
+            return res.json({ horarios_livres: [], mensagem: 'O estabelecimento não atende neste dia.' });
         }
 
         const { hora_inicio, hora_fim } = configRes.rows[0];
@@ -452,7 +464,9 @@ app.get('/espacos/:id/horarios-disponiveis', async (req, res) => {
         const inicioDia = `${data} 00:00:00`;
         const fimDia = `${data} 23:59:59`;
         const agendamentosRes = await pool.query(
-            'SELECT data_hora_inicio, data_hora_fim FROM agendamentos WHERE espaco_id = $1 AND data_hora_inicio BETWEEN $2 AND $3 AND status = $4',
+            `SELECT data_hora_inicio, data_hora_fim, saas_professional_type, saas_professional_id
+             FROM agendamentos
+             WHERE espaco_id = $1 AND data_hora_inicio BETWEEN $2 AND $3 AND status = $4`,
             [id, inicioDia, fimDia, 'confirmado']
         );
         const agendamentos = agendamentosRes.rows;
@@ -478,6 +492,11 @@ app.get('/espacos/:id/horarios-disponiveis', async (req, res) => {
             let slotFimDate = new Date(`${data} ${slotFimStr}:00`);
 
             let temConflito = agendamentos.some(ag => {
+                if (selectedProfessional && ag.saas_professional_id
+                    && (ag.saas_professional_type !== selectedProfessional.type
+                        || ag.saas_professional_id.toLowerCase() !== selectedProfessional.id.toLowerCase())) {
+                    return false;
+                }
                 let agInicio = new Date(ag.data_hora_inicio);
                 let agFim = new Date(ag.data_hora_fim);
                 return slotInicioDate < agFim && slotFimDate > agInicio;
@@ -494,7 +513,13 @@ app.get('/espacos/:id/horarios-disponiveis', async (req, res) => {
             }
         }
 
-        res.json({ data, servico_id, horarios_livres: slotsLivres });
+        res.json({
+            data,
+            servico_id,
+            profissional_id: selectedProfessional?.id || null,
+            profissional_tipo: selectedProfessional?.type || null,
+            horarios_livres: slotsLivres
+        });
 
     } catch (err) {
         console.error(err);
@@ -515,6 +540,13 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
         || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(horario || '')
         || !Number.isInteger(timezoneOffset) || Math.abs(timezoneOffset) > 840) {
         return res.status(400).json({ error: 'Selecione um serviço, data e horário válidos.' });
+    }
+    const professionalId = typeof req.body.profissional_id === 'string' ? req.body.profissional_id : '';
+    const professionalType = typeof req.body.profissional_tipo === 'string' ? req.body.profissional_tipo : '';
+    if ((professionalId || professionalType)
+        && (!/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(professionalId)
+            || !['owner', 'employee'].includes(professionalType))) {
+        return res.status(400).json({ error: 'Selecione um profissional válido.' });
     }
     if (getUtcWeekday(data) === null) {
         return res.status(400).json({ error: 'Escolha uma data válida.' });
@@ -566,6 +598,24 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Serviço não encontrado neste estabelecimento.' });
         }
+        const professionalResult = await client.query(`
+            SELECT professional_id AS id, professional_type AS type
+            FROM saas_service_professionals
+            WHERE space_id = $1 AND service_id = $2
+        `, [id, String(serviceId)]);
+        const serviceProfessionals = professionalResult.rows;
+        if (serviceProfessionals.length && !professionalId) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Escolha o profissional que realizará este serviço.' });
+        }
+        const professional = professionalId
+            ? serviceProfessionals.find((item) =>
+                item.type === professionalType && item.id.toLowerCase() === professionalId.toLowerCase())
+            : null;
+        if (professionalId && !professional) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Este profissional não está vinculado ao serviço.' });
+        }
 
         const weekday = getUtcWeekday(data);
         const hoursResult = await client.query(`
@@ -574,7 +624,11 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
             WHERE espaco_id = $1 AND dia_semana = $2
         `, [id, weekday]);
         const hours = hoursResult.rows[0];
-        if (!hours || !hours.ativo) {
+        if (!hours) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: 'Os horários de funcionamento ainda não foram configurados para este dia.' });
+        }
+        if (!hours.ativo) {
             await client.query('ROLLBACK');
             return res.status(409).json({ error: 'O estabelecimento não atende neste dia.' });
         }
@@ -601,8 +655,13 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
                   AND status = 'confirmado'
                   AND data_hora_inicio < ($2::timestamp + ($3 * INTERVAL '1 minute'))
                   AND data_hora_fim > $2::timestamp
+                  AND (
+                      $4::uuid IS NULL
+                      OR saas_professional_id IS NULL
+                      OR (saas_professional_type = $5 AND saas_professional_id = $4::uuid)
+                  )
             ) AS has_conflict
-        `, [id, startTimestamp, duration]);
+        `, [id, startTimestamp, duration, professional?.id || null, professional?.type || null]);
         if (conflictResult.rows[0].has_conflict) {
             await client.query('ROLLBACK');
             return res.status(409).json({ error: 'Esse horário acabou de ser reservado. Escolha outro horário.' });
@@ -610,11 +669,11 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
 
         const appointmentResult = await client.query(`
             INSERT INTO agendamentos
-                (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status, saas_cliente_id)
+                (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status,
+                 saas_cliente_id, saas_professional_type, saas_professional_id)
             VALUES (
                 $1, $2, $3, $4, $5::timestamp,
-                $5::timestamp + ($6 * INTERVAL '1 minute'),
-                'confirmado', $7
+                $5::timestamp + ($6 * INTERVAL '1 minute'), 'confirmado', $7, $8, $9
             )
             RETURNING id, espaco_id, servico_id, data_hora_inicio, data_hora_fim, status
         `, [
@@ -624,7 +683,9 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
             customer.phone,
             startTimestamp,
             duration,
-            customer.id
+            customer.id,
+            professional?.type || null,
+            professional?.id || null
         ]);
         await client.query('COMMIT');
         return res.status(201).json({ message: 'Atendimento confirmado.', appointment: appointmentResult.rows[0] });

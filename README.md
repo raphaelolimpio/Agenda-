@@ -8,9 +8,9 @@
 
 Na seção **Perfil & Equipe**, o dono pode definir o percentual de cada atendimento que fica para a empresa, individualmente por funcionário. O percentual inicial é 0% até que seja configurado.
 
-Os serviços cadastrados em **Atividades** são salvos no estabelecimento e publicados na vitrine e na tela de agendamento. O dono pode atribuir cada serviço a si mesmo e aos funcionários vinculados.
+Os serviços cadastrados em **Atividades** são salvos no estabelecimento e publicados na vitrine e na tela de agendamento. O dono pode atribuir cada serviço a si mesmo e aos funcionários vinculados; o cliente escolhe entre os profissionais associados ao serviço, e o agendamento mantém essa atribuição.
 
-As vitrines públicas podem ser acessadas pelo endereço exclusivo da loja sem login. Para escolher um serviço e iniciar o agendamento, o cliente entra na conta; após o login, o serviço escolhido é mantido. A tela de agendamento e a área do cliente oferecem navegação de volta para a loja.
+As vitrines públicas podem ser acessadas pelo endereço exclusivo da loja sem login. Para escolher um serviço e iniciar o agendamento, o cliente entra na conta; após o login, o serviço escolhido é mantido. A tela de agendamento e a área do cliente oferecem navegação de volta para a loja. Os horários ao público usam somente os horários de funcionamento cadastrados; dias sem configuração não recebem horários por padrão.
 
 As sessões são independentes por navegador/dispositivo. A opção **Manter conectado neste dispositivo** cria uma sessão persistente; sair invalida somente a sessão atual.
 

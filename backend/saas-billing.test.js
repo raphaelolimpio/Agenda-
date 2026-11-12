@@ -855,6 +855,44 @@ test('owner can persist a commission percentage only for a linked employee', asy
     assert.equal(response.body.commission.company_percentage, '35.50');
 });
 
+test('public service catalog includes professionals linked by the owner', async () => {
+    const app = {
+        get() {},
+        post() {},
+        patch() {},
+        delete() {}
+    };
+    const employeeId = 'c0c3f5b5-1cef-44df-a3d5-f953f59986b9';
+    const pool = {
+        async query(sql) {
+            if (sql.includes('FROM servicos')) {
+                return {
+                    rows: [{ id: 17, nome: 'Aula de Kart', categoria: 'Esporte', duracao_minutos: 60, preco: '200.00' }]
+                };
+            }
+            if (sql.includes('FROM saas_service_professionals')) {
+                return {
+                    rows: [{
+                        service_id: '17',
+                        professional_id: employeeId,
+                        professional_type: 'employee',
+                        professional_name: 'Rapha'
+                    }]
+                };
+            }
+            return { rows: [] };
+        }
+    };
+    const billing = createSaasBilling(app, pool, 'frontend');
+    const services = await billing.getPublicServicesForSpace(5);
+
+    assert.deepEqual(services[0].profissionais, [{
+        id: employeeId,
+        type: 'employee',
+        nome: 'Rapha'
+    }]);
+});
+
 test('owner service creation persists catalog data and selected professionals', async () => {
     const routes = new Map();
     const app = {

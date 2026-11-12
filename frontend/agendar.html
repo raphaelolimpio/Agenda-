@@ -149,9 +149,8 @@
                             </div>
 
                             <div>
-                                <select id="selectFiltroProfissional" onchange="renderizarAgendaDiaria()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white font-medium">
-                                    <option value="">👨‍⚕️ Todos os Profissionais</option>
-                                    <option value="" selected>Equipe do estabelecimento</option>
+                                <select id="selectFiltroProfissional" onchange="alterarFiltroProfissional()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white font-medium">
+                                    <option value="all">Todos os profissionais</option>
                                 </select>
                             </div>
                         </div>
@@ -394,6 +393,7 @@
         function atualizarPrecoServico() {
             const sel = document.getElementById('selectServico');
             const servico = servicosDisponiveis.find((item) => String(item.id) === sel.value);
+            atualizarFiltroProfissional(servico);
             document.getElementById('resumoValor').textContent = servico
                 ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(servico.preco) || 0)
                 : '—';
@@ -403,6 +403,32 @@
             document.getElementById('resumoProfissional').textContent = '—';
             atualizarBotaoConfirmacao();
             if (diaEscolhidoPeloUsuario && servico) abrirAgendaDoDia(dataSelecionadaGlobal);
+        }
+
+        function atualizarFiltroProfissional(servico) {
+            const filter = document.getElementById('selectFiltroProfissional');
+            filter.replaceChildren();
+            if (!servico?.profissionais?.length) {
+                filter.add(new Option('Equipe do estabelecimento', 'team'));
+                filter.disabled = true;
+                return;
+            }
+
+            filter.disabled = false;
+            filter.add(new Option('Todos os profissionais', 'all'));
+            servico.profissionais.forEach((professional) => {
+                const value = `${professional.type}:${professional.id}`;
+                filter.add(new Option(professional.nome, value));
+            });
+        }
+
+        function alterarFiltroProfissional() {
+            horarioSelecionado = null;
+            profissionalSelecionado = null;
+            document.getElementById('resumoDataHora').textContent = 'Nenhum horário escolhido';
+            document.getElementById('resumoProfissional').textContent = '—';
+            atualizarBotaoConfirmacao();
+            renderizarAgendaDiaria();
         }
 
         // =========================================================================
@@ -537,6 +563,7 @@
             const container = document.getElementById('listaHorariosAgendaDiaria');
             container.innerHTML = '';
             const servicoId = document.getElementById('selectServico').value;
+            const service = servicosDisponiveis.find((item) => String(item.id) === servicoId);
             if (!servicoId) {
                 container.innerHTML = '<div class="empty-state">Selecione um serviço para consultar os horários.</div>';
                 return;
@@ -544,38 +571,66 @@
 
             container.innerHTML = '<div class="loading-state">Consultando horários disponíveis...</div>';
             try {
-                const resultado = await AppApi.request(
-                    `/espacos/${encodeURIComponent(ESPACO_ID)}/horarios-disponiveis?data=${encodeURIComponent(dataSelecionadaGlobal)}&servico_id=${encodeURIComponent(servicoId)}`
+                const professionals = service?.profissionais || [];
+                const filterValue = document.getElementById('selectFiltroProfissional').value;
+                const selectedProfessional = filterValue === 'all'
+                    ? null
+                    : professionals.find((professional) => `${professional.type}:${professional.id}` === filterValue);
+                const professionalsToCheck = selectedProfessional
+                    ? [selectedProfessional]
+                    : professionals.length ? professionals : [{ id: null, type: null, nome: 'Equipe do estabelecimento' }];
+                const responses = await Promise.all(professionalsToCheck.map(async (professional) => {
+                    const query = new URLSearchParams({
+                        data: dataSelecionadaGlobal,
+                        servico_id: servicoId
+                    });
+                    if (professional.id) {
+                        query.set('profissional_id', professional.id);
+                        query.set('profissional_tipo', professional.type);
+                    }
+                    const result = await AppApi.request(
+                        `/espacos/${encodeURIComponent(ESPACO_ID)}/horarios-disponiveis?${query}`
+                    );
+                    return {
+                        professional,
+                        result,
+                        times: Array.isArray(result.horarios_livres) ? result.horarios_livres : []
+                    };
+                }));
+                const available = responses.flatMap(({ professional, times }) =>
+                    times.map((time) => ({ time, professional }))
                 );
-                const horarios = Array.isArray(resultado.horarios_livres) ? resultado.horarios_livres : [];
                 container.innerHTML = '';
-                if (horarios.length === 0) {
-                    container.innerHTML = `<div class="empty-state">${AppApi.escapeHtml(resultado.mensagem || 'Nenhum horário disponível para esta data.')}</div>`;
+                if (available.length === 0) {
+                    const message = responses.find(({ result }) => result.mensagem)?.result.mensagem
+                        || 'Nenhum horário disponível para este serviço e profissional.';
+                    container.innerHTML = `<div class="empty-state">${AppApi.escapeHtml(message)}</div>`;
                     return;
                 }
 
-                horarios.forEach((horario) => {
-                const profissional = { id: 'equipe', nome: document.getElementById('nomeEstabelecimento').textContent || 'Equipe do estabelecimento' };
-                const linha = document.createElement('div');
-                linha.className = 'flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50/50 hover:border-blue-500 hover:bg-blue-50/30 transition';
-                
-                const selecionado = horarioSelecionado === horario;
+                available.forEach(({ time, professional }) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3 transition hover:border-blue-500 hover:bg-blue-50/30';
+                    const isSelected = horarioSelecionado === time
+                        && profissionalSelecionado?.id === professional.id
+                        && profissionalSelecionado?.type === professional.type;
+                    const details = document.createElement('div');
+                    details.className = 'flex min-w-0 items-center gap-3';
+                    const timeLabel = document.createElement('span');
+                    timeLabel.className = 'rounded border bg-white px-2.5 py-1 font-mono text-sm font-bold text-slate-800 shadow-sm';
+                    timeLabel.textContent = time;
+                    const professionalLabel = document.createElement('p');
+                    professionalLabel.className = 'truncate text-xs font-bold text-slate-900';
+                    professionalLabel.textContent = professional.nome;
+                    details.append(timeLabel, professionalLabel);
 
-                linha.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="font-mono font-bold text-sm bg-white border px-2.5 py-1 rounded shadow-sm text-slate-800">${AppApi.escapeHtml(horario)}</span>
-                        <div>
-                            <p class="text-xs font-bold text-slate-900">Equipe do estabelecimento</p>
-                            <p class="text-[11px] text-slate-500">Consulte disponibilidade</p>
-                        </div>
-                    </div>
-                    <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${selecionado ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}">
-                        ${selecionado ? 'Selecionado ✓' : 'Selecionar'}
-                    </button>
-                `;
-
-                linha.onclick = () => selecionarHorarioNaAgenda(horario, profissional);
-                container.appendChild(linha);
+                    const selectButton = document.createElement('button');
+                    selectButton.type = 'button';
+                    selectButton.className = `shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold ${isSelected ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`;
+                    selectButton.textContent = isSelected ? 'Selecionado ✓' : 'Selecionar';
+                    selectButton.addEventListener('click', () => selecionarHorarioNaAgenda(time, professional));
+                    row.append(details, selectButton);
+                    container.appendChild(row);
                 });
             } catch (error) {
                 container.innerHTML = `<div class="empty-state">${AppApi.escapeHtml(error.message)}</div>`;
@@ -619,6 +674,8 @@
                         servico_id: document.getElementById('selectServico').value,
                         data: dataSelecionadaGlobal,
                         horario: horarioSelecionado,
+                        profissional_id: profissionalSelecionado?.id || null,
+                        profissional_tipo: profissionalSelecionado?.type || null,
                         timezone_offset_minutes: new Date(`${dataSelecionadaGlobal}T${horarioSelecionado}:00`).getTimezoneOffset()
                     })
                 });
@@ -627,7 +684,8 @@
                 button.disabled = true;
             } catch (error) {
                 if (error.status === 401) {
-                    const next = `agendar.html?loja=${encodeURIComponent(ESPACO_ID)}`;
+                    const serviceId = document.getElementById('selectServico').value;
+                    const next = `agendar.html?loja=${encodeURIComponent(ESPACO_ID)}${serviceId ? `&servico=${encodeURIComponent(serviceId)}` : ''}`;
                     window.location.assign(`entrar.html?tipo=cliente&next=${encodeURIComponent(next)}`);
                     return;
                 }

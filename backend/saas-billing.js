@@ -146,7 +146,9 @@ async function ensureSaasSchema(pool) {
             PRIMARY KEY (customer_id, space_id)
         );
         ALTER TABLE agendamentos
-            ADD COLUMN IF NOT EXISTS saas_cliente_id UUID REFERENCES saas_customers(id) ON DELETE SET NULL;
+            ADD COLUMN IF NOT EXISTS saas_cliente_id UUID REFERENCES saas_customers(id) ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS saas_professional_type TEXT,
+            ADD COLUMN IF NOT EXISTS saas_professional_id UUID;
         DO $saas$
         BEGIN
             IF EXISTS (
@@ -1767,7 +1769,15 @@ function createSaasBilling(app, pool, frontendDirectory) {
         }
     });
 
-    return { requireOwnedSpace, getCustomerForRequest, cancelOverdueSubscriptions };
+    return {
+        requireOwnedSpace,
+        getCustomerForRequest,
+        getPublicServicesForSpace: async (spaceId) => {
+            await ensureSchema();
+            return readServicesForSpace(spaceId);
+        },
+        cancelOverdueSubscriptions
+    };
 }
 
 module.exports = {
