@@ -469,13 +469,18 @@
         let atividades = [];
         let equipe = [];
         let equipeContas = [];
+        let equipeAtividades = [];
+        let accountAtual = null;
         let listaBloqueiosAdmin = [];
         let agendamentosAdmin = [];
         let historicoAdmin = [];
 
         // Helpers
         function getServico(id) { return atividades.find(a => a.id == id); }
-        function getProfissional(id) { return equipe.find(e => e.id == id); }
+        function getProfissional(id) {
+            return equipe.find(e => e.id == id)
+                || equipeAtividades.find(professional => professional.id == id);
+        }
 
         function irParaAba(aba) {
             ['agenda', 'historico', 'receita', 'servicos', 'perfil', 'vitrine'].forEach(a => {
@@ -714,9 +719,9 @@
                 document.getElementById('servNome').value = ''; document.getElementById('servCat').value = ''; document.getElementById('servDur').value = '30'; document.getElementById('servPreco').value = '';
             }
 
-            equipe.forEach(p => {
-                const chk = pIds.includes(p.id) ? 'checked' : '';
-                divProfs.innerHTML += `<label class="flex items-center gap-2 text-xs"><input type="checkbox" name="profCheck" value="${p.id}" ${chk} class="w-4 h-4 rounded text-blue-600"> ${p.nome}</label>`;
+            equipeAtividades.forEach((professional) => {
+                const chk = pIds.some((id) => String(id) === String(professional.id)) ? 'checked' : '';
+                divProfs.innerHTML += `<label class="flex items-center gap-2 text-xs"><input type="checkbox" name="profCheck" value="${AppApi.escapeHtml(professional.id)}" ${chk} class="w-4 h-4 rounded text-blue-600"> ${AppApi.escapeHtml(professional.nome)}</label>`;
             });
             document.getElementById('modalServico').classList.remove('hidden');
         }
@@ -725,7 +730,7 @@
             const idx = Number(document.getElementById('servicoEditIndex').value);
             const nome = document.getElementById('servNome').value.trim();
             const checks = document.querySelectorAll('input[name="profCheck"]:checked');
-            const profs = Array.from(checks).map(c => Number(c.value));
+            const profs = Array.from(checks).map(c => c.value);
             
             if (!nome) return alert('Insira o nome!');
             const obj = { id: idx >= 0 ? atividades[idx].id : Date.now(), nome, cat: document.getElementById('servCat').value || 'Geral', duracao: Number(document.getElementById('servDur').value || 30), preco: Number(document.getElementById('servPreco').value || 0), profs };
@@ -744,8 +749,12 @@
             const selFiltroProf = document.getElementById('filtroProfissionalAgenda');
             selFiltroProf.innerHTML = '<option value="">Todos os Profissionais</option>';
 
-            equipe.forEach((e) => {
-                selFiltroProf.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
+            const profissionaisFiltro = new Map();
+            [...equipe, ...equipeAtividades].forEach((professional) => {
+                profissionaisFiltro.set(String(professional.id), professional);
+            });
+            profissionaisFiltro.forEach((professional) => {
+                selFiltroProf.innerHTML += `<option value="${AppApi.escapeHtml(professional.id)}">${AppApi.escapeHtml(professional.nome)}</option>`;
             });
             equipeContas.forEach((employee) => {
                 const linkedAt = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(employee.linked_at));
@@ -785,7 +794,25 @@
 
         async function carregarEquipeVinculada() {
             equipeContas = await AppApi.request('/api/saas/employees');
+            equipeAtividades = [
+                ...equipeContas.map((employee) => ({
+                    id: employee.id,
+                    nome: employee.full_name
+                }))
+            ];
+            if (accountAtual?.id) {
+                equipeAtividades.unshift({
+                    id: accountAtual.id,
+                    nome: `${accountAtual.full_name || accountAtual.store_name} (dono)`
+                });
+            }
+            const profissionaisPorId = new Map();
+            equipeAtividades.forEach((professional) => {
+                profissionaisPorId.set(String(professional.id), professional);
+            });
+            equipeAtividades = [...profissionaisPorId.values()];
             renderizarAbaPerfil();
+            renderizarAbaServicos();
         }
 
         async function salvarPercentualFuncionario(employeeId) {
@@ -938,6 +965,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { account, subscription } = await AppApi.request('/api/saas/me');
+                accountAtual = account;
                 if (!subscription.can_access) {
                     window.location.replace('assinatura.html');
                     return;
