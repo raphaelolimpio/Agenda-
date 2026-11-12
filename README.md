@@ -10,6 +10,8 @@ Na seção **Perfil & Equipe**, o dono pode definir o percentual de cada atendim
 
 Os serviços cadastrados em **Atividades** são salvos no estabelecimento e publicados na vitrine e na tela de agendamento. O dono pode atribuir cada serviço a si mesmo e aos funcionários vinculados.
 
+As vitrines públicas podem ser acessadas pelo endereço exclusivo da loja sem login. Para escolher um serviço e iniciar o agendamento, o cliente entra na conta; após o login, o serviço escolhido é mantido. A tela de agendamento e a área do cliente oferecem navegação de volta para a loja.
+
 As sessões são independentes por navegador/dispositivo. A opção **Manter conectado neste dispositivo** cria uma sessão persistente; sair invalida somente a sessão atual.
 
 ## Cobrança

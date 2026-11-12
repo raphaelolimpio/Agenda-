@@ -297,6 +297,11 @@
                     select.add(new Option(`${servico.nome} — ${preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${duracao} min)`, String(servico.id)));
                 });
                 select.disabled = false;
+                const requestedServiceId = new URLSearchParams(window.location.search).get('servico');
+                if (servicosDisponiveis.some((service) => String(service.id) === requestedServiceId)) {
+                    select.value = requestedServiceId;
+                    atualizarPrecoServico();
+                }
                 document.getElementById('serviceAvailabilityStatus').textContent = '';
                 document.getElementById('resumoValor').textContent = '—';
                 exibirEstadoAgendamento('Horários disponíveis podem ser consultados. A confirmação online ainda não está disponível.');
@@ -353,7 +358,7 @@
             const customerAreaLink = document.getElementById('bookingCustomerArea');
             try {
                 const { customer } = await AppApi.request('/api/customer/me');
-                customerAreaLink.href = 'cliente.html';
+                customerAreaLink.href = `cliente.html?loja=${encodeURIComponent(ESPACO_ID)}`;
                 customerAreaLink.textContent = 'Minha área';
                 document.getElementById('checkoutNome').value = customer.full_name;
                 document.getElementById('checkoutEmail').value = customer.email;

@@ -89,7 +89,8 @@
 }
 
 .owner-nav-item[hidden],
-.portal-panel[hidden] {
+.portal-panel[hidden],
+.portal-nav__item[hidden] {
     display: none !important;
 }
 
@@ -595,6 +596,12 @@
     font-weight: 700;
 }
 
+.booking-menu {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
 .subscription-menu-logout {
     border: 0;
     background: transparent;
@@ -604,6 +611,10 @@
 .subscription-menu-logout:hover,
 .booking-menu-link:hover {
     background: #f1f5f9;
+}
+
+#booking-page .booking-menu-link {
+    text-decoration: none;
 }
 
 @media (max-width: 767px) {

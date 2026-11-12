@@ -11,6 +11,14 @@ const {
 } = require('./saas-billing');
 const { getDatabaseConfig } = require('./database-config');
 const { isAllowedOrigin } = require('./origin-policy');
+const { getUtcWeekday } = require('./date-utils');
+
+test('calendar dates use the same weekday regardless of server timezone', () => {
+    assert.equal(getUtcWeekday('2026-11-19'), 4);
+    assert.equal(getUtcWeekday('2026-11-22'), 0);
+    assert.equal(getUtcWeekday('2026-02-29'), null);
+    assert.equal(getUtcWeekday('2026-11-19T00:00:00Z'), null);
+});
 
 test('origin policy allows only the configured site and this project Vercel deployments', () => {
     const configured = new Set(['https://agenda.example.com']);

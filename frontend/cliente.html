@@ -30,6 +30,7 @@
             <button type="button" class="portal-nav__item" data-panel="favorites" onclick="mostrarPainel('favorites')"><span aria-hidden="true">♡</span> Favoritas</button>
             <button type="button" class="portal-nav__item" data-panel="appointments" onclick="mostrarPainel('appointments')"><span aria-hidden="true">📅</span> Atendimentos</button>
             <button type="button" class="portal-nav__item" data-panel="profile" onclick="mostrarPainel('profile')"><span aria-hidden="true">👤</span> Meus dados</button>
+            <a id="customerReturnLink" class="portal-nav__item" href="index.html" hidden><span aria-hidden="true">←</span> Voltar à loja</a>
             <a class="portal-nav__item" href="index.html"><span aria-hidden="true">🔎</span> Explorar lojas</a>
             <button type="button" class="portal-nav__item" onclick="encerrarSessao()"><span aria-hidden="true">↪</span> Sair da conta</button>
         </nav>
@@ -134,6 +135,15 @@
                 image.hidden = true;
                 fallback.hidden = false;
             }
+
+        }
+
+        function configurarNavegacaoCliente() {
+            const requestedStoreId = new URLSearchParams(window.location.search).get('loja');
+            if (!requestedStoreId || !/^\d+$/.test(requestedStoreId)) return;
+            const returnLink = document.getElementById('customerReturnLink');
+            returnLink.href = `vitrine.html?loja=${encodeURIComponent(requestedStoreId)}`;
+            returnLink.hidden = false;
         }
 
         function storeCard(store) {
@@ -276,6 +286,7 @@
         }
 
         document.getElementById('storeSearch').addEventListener('input', renderStores);
+        configurarNavegacaoCliente();
         Promise.all([carregarDadosCliente(), carregarVitrineCliente()]);
     </script>
 </body>

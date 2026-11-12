@@ -6,6 +6,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 const { createSaasBilling, effectiveSubscription } = require('./saas-billing');
 const { isAllowedOrigin } = require('./origin-policy');
+const { getUtcWeekday } = require('./date-utils');
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -424,14 +425,18 @@ app.get('/status', async (req, res) => {
 app.get('/espacos/:id/horarios-disponiveis', async (req, res) => {
     const { id } = req.params;
     const { data, servico_id } = req.query; // Ex: ?data=2026-11-05&servico_id=1
+    const diaSemana = getUtcWeekday(data);
+    if (!isValidSpaceId(id)) return res.status(400).json({ error: 'ID de estabelecimento inválido.' });
+    if (diaSemana === null) return res.status(400).json({ error: 'Data inválida.' });
+    if (!/^\d+$/.test(String(servico_id || ''))) return res.status(400).json({ error: 'Serviço inválido.' });
 
     try {
-        const servicoRes = await pool.query('SELECT duracao_minutos FROM servicos WHERE id = $1', [servico_id]);
+        const servicoRes = await pool.query(
+            'SELECT duracao_minutos FROM servicos WHERE id = $1 AND espaco_id = $2',
+            [servico_id, id]
+        );
         if (servicoRes.rows.length === 0) return res.status(404).json({ error: 'Serviço não encontrado' });
         const duracaoMinutos = servicoRes.rows[0].duracao_minutos;
-
-        const dataObj = new Date(data);
-        const diaSemana = dataObj.getDay();
 
         const configRes = await pool.query(
             'SELECT hora_inicio, hora_fim, ativo FROM configuracoes_horarios WHERE espaco_id = $1 AND dia_semana = $2',
@@ -511,6 +516,9 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
         || !Number.isInteger(timezoneOffset) || Math.abs(timezoneOffset) > 840) {
         return res.status(400).json({ error: 'Selecione um serviço, data e horário válidos.' });
     }
+    if (getUtcWeekday(data) === null) {
+        return res.status(400).json({ error: 'Escolha uma data válida.' });
+    }
 
     let customer;
     try {
@@ -559,7 +567,7 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
             return res.status(404).json({ error: 'Serviço não encontrado neste estabelecimento.' });
         }
 
-        const weekday = new Date(`${data}T12:00:00Z`).getUTCDay();
+        const weekday = getUtcWeekday(data);
         const hoursResult = await client.query(`
             SELECT hora_inicio, hora_fim, ativo
             FROM configuracoes_horarios
