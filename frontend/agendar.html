@@ -38,7 +38,8 @@
                     <img id="avatarHeader" alt="" class="w-6 h-6 rounded-full object-cover" hidden>
                     <span>Meu Perfil</span>
                 </button>
-                <a class="booking-menu-link" href="index.html">Voltar à vitrine</a>
+                <a id="bookingCustomerArea" class="booking-menu-link" href="entrar.html?tipo=cliente">Entrar como cliente</a>
+                <a id="bookingStoreLink" class="booking-menu-link" href="index.html">Voltar à vitrine</a>
             </nav>
         </div>
     </header>
@@ -265,6 +266,8 @@
                 const espaco = await AppApi.request(`/espacos/${encodeURIComponent(ESPACO_ID)}/vitrine`);
                 document.title = `Agendar atendimento | ${espaco.nome}`;
                 document.getElementById('nomeEstabelecimento').textContent = espaco.nome;
+                document.getElementById('bookingStoreLink').href =
+                    `vitrine.html?loja=${encodeURIComponent(ESPACO_ID)}`;
                 document.documentElement.style.setProperty('--brand-primary', espaco.cor_primaria || '#1246A0');
                 document.documentElement.style.setProperty('--brand-accent', espaco.cor_destaque || '#F97316');
                 document.documentElement.style.setProperty('--brand-background', espaco.cor_fundo || '#F3F6FB');
@@ -347,8 +350,11 @@
         }
 
         async function carregarContaCliente() {
+            const customerAreaLink = document.getElementById('bookingCustomerArea');
             try {
                 const { customer } = await AppApi.request('/api/customer/me');
+                customerAreaLink.href = 'cliente.html';
+                customerAreaLink.textContent = 'Minha área';
                 document.getElementById('checkoutNome').value = customer.full_name;
                 document.getElementById('checkoutEmail').value = customer.email;
                 document.getElementById('checkoutTelefone').value = `+${customer.phone}`;
@@ -366,7 +372,12 @@
                 document.getElementById('perfilEmail').value = customer.email;
                 document.getElementById('perfilTelefone').value = `+${customer.phone}`;
             } catch (error) {
-                if (error.status !== 401) exibirEstadoAgendamento(error.message, true);
+                if (error.status !== 401) {
+                    exibirEstadoAgendamento(error.message, true);
+                } else {
+                    const next = `agendar.html?loja=${encodeURIComponent(ESPACO_ID)}`;
+                    customerAreaLink.href = `entrar.html?tipo=cliente&next=${encodeURIComponent(next)}`;
+                }
             }
         }
 

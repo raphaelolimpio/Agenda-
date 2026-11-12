@@ -218,6 +218,7 @@
     color: #475569;
     font-size: 0.82rem;
     font-weight: 700;
+    text-decoration: none;
 }
 
 .portal-nav__item:hover {

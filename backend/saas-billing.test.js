@@ -10,6 +10,30 @@ const {
     verifyPassword
 } = require('./saas-billing');
 const { getDatabaseConfig } = require('./database-config');
+const { isAllowedOrigin } = require('./origin-policy');
+
+test('origin policy allows only the configured site and this project Vercel deployments', () => {
+    const configured = new Set(['https://agenda.example.com']);
+    assert.equal(isAllowedOrigin(undefined, configured), true);
+    assert.equal(isAllowedOrigin('https://agenda.example.com', configured), true);
+    assert.equal(isAllowedOrigin('https://agenda-frontend-phi.vercel.app', configured), true);
+    assert.equal(isAllowedOrigin(
+        'https://agenda-frontend-7f8puxf94-raphaelolimpios-projects.vercel.app',
+        configured
+    ), true);
+    assert.equal(isAllowedOrigin(
+        'https://other-project-123-raphaelolimpios-projects.vercel.app',
+        configured
+    ), false);
+    assert.equal(isAllowedOrigin(
+        'https://agenda-frontend-123-other-user.vercel.app',
+        configured
+    ), false);
+    assert.equal(isAllowedOrigin(
+        'http://agenda-frontend-123-raphaelolimpios-projects.vercel.app',
+        configured
+    ), false);
+});
 
 test('database SSL defaults only relax certificate validation for the Railway proxy', () => {
     const railway = getDatabaseConfig(

@@ -116,6 +116,8 @@
                         ? await AppApi.request(`/api/public/vitrines/${encodeURIComponent(requestedSlug)}`)
                         : await AppApi.request(`/espacos/${encodeURIComponent(requestedSpaceId)}/vitrine`);
                     spaceId = String(store.id);
+                    document.getElementById('linkVoltarVitrine').href =
+                        params.get('origem') === 'painel' ? 'admin.html?aba=vitrine' : 'index.html';
                     const services = await AppApi.request(`/espacos/${encodeURIComponent(spaceId)}/servicos`);
                     AppApi.request('/api/customer/recent-visits', {
                         method: 'POST',
@@ -167,7 +169,22 @@
                 }
             }
 
+            async function carregarContaCliente() {
+                if (params.get('origem') === 'painel') return;
+                const accountLink = document.getElementById('linkEntrarVitrine');
+                try {
+                    await AppApi.request('/api/customer/me');
+                    accountLink.href = 'cliente.html';
+                    accountLink.textContent = 'Minha área';
+                } catch (error) {
+                    if (error.status !== 401) {
+                        console.error('Não foi possível validar a sessão do cliente na vitrine:', error);
+                    }
+                }
+            }
+
             carregarVitrine();
+            carregarContaCliente();
         })();
     </script>
 </body>

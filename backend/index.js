@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
 const { createSaasBilling, effectiveSubscription } = require('./saas-billing');
+const { isAllowedOrigin } = require('./origin-policy');
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -22,7 +23,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 app.use(cors({
     origin(origin, callback) {
-        callback(null, !origin || allowedOrigins.has(origin));
+        callback(null, isAllowedOrigin(origin, allowedOrigins));
     },
     credentials: true
 }));
@@ -34,7 +35,7 @@ app.use('/api', (req, res, next) => {
 app.use((req, res, next) => {
     const origin = req.get('Origin');
     const isReadOnly = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);
-    if (origin && !isReadOnly && !allowedOrigins.has(origin)) {
+    if (origin && !isReadOnly && !isAllowedOrigin(origin, allowedOrigins)) {
         return res.status(403).json({ error: 'Origem não autorizada.' });
     }
     next();
