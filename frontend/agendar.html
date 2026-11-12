@@ -90,6 +90,7 @@
                     <select id="selectServico" onchange="atualizarPrecoServico()" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white font-medium">
                         <option value="">Carregando serviços...</option>
                     </select>
+                    <p id="serviceAvailabilityStatus" class="status-message" role="status" aria-live="polite"></p>
                 </div>
 
                 <!-- QUADRO ÚNICO (Alterna entre Visão Mensal com Seletor Custom e Agenda do Dia) -->
@@ -231,6 +232,7 @@
         let profissionalSelecionado = null;
         let formaPagamento = 'local';
         let servicosDisponiveis = [];
+        let diaEscolhidoPeloUsuario = false;
 
         inicializarAgendamento();
 
@@ -279,6 +281,8 @@
                 if (!Array.isArray(servicosDisponiveis) || servicosDisponiveis.length === 0) {
                     select.add(new Option('Este estabelecimento ainda não publicou serviços.', ''));
                     select.disabled = true;
+                    document.getElementById('serviceAvailabilityStatus').textContent =
+                        'A loja precisa cadastrar um serviço antes de ser possível selecionar um atendimento.';
                     exibirEstadoAgendamento('Ainda não há serviços disponíveis para agendamento.');
                     return;
                 }
@@ -290,12 +294,15 @@
                     select.add(new Option(`${servico.nome} — ${preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${duracao} min)`, String(servico.id)));
                 });
                 select.disabled = false;
+                document.getElementById('serviceAvailabilityStatus').textContent = '';
                 document.getElementById('resumoValor').textContent = '—';
                 exibirEstadoAgendamento('Horários disponíveis podem ser consultados. A confirmação online ainda não está disponível.');
             } catch (error) {
                 select.innerHTML = '';
                 select.add(new Option('Não foi possível carregar os serviços.', ''));
                 select.disabled = true;
+                document.getElementById('serviceAvailabilityStatus').textContent = error.message;
+                document.getElementById('serviceAvailabilityStatus').dataset.state = 'error';
                 exibirEstadoAgendamento(error.message, true);
             }
         }
@@ -379,7 +386,7 @@
             document.getElementById('resumoDataHora').textContent = 'Nenhum horário escolhido';
             document.getElementById('resumoProfissional').textContent = '—';
             atualizarBotaoConfirmacao();
-            if (dataSelecionadaGlobal && servico) renderizarAgendaDiaria();
+            if (diaEscolhidoPeloUsuario && servico) abrirAgendaDoDia(dataSelecionadaGlobal);
         }
 
         // =========================================================================
@@ -490,11 +497,13 @@
         // TRANSIÇÃO PARA A AGENDA DO DIA
         // =========================================================================
         function abrirAgendaDoDia(dataIso) {
+            dataSelecionadaGlobal = dataIso;
+            diaEscolhidoPeloUsuario = true;
+            renderizarCalendarioMensal();
             if (!document.getElementById('selectServico').value) {
-                exibirEstadoAgendamento('Selecione um serviço antes de consultar os horários.');
+                exibirEstadoAgendamento('Dia selecionado. Escolha um serviço para consultar os horários.');
                 return;
             }
-            dataSelecionadaGlobal = dataIso;
             document.getElementById('tituloDataAgendaDia').textContent = dataIso.split('-').reverse().join('/');
             
             document.getElementById('painelCalendarioMensal').classList.add('hidden');
