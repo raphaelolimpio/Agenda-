@@ -103,9 +103,12 @@ async function ensureSaasSchema(pool) {
         CREATE TABLE IF NOT EXISTS saas_employee_spaces (
             employee_id UUID NOT NULL REFERENCES saas_employees(id) ON DELETE CASCADE,
             space_id INTEGER NOT NULL REFERENCES espacos(id) ON DELETE CASCADE,
+            company_percentage NUMERIC(5, 2) NOT NULL DEFAULT 0,
             linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (employee_id, space_id)
         );
+        ALTER TABLE saas_employee_spaces
+            ADD COLUMN IF NOT EXISTS company_percentage NUMERIC(5, 2) NOT NULL DEFAULT 0;
         CREATE TABLE IF NOT EXISTS saas_employee_codes (
             space_id INTEGER PRIMARY KEY REFERENCES espacos(id) ON DELETE CASCADE,
             created_by UUID NOT NULL REFERENCES saas_accounts(id) ON DELETE CASCADE,
@@ -526,7 +529,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
     });
 
     app.post('/api/employee/register', async (req, res) => {
-        const { nome, email, senha, codigo_empresa, remember } = req.body || {};
+        const { nome, email, senha, remember } = req.body || {};
         if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 120) {
             return res.status(400).json({ error: 'Informe seu nome completo.' });
         }
@@ -534,11 +537,6 @@ function createSaasBilling(app, pool, frontendDirectory) {
         if (typeof senha !== 'string' || senha.length < 10 || senha.length > 200) {
             return res.status(400).json({ error: 'A senha deve ter pelo menos 10 caracteres.' });
         }
-        if (codigo_empresa !== undefined && codigo_empresa !== null
-            && (typeof codigo_empresa !== 'string' || !/^[\da-f]{12}$/i.test(codigo_empresa.trim()))) {
-            return res.status(400).json({ error: 'O código da empresa é inválido.' });
-        }
-
         const client = await pool.connect();
         try {
             await ensureSchema();
@@ -549,35 +547,11 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 VALUES ($1, $2, $3, $4)
             `, [employeeId, nome.trim(), email.trim().toLowerCase(), hashPassword(senha)]);
 
-            if (codigo_empresa) {
-                const codeHash = crypto.createHash('sha256').update(codigo_empresa.trim().toUpperCase()).digest('hex');
-                const codeResult = await client.query(`
-                    SELECT c.space_id, s.provider_status, s.trial_ends_at, s.next_payment_at
-                    FROM saas_employee_codes c
-                    JOIN saas_accounts a ON a.id = c.created_by
-                    JOIN saas_subscriptions s ON s.account_id = a.id
-                    WHERE c.code_hash = $1
-                    FOR UPDATE OF c
-                `, [codeHash]);
-                const company = codeResult.rows[0];
-                if (!company) {
-                    await client.query('ROLLBACK');
-                    return res.status(400).json({ error: 'Código da empresa inválido ou desativado.' });
-                }
-                if (!effectiveSubscription(company).can_access) {
-                    await client.query('ROLLBACK');
-                    return res.status(402).json({ error: 'A assinatura desta empresa não está ativa.' });
-                }
-                await client.query(
-                    'INSERT INTO saas_employee_spaces (employee_id, space_id) VALUES ($1, $2)',
-                    [employeeId, company.space_id]
-                );
-            }
             await client.query('COMMIT');
             await createPortalSession('employee', employeeId, res, remember !== false);
             return res.status(201).json({
                 message: 'Conta criada.',
-                next: codigo_empresa ? '/colaborador.html' : '/colaborador.html?vincular=1'
+                next: '/colaborador.html?aba=perfil&vincular=1'
             });
         } catch (error) {
             await client.query('ROLLBACK').catch((rollbackError) => {
@@ -1010,7 +984,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
     app.get('/api/saas/employees', requireAccount(async (req, res) => {
         try {
             const result = await pool.query(`
-                SELECT e.id, e.full_name, e.email, es.linked_at
+                SELECT e.id, e.full_name, e.email, es.linked_at, es.company_percentage
                 FROM saas_employee_spaces es
                 JOIN saas_employees e ON e.id = es.employee_id
                 WHERE es.space_id = $1
@@ -1023,54 +997,90 @@ function createSaasBilling(app, pool, frontendDirectory) {
         }
     }));
 
-    app.get('/api/customer/me', requirePortalUser('customer', async (req, res) => {
-        const [customerResult, favoritesResult, appointmentsResult, recentVisitsResult] = await Promise.all([
-            pool.query(
-                'SELECT id, full_name, email, phone, photo_url FROM saas_customers WHERE id = $1',
-                [req.portalUserId]
-            ),
-            pool.query(`
-                SELECT e.id AS space_id, e.nome AS store_name, e.nicho,
-                       COALESCE(e.nicho, 'outros') AS segmento, e.logo_url
-                FROM saas_customer_favorites f
-                JOIN espacos e ON e.id = f.space_id
-                WHERE f.customer_id = $1
-                ORDER BY f.created_at DESC
-            `, [req.portalUserId]),
-            pool.query(`
-                SELECT a.id, a.espaco_id AS space_id, e.nome AS store_name,
-                       s.nome AS service_name, a.data_hora_inicio, a.data_hora_fim, a.status
-                FROM agendamentos a
-                JOIN espacos e ON e.id = a.espaco_id
-                LEFT JOIN servicos s ON s.id = a.servico_id
-                WHERE a.cliente_id = $1
-                ORDER BY a.data_hora_inicio DESC
-            `, [req.portalUserId]),
-            pool.query(`
-                SELECT e.id AS space_id, e.nome AS store_name, e.nicho,
-                       r.last_visited_at
-                FROM saas_customer_recent_spaces r
-                JOIN espacos e ON e.id = r.space_id
-                WHERE r.customer_id = $1
-                ORDER BY r.last_visited_at DESC
-                LIMIT 12
-            `, [req.portalUserId])
-        ]);
-        if (!customerResult.rows[0]) return res.status(404).json({ error: 'Conta de cliente não encontrada.' });
+    app.patch('/api/saas/employees/:employeeId/commission', requireAccount(async (req, res) => {
+        const { employeeId } = req.params;
+        const percentage = req.body?.company_percentage;
+        if (!/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(employeeId || '')) {
+            return res.status(400).json({ error: 'Funcionário inválido.' });
+        }
+        if (typeof percentage !== 'number' || !Number.isFinite(percentage)
+            || percentage < 0 || percentage > 100 || Math.round(percentage * 100) !== percentage * 100) {
+            return res.status(400).json({ error: 'Informe um percentual entre 0 e 100, com até duas casas decimais.' });
+        }
+        try {
+            const result = await pool.query(`
+                UPDATE saas_employee_spaces
+                SET company_percentage = $1
+                WHERE employee_id = $2 AND space_id = $3
+                RETURNING employee_id, space_id, company_percentage
+            `, [percentage, employeeId, req.saasAccount.space_id]);
+            if (!result.rows[0]) return res.status(404).json({ error: 'Funcionário não vinculado a esta loja.' });
+            return res.json({ commission: result.rows[0] });
+        } catch (error) {
+            console.error('Employee commission update failed:', error);
+            return res.status(500).json({ error: 'Não foi possível salvar o percentual do funcionário.' });
+        }
+    }));
 
-        const appointments = appointmentsResult.rows;
-        const upcoming = appointments.filter((appointment) =>
-            new Date(appointment.data_hora_inicio) >= new Date()
-            && !['cancelado', 'cancelada', 'concluido', 'concluído'].includes(String(appointment.status).toLowerCase())
-        );
-        const history = appointments.filter((appointment) => !upcoming.includes(appointment));
-        return res.json({
-            customer: customerResult.rows[0],
-            favorites: favoritesResult.rows,
-            recent_visits: recentVisitsResult.rows,
-            upcoming,
-            history
-        });
+    app.get('/api/customer/me', requirePortalUser('customer', async (req, res) => {
+        try {
+            const [customerResult, favoritesResult, appointmentsResult, recentVisitsResult] = await Promise.all([
+                pool.query(
+                    'SELECT id, full_name, email, phone, photo_url FROM saas_customers WHERE id = $1',
+                    [req.portalUserId]
+                ),
+                pool.query(`
+                    SELECT e.id AS space_id, e.nome AS store_name, e.nicho,
+                           COALESCE(e.nicho, 'outros') AS segmento, e.logo_url
+                    FROM saas_customer_favorites f
+                    JOIN espacos e ON e.id = f.space_id
+                    WHERE f.customer_id = $1
+                    ORDER BY f.created_at DESC
+                `, [req.portalUserId]),
+                pool.query(`
+                    SELECT a.id, a.espaco_id AS space_id, e.nome AS store_name,
+                           s.nome AS service_name, a.data_hora_inicio, a.data_hora_fim, a.status
+                    FROM agendamentos a
+                    JOIN espacos e ON e.id = a.espaco_id
+                    LEFT JOIN servicos s ON s.id = a.servico_id
+                    WHERE a.cliente_id = $1
+                    ORDER BY a.data_hora_inicio DESC
+                `, [req.portalUserId]),
+                pool.query(`
+                    SELECT e.id AS space_id, e.nome AS store_name, e.nicho,
+                           r.last_visited_at
+                    FROM saas_customer_recent_spaces r
+                    JOIN espacos e ON e.id = r.space_id
+                    WHERE r.customer_id = $1
+                    ORDER BY r.last_visited_at DESC
+                    LIMIT 12
+                `, [req.portalUserId])
+            ]);
+            if (!customerResult.rows[0]) return res.status(404).json({ error: 'Conta de cliente não encontrada.' });
+
+            const appointments = appointmentsResult.rows;
+            const upcoming = appointments.filter((appointment) =>
+                new Date(appointment.data_hora_inicio) >= new Date()
+                && !['cancelado', 'cancelada', 'concluido', 'concluído'].includes(String(appointment.status).toLowerCase())
+            );
+            const history = appointments.filter((appointment) => !upcoming.includes(appointment));
+            return res.json({
+                customer: customerResult.rows[0],
+                favorites: favoritesResult.rows,
+                recent_visits: recentVisitsResult.rows,
+                upcoming,
+                history
+            });
+        } catch (error) {
+            console.error('Customer portal data retrieval failed:', error);
+            const timedOut = ['57014', '55P03', 'ETIMEDOUT'].includes(error.code)
+                || /timeout/i.test(error.message || '');
+            return res.status(timedOut ? 503 : 500).json({
+                error: timedOut
+                    ? 'O banco de dados demorou para responder. Tente novamente em instantes.'
+                    : 'Não foi possível carregar seus dados de cliente.'
+            });
+        }
     }));
 
     app.patch('/api/customer/profile', requirePortalUser('customer', async (req, res) => {
@@ -1167,11 +1177,12 @@ function createSaasBilling(app, pool, frontendDirectory) {
             ),
             pool.query(`
                 SELECT e.id AS space_id, e.nome AS store_name, e.nicho,
+                       es.company_percentage,
                        s.provider_status, s.trial_ends_at, s.next_payment_at
                 FROM saas_employee_spaces es
                 JOIN espacos e ON e.id = es.space_id
-                JOIN saas_accounts a ON a.space_id = es.space_id
-                JOIN saas_subscriptions s ON s.account_id = a.id
+                LEFT JOIN saas_accounts a ON a.space_id = es.space_id
+                LEFT JOIN saas_subscriptions s ON s.account_id = a.id
                 WHERE es.employee_id = $1
                 ORDER BY e.nome
             `, [req.portalUserId])
@@ -1182,6 +1193,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                 space_id: space.space_id,
                 store_name: space.store_name,
                 nicho: space.nicho,
+                company_percentage: Number(space.company_percentage) || 0,
                 can_access: effectiveSubscription(space).can_access
             }))
         });

@@ -56,11 +56,6 @@
                     <label class="auth-label" for="storeName">Nome do estabelecimento</label>
                     <input id="storeName" class="auth-input" maxlength="150" autocomplete="organization">
                 </div>
-                <div id="companyCodeField" class="hidden">
-                    <label class="auth-label" for="companyCode">Código da empresa <span class="font-normal normal-case">(opcional)</span></label>
-                    <input id="companyCode" class="auth-input uppercase" maxlength="12" autocomplete="off" placeholder="Código fornecido pelo dono">
-                    <p class="mt-1 text-xs text-slate-500">Você pode se vincular a outras lojas depois de entrar.</p>
-                </div>
                 <div>
                     <label class="auth-label" for="password">Senha</label>
                     <input id="password" type="password" class="auth-input" autocomplete="current-password" minlength="10" maxlength="200" required>
@@ -104,7 +99,6 @@
             document.getElementById('storeField').classList.toggle('hidden', role !== 'dono' || modoAtual !== 'cadastro');
             document.getElementById('phoneField').classList.toggle('hidden', modoAtual !== 'cadastro' || role === 'funcionario');
             document.getElementById('ownerConsentField').classList.toggle('hidden', role !== 'dono' || modoAtual !== 'cadastro');
-            document.getElementById('companyCodeField').classList.toggle('hidden', role !== 'funcionario' || modoAtual !== 'cadastro');
             document.getElementById('forgotPassword').classList.toggle('hidden', role !== 'dono' || modoAtual !== 'login');
             document.getElementById('fullName').required = modoAtual === 'cadastro';
             document.getElementById('phone').required = modoAtual === 'cadastro' && role !== 'funcionario';
@@ -177,7 +171,7 @@
                         segmento: 'salao'
                     }
                     : perfilAtual === 'funcionario'
-                        ? { nome, email, senha, codigo_empresa: document.getElementById('companyCode').value.trim() || undefined }
+                        ? { nome, email, senha }
                         : { nome, email, senha, telefone: document.getElementById('phone').value.trim() };
             if (modoAtual === 'cadastro') payload.remember = true;
 

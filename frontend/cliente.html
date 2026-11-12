@@ -39,6 +39,7 @@
             <p class="section-eyebrow">Sua experiência Agenda+</p>
             <h1>Encontre seu próximo atendimento.</h1>
             <p>Explore lojas, salve suas favoritas e acompanhe seus horários em um só lugar.</p>
+            <p id="customerDataStatus" class="status-message" role="status" aria-live="polite"></p>
         </section>
 
         <section id="panel-stores" class="portal-panel">
@@ -183,6 +184,10 @@
         }
 
         async function alternarFavorito(spaceId) {
+            if (!customerData) {
+                window.alert('Não foi possível carregar seus dados. Atualize a página antes de alterar favoritos.');
+                return;
+            }
             try {
                 if (favoriteIds.has(String(spaceId))) {
                     await AppApi.request(`/api/customer/favorites/${encodeURIComponent(spaceId)}`, { method: 'DELETE' });
@@ -238,7 +243,7 @@
             }
         }
 
-        async function iniciarAreaCliente() {
+        async function carregarDadosCliente() {
             try {
                 customerData = await AppApi.request('/api/customer/me');
                 customerData.favorites.forEach((store) => favoriteIds.add(String(store.space_id)));
@@ -249,19 +254,28 @@
                 document.getElementById('profilePhoto').value = customerData.customer.photo_url || '';
                 renderFavorites();
                 renderAppointments();
-                allStores = await AppApi.request('/espacos');
-                renderStores();
             } catch (error) {
                 if (error.status === 401) {
                     window.location.replace('entrar.html?tipo=cliente&next=cliente.html');
                     return;
                 }
+                const status = document.getElementById('customerDataStatus');
+                status.textContent = `Não foi possível carregar seus dados e atendimentos: ${error.message}`;
+                status.dataset.state = 'error';
+            }
+        }
+
+        async function carregarVitrineCliente() {
+            try {
+                allStores = await AppApi.request('/espacos');
+                renderStores();
+            } catch (error) {
                 document.getElementById('customerStores').innerHTML = `<p class="empty-state">${AppApi.escapeHtml(error.message)}</p>`;
             }
         }
 
         document.getElementById('storeSearch').addEventListener('input', renderStores);
-        iniciarAreaCliente();
+        Promise.all([carregarDadosCliente(), carregarVitrineCliente()]);
     </script>
 </body>
 </html>

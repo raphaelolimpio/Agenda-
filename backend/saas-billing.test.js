@@ -723,3 +723,185 @@ test('customer and employee profiles validate and persist optional photo URLs', 
     assert.equal(employeeResponse.statusCode, 200);
     assert.equal(employeeResponse.payload.employee.photo_url, 'https://images.example.com/profissional.jpg');
 });
+
+test('employee registration does not require or process a company code', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const clientQueries = [];
+    const client = {
+        async query(sql) {
+            clientQueries.push(sql);
+            return { rows: [] };
+        },
+        release() {}
+    };
+    const pool = {
+        async query() { return { rows: [] }; },
+        async connect() { return client; }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        setHeader() {},
+        json(body) { this.body = body; return this; }
+    };
+
+    await routes.get('POST /api/employee/register')({
+        body: {
+            nome: 'Profissional Exemplo',
+            email: 'profissional@example.com',
+            senha: 'senha-segura-123',
+            codigo_empresa: 'invalid-code'
+        }
+    }, response);
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.next, '/colaborador.html?aba=perfil&vincular=1');
+    assert.ok(clientQueries.includes('COMMIT'));
+    assert.equal(clientQueries.some((sql) => sql.includes('saas_employee_spaces')), false);
+});
+
+test('owner can persist a commission percentage only for a linked employee', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const account = {
+        id: 'account-id',
+        space_id: 42,
+        provider_status: 'authorized',
+        amount_brl: '50.00',
+        trial_days: 7,
+        trial_ends_at: null,
+        next_payment_at: null,
+        checkout_url: null
+    };
+    const employeeId = '123e4567-e89b-12d3-a456-426614174000';
+    const pool = {
+        async query(sql, values = []) {
+            if (sql.includes('FROM saas_sessions session')) return { rows: [account] };
+            if (sql.includes('UPDATE saas_employee_spaces')) {
+                assert.deepEqual(values, [35.5, employeeId, 42]);
+                return {
+                    rows: [{ employee_id: employeeId, space_id: 42, company_percentage: '35.50' }]
+                };
+            }
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+    };
+    const handler = routes.get('PATCH /api/saas/employees/:employeeId/commission');
+
+    await handler({
+        headers: { cookie: `agenda_session=${'a'.repeat(64)}` },
+        params: { employeeId },
+        body: { company_percentage: 101 }
+    }, response);
+    assert.equal(response.statusCode, 400);
+
+    response.statusCode = 200;
+    await handler({
+        headers: { cookie: `agenda_session=${'a'.repeat(64)}` },
+        params: { employeeId },
+        body: { company_percentage: 35.5 }
+    }, response);
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.commission.company_percentage, '35.50');
+});
+
+test('employee profile includes linked stores even without a subscription row', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const pool = {
+        async query(sql) {
+            if (sql.includes('SELECT user_id')) return { rows: [{ user_id: 'employee-id' }] };
+            if (sql.includes('FROM saas_employees')) {
+                return { rows: [{ id: 'employee-id', full_name: 'Profissional', email: 'profissional@example.com' }] };
+            }
+            if (sql.includes('FROM saas_employee_spaces')) {
+                assert.match(sql, /LEFT JOIN saas_subscriptions/);
+                return {
+                    rows: [{
+                        space_id: 42,
+                        store_name: 'Loja Exemplo',
+                        company_percentage: '25.00',
+                        provider_status: null,
+                        trial_ends_at: null,
+                        next_payment_at: null
+                    }]
+                };
+            }
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+    };
+
+    await routes.get('GET /api/employee/me')({
+        headers: { cookie: `agenda_session=${'a'.repeat(64)}` }
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.spaces[0].store_name, 'Loja Exemplo');
+    assert.equal(response.body.spaces[0].company_percentage, 25);
+    assert.equal(response.body.spaces[0].can_access, false);
+});
+
+test('customer profile data endpoint returns all customer portal sections', async () => {
+    const routes = new Map();
+    const app = {
+        get(pathname, handler) { routes.set(`GET ${pathname}`, handler); },
+        post(pathname, handler) { routes.set(`POST ${pathname}`, handler); },
+        patch(pathname, handler) { routes.set(`PATCH ${pathname}`, handler); },
+        delete(pathname, handler) { routes.set(`DELETE ${pathname}`, handler); }
+    };
+    const pool = {
+        async query(sql) {
+            if (sql.includes('SELECT user_id')) return { rows: [{ user_id: 'customer-id' }] };
+            if (sql.includes('FROM saas_customers')) {
+                return { rows: [{ id: 'customer-id', full_name: 'Cliente', email: 'cliente@example.com', phone: '5511999999999' }] };
+            }
+            return { rows: [] };
+        }
+    };
+    createSaasBilling(app, pool, 'frontend');
+    const response = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+    };
+
+    await routes.get('GET /api/customer/me')({
+        headers: { cookie: `agenda_session=${'a'.repeat(64)}` }
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.customer.id, 'customer-id');
+    assert.deepEqual(response.body.favorites, []);
+    assert.deepEqual(response.body.recent_visits, []);
+    assert.deepEqual(response.body.upcoming, []);
+    assert.deepEqual(response.body.history, []);
+});

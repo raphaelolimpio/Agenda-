@@ -61,19 +61,6 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        <section class="portal-card portal-join-card">
-            <div>
-                <h2>Vincular uma empresa</h2>
-                <p>Peça ao dono da loja o código de acesso e adicione a empresa à sua conta.</p>
-            </div>
-            <form id="joinCompanyForm" class="portal-join-form">
-                <label class="sr-only" for="inputNovoIdLoja">Código da empresa</label>
-                <input type="text" id="inputNovoIdLoja" class="portal-input" maxlength="12" placeholder="Código da empresa" autocomplete="off">
-                <button class="portal-primary" type="submit">Vincular empresa</button>
-            </form>
-            <p id="joinCompanyStatus" class="status-message" role="status" aria-live="polite"></p>
-        </section>
-
         <!-- =============================================================== -->
         <!-- ABA 1: AGENDA COM CALENDÁRIO VISUAL & GERENCIAR BLOQUEIOS        -->
         <!-- =============================================================== -->
@@ -201,7 +188,7 @@
                             <th class="py-3 px-4">Data & Hora</th>
                             <th class="py-3 px-4">Serviço</th>
                             <th class="py-3 px-4">Valor</th>
-                            <th class="py-3 px-4">Comissão</th>
+                            <th class="py-3 px-4">Líquido profissional</th>
                         </tr>
                     </thead>
                     <tbody id="tbodyHistoricoColab" class="divide-y"></tbody>
@@ -271,6 +258,20 @@
             <button type="button" class="portal-primary" onclick="salvarFotoPerfilColaborador()">Salvar foto</button>
             <p id="staffProfileStatus" class="status-message" role="status" aria-live="polite"></p>
             <p class="text-xs text-slate-500">Para alterar o nome ou e-mail de acesso, solicite ao administrador da sua conta.</p>
+            <div class="border-t border-slate-200 pt-5">
+                <h4 class="font-semibold text-slate-900">Minhas lojas</h4>
+                <div id="employeeSpacesList" class="mt-3 space-y-2"></div>
+            </div>
+            <div class="border-t border-slate-200 pt-5">
+                <h4 class="font-semibold text-slate-900">Vincular uma empresa</h4>
+                <p class="mt-1 text-xs text-slate-500">Peça o código ao dono da loja para adicionar uma empresa à sua conta.</p>
+                <form id="joinCompanyForm" class="portal-join-form mt-3">
+                    <label class="sr-only" for="inputNovoIdLoja">Código da empresa</label>
+                    <input type="text" id="inputNovoIdLoja" class="portal-input" maxlength="12" placeholder="Código da empresa" autocomplete="off" required>
+                    <button class="portal-primary" type="submit">Vincular empresa</button>
+                </form>
+                <p id="joinCompanyStatus" class="status-message" role="status" aria-live="polite"></p>
+            </div>
         </section>
 
     </main>
@@ -504,6 +505,12 @@
                 exibirFotoPerfilColaborador(employeeData.employee.photo_url);
                 document.getElementById('perfilNome').value = employeeData.employee.full_name;
                 document.getElementById('perfilEmail').value = employeeData.employee.email;
+                document.getElementById('employeeSpacesList').innerHTML = employeeData.spaces.length
+                    ? employeeData.spaces.map((space) => `<article class="rounded-lg border border-slate-200 p-3">
+                        <strong>${AppApi.escapeHtml(space.store_name)}</strong>
+                        <p class="mt-1 text-xs text-slate-500">${space.can_access ? 'Vínculo ativo' : 'Acesso temporariamente suspenso'} · ${(Number(space.company_percentage) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% para a empresa por atendimento</p>
+                    </article>`).join('')
+                    : '<p class="text-sm text-slate-500">Você ainda não está vinculado a nenhuma loja.</p>';
                 const selector = document.getElementById('selectLojaAtiva');
                 selector.innerHTML = '';
                 Object.keys(lojasColaboradorMap).forEach((key) => delete lojasColaboradorMap[key]);
@@ -515,15 +522,13 @@
                     );
                     option.disabled = !space.can_access;
                     selector.add(option);
-                    if (space.can_access) {
-                        lojasColaboradorMap[space.space_id] = {
-                            nome: space.store_name,
-                            idLoja: space.space_id,
-                            taxa: 0,
-                            agenda: [],
-                            historico: []
-                        };
-                    }
+                    lojasColaboradorMap[space.space_id] = {
+                        nome: space.store_name,
+                        idLoja: space.space_id,
+                        taxa: Number(space.company_percentage) || 0,
+                        agenda: [],
+                        historico: []
+                    };
                 });
                 if (activeSpaces.length) {
                     selector.value = String(activeSpaces[0].space_id);
@@ -535,10 +540,11 @@
                     mudarLojaAtiva('');
                     document.getElementById('joinCompanyStatus').textContent = employeeData.spaces.length
                         ? 'O acesso às empresas vinculadas está suspenso por falta de pagamento.'
-                        : 'Você ainda não está vinculado a nenhuma empresa. Peça um código ao dono da loja.';
+                        : '';
                     document.getElementById('joinCompanyStatus').dataset.state = employeeData.spaces.length ? 'error' : '';
                 }
                 if (new URLSearchParams(window.location.search).get('vincular') === '1') {
+                    mudarAbaColab('perfil');
                     document.getElementById('inputNovoIdLoja').focus();
                 }
             } catch (error) {
@@ -558,9 +564,7 @@
             visaoCalendarioColab = visao;
             document.getElementById('btn-visao-mes').className = visao === 'mes' ? 'px-3 py-1.5 bg-blue-600 text-white' : 'px-3 py-1.5 bg-white text-slate-700';
             document.getElementById('btn-visao-semana').className = visao === 'semana' ? 'px-3 py-1.5 bg-blue-600 text-white' : 'px-3 py-1.5 bg-white text-slate-700';
-            document.getElementById('joinCompanyForm').addEventListener('submit', vincularEmpresa);
             renderizarCalendarioColab();
-            carregarPortalColaborador();
         }
 
         function renderizarCalendarioColab() {
@@ -846,13 +850,15 @@
         function renderizarHistoricoColab() {
             const tbody = document.getElementById('tbodyHistoricoColab');
             tbody.innerHTML = '';
-            const historico = obterLojaAtiva().historico;
+            const loja = obterLojaAtiva();
+            const historico = loja.historico;
             if (historico.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">Nenhum atendimento concluído encontrado.</td></tr>';
                 return;
             }
             historico.forEach(h => {
-                tbody.innerHTML += `<tr><td class="py-3 px-4 font-bold">${h.cliente}</td><td class="py-3 px-4">${h.data}</td><td class="py-3 px-4">${h.servico}</td><td class="py-3 px-4 font-semibold">R$ ${h.valor.toFixed(2)}</td><td class="py-3 px-4 font-bold text-emerald-600">R$ ${(h.valor * 0.7).toFixed(2)}</td></tr>`;
+                const valorLiquido = h.valor * (1 - loja.taxa / 100);
+                tbody.innerHTML += `<tr><td class="py-3 px-4 font-bold">${h.cliente}</td><td class="py-3 px-4">${h.data}</td><td class="py-3 px-4">${h.servico}</td><td class="py-3 px-4 font-semibold">R$ ${h.valor.toFixed(2)}</td><td class="py-3 px-4 font-bold text-emerald-600">R$ ${valorLiquido.toFixed(2)}</td></tr>`;
             });
         }
 
@@ -862,7 +868,9 @@
             document.getElementById('modalMetricaDetalhes').classList.add('hidden');
         }
 
+        document.getElementById('joinCompanyForm').addEventListener('submit', vincularEmpresa);
         renderizarCalendarioColab();
+        carregarPortalColaborador();
     </script>
 </body>
 

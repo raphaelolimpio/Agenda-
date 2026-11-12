@@ -3,8 +3,10 @@
 ## Perfis de acesso
 
 - **Cliente:** cria uma conta com nome, e-mail, telefone e senha; acompanha a vitrine, favoritos, lojas visitadas e atendimentos.
-- **Funcionário:** cria uma conta e informa o código gerado pelo dono da loja. Uma conta pode se vincular a várias lojas.
+- **Funcionário:** cria uma conta sem precisar do código da loja. Depois de entrar, vincula uma ou mais lojas pelo código na seção **Meu Perfil**.
 - **Dono:** cria e administra o estabelecimento e gera o código de acesso da equipe no painel.
+
+Na seção **Perfil & Equipe**, o dono pode definir o percentual de cada atendimento que fica para a empresa, individualmente por funcionário. O percentual inicial é 0% até que seja configurado.
 
 As sessões são independentes por navegador/dispositivo. A opção **Manter conectado neste dispositivo** cria uma sessão persistente; sair invalida somente a sessão atual.
 
