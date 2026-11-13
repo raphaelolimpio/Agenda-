@@ -133,12 +133,16 @@
                         <p class="text-xs text-slate-500">Gerencie o status, remarque ou exclua atendimentos</p>
                     </div>
 
-                    <select id="filtroStatusAgendaColab" onchange="renderizarListaAgendaColab()"
-                        class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
-                        <option value="">Todos os Status</option>
-                        <option value="pago">Clientes Pagos</option>
-                        <option value="agendado">Clientes a Pagar</option>
-                    </select>
+                    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                        <select id="filtroHorarioAgendaColab" onchange="renderizarListaAgendaColab()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium flex-1 sm:flex-none">
+                            <option value="">Todos os Horários</option>
+                        </select>
+                        <select id="filtroStatusAgendaColab" onchange="renderizarListaAgendaColab()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium flex-1 sm:flex-none">
+                            <option value="">Todos os Status</option>
+                            <option value="pago">Clientes Pagos</option>
+                            <option value="agendado">Clientes a Pagar</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto px-4 pb-4">
@@ -594,11 +598,19 @@
             const diasExibidos = visaoCalendarioColab === 'semana'
                 ? 7
                 : Math.ceil((inicioMes.getDay() + diasDoMes) / 7) * 7;
+            
             document.getElementById('labelMesAnoCalendarioColab').textContent = new Intl.DateTimeFormat('pt-BR', {
                 month: 'long',
                 year: 'numeric'
             }).format(hojeColab);
             document.getElementById('labelDataSelecionadaAgenda').textContent = dataSelecionadaColab.split('-').reverse().join('/');
+
+            // SIMULAÇÃO: Bloqueios Globais da Loja (vindo da API) + Bloqueios do próprio colaborador
+            const bloqueiosGeraisDaLoja = [
+                { tipoAlvo: 'dia', tipoRecorrencia: 'semana_recorrente', valor: '0', motivo: 'Fechado' } // Domingo fechado
+            ];
+            
+            const todosOsBloqueios = [...bloqueiosGeraisDaLoja, ...listaBloqueiosColab];
 
             for (let i = 0; i < diasExibidos; i++) {
                 const d = new Date(dataBase);
@@ -607,14 +619,13 @@
                 const diaSemana = d.getDay();
                 const numeroDia = d.getDate();
 
-                const bloqueiosLojaAtiva = listaBloqueiosColab.filter((block) =>
-                    block.scope === 'employee'
-                    || lojaAtivaId === 'todas'
-                    || String(block.spaceId) === String(lojaAtivaId));
-                const bloqueado = bloqueiosLojaAtiva.some(b => b.tipoAlvo === 'dia'
-                    && ((b.tipoRecorrencia === 'especifico' && b.valor === iso)
-                        || (b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana)
-                        || b.tipoRecorrencia === 'diario_recorrente'));
+                const bloqueado = todosOsBloqueios.some(b => 
+                    b.tipoAlvo === 'dia' && (
+                        (b.tipoRecorrencia === 'especifico' && b.valor === iso) ||
+                        (b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana) ||
+                        b.tipoRecorrencia === 'diario_recorrente'
+                    )
+                );
 
                 const temCompromisso = loja.agenda.some(a => a.data === iso);
                 const selecionado = dataSelecionadaColab === iso;
@@ -624,13 +635,12 @@
                 btn.onclick = () => selecionarDiaAgendaColab(iso);
 
                 let estilo = 'bg-white hover:border-blue-500 text-slate-700';
-                if (bloqueado) estilo = 'bg-red-50 border-red-200 text-red-600';
-                if (selecionado) estilo = 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300';
+                if (bloqueado) estilo = 'bg-red-50 border-red-200 text-red-700 opacity-80'; // Menos opacidade para indicar bloqueio
+                if (selecionado) estilo = 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300 shadow-sm';
 
                 let pontoStatus = '';
                 if (bloqueado) pontoStatus = '<span class="w-1.5 h-1.5 bg-red-500 rounded-full mt-1" title="Trancado"></span>';
                 else if (temCompromisso) pontoStatus = '<span class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1" title="Compromisso"></span>';
-                else pontoStatus = '';
 
                 btn.className = `p-2 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[48px] ${estilo}`;
                 btn.innerHTML = `<span class="text-xs font-bold">${numeroDia}</span>${pontoStatus}`;
@@ -647,15 +657,45 @@
             renderizarCalendarioColab();
         }
 
+        // Nova função para o Colaborador poder alterar o status de pagamento (local)
+        async function alterarStatusPagamentoColab(id) {
+            const loja = obterLojaAtiva();
+            const appointment = loja.agenda.find(a => a.id === id);
+            if (!appointment) return;
+            
+            const newStatus = appointment.status === 'pago' ? 'agendado' : 'pago';
+            try {
+                await AppApi.request(`/api/saas/spaces/${accountAtual.space_id}/appointments/${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status: newStatus })
+                });
+                appointment.status = newStatus;
+                renderizarListaAgendaColab();
+            } catch (error) {
+                alert(`Não foi possível alterar o status de pagamento: ${error.message}`);
+            }
+        }
+
         function renderizarListaAgendaColab() {
             const tbody = document.getElementById('tbodyAgendaColab');
             tbody.innerHTML = '';
             const loja = obterLojaAtiva();
             const fStatus = document.getElementById('filtroStatusAgendaColab').value;
+            const fHora = document.getElementById('filtroHorarioAgendaColab').value;
+
+            // Popular filtro Horas
+            const horasUnicas = [...new Set(loja.agenda.filter(a => a.data === dataSelecionadaColab).map(a => a.hora))].sort();
+            const hs = document.getElementById('filtroHorarioAgendaColab');
+            if (hs) {
+                hs.innerHTML = '<option value="">Todos os Horários</option>';
+                horasUnicas.forEach(h => hs.add(new Option(h, h)));
+                if (horasUnicas.includes(fHora)) hs.value = fHora;
+            }
 
             const filtrados = loja.agenda.filter(a => {
                 if (a.data !== dataSelecionadaColab) return false;
                 if (fStatus && a.status !== fStatus) return false;
+                if (fHora && a.hora !== fHora) return false;
                 return true;
             });
 
@@ -665,18 +705,22 @@
             }
 
             filtrados.forEach(c => {
-                const badge = c.status === 'pago'
-                    ? `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">✅ Pago</span>`
-                    : `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">⏳ A Pagar</span>`;
+                const isPaid = c.status === 'pago';
+                const badge = isPaid
+                    ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✅ Pago</span>`
+                    : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ A Pagar</span>`;
 
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50">
-                        <td class="py-3 px-4 font-medium">${AppApi.escapeHtml(c.cliente)}<div class="text-xs text-slate-400">${AppApi.escapeHtml(c.tel)}</div></td>
-                        <td class="py-3 px-4">${c.hora}</td>
+                    <tr class="hover:bg-slate-50 border-b">
+                        <td class="py-3 px-4 font-medium">${AppApi.escapeHtml(c.cliente)}<div class="text-[10px] text-slate-400">${AppApi.escapeHtml(c.tel)}</div></td>
+                        <td class="py-3 px-4 font-bold">${c.hora}</td>
                         <td class="py-3 px-4">${AppApi.escapeHtml(c.servico)}${c.store_name ? `<div class="text-[10px] text-slate-400">${AppApi.escapeHtml(c.store_name)}</div>` : ''}</td>
                         <td class="py-3 px-4 font-semibold">R$ ${Number(c.valor).toFixed(2)}</td>
                         <td class="py-3 px-4">${badge}</td>
-                        <td class="py-3 px-4 text-right text-xs text-slate-400">Fale com a loja para alterar</td>
+                        <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                            <button onclick="alterarStatusPagamentoColab(${c.id})" class="px-2 py-1.5 rounded bg-blue-50 text-blue-600 text-[11px] font-semibold">${isPaid ? 'Estornar' : 'Receber'}</button>
+                            <button onclick="abrirModalRemarcar(${c.id})" class="px-2 py-1.5 rounded bg-amber-50 text-amber-600 text-[11px] font-semibold">Remarcar</button>
+                        </td>
                     </tr>
                 `;
             });
@@ -689,29 +733,34 @@
             const container = document.getElementById('listaBloqueiosAtivosColab');
             container.innerHTML = '';
 
-            const displayedBlocks = listaBloqueiosColab.filter((block) =>
-                block.scope === 'employee'
-                || lojaAtivaId === 'todas'
-                || String(block.spaceId) === String(lojaAtivaId));
-            if (displayedBlocks.length === 0) {
+            const bloqueiosGeraisDaLoja = [
+                { id: 'admin1', tipoAlvo: 'dia', tipoRecorrencia: 'semana_recorrente', valor: '0', motivo: 'Domingo (Loja Fechada)', dono: 'loja' } 
+            ];
+
+            const exibicaoCompleta = [...bloqueiosGeraisDaLoja, ...listaBloqueiosColab];
+
+            if (exibicaoCompleta.length === 0) {
                 container.innerHTML = `<p class="text-xs text-slate-400">Nenhum dia ou horário trancado no momento.</p>`;
                 return;
             }
 
-            displayedBlocks.forEach((b) => {
-                const idx = listaBloqueiosColab.indexOf(b);
-                let regraTxt = b.tipoRecorrencia === 'especifico' ? `Data: ${b.valor}` : (b.tipoRecorrencia === 'semana_recorrente' ? `Toda semana (Dia ${b.valor})` : (b.tipoAlvo === 'horario' ? `Diário (${b.horaInicio} às ${b.horaFim})` : 'Todos os dias'));
-                const ownerBlock = b.scope === 'store';
+            exibicaoCompleta.forEach((b, idx) => {
+                let regraTxt = b.tipoRecorrencia === 'especifico' ? `Data: ${b.valor.split('-').reverse().join('/')}` : (b.tipoRecorrencia === 'semana_recorrente' ? `Toda semana (Dia ${b.valor})` : (b.tipoAlvo === 'horario' ? `Diário (${b.horaInicio} às ${b.horaFim})` : 'Todos os dias'));
+                
+                const ehBloqueioDaLoja = b.dono === 'loja';
 
                 container.innerHTML += `
                     <div class="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
                         <div>
-                            <p class="font-bold text-slate-800">${AppApi.escapeHtml(b.motivo)} <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase font-semibold">${AppApi.escapeHtml(b.tipoAlvo)}</span></p>
-                            <p class="text-xs text-slate-500">Regra: ${regraTxt}${ownerBlock ? ` · ${AppApi.escapeHtml(b.storeName || 'Bloqueio da loja')}` : ' · Todas as lojas vinculadas'}</p>
+                            <p class="font-bold text-slate-800">${AppApi.escapeHtml(b.motivo)} <span class="text-[9px] uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold ml-1">${AppApi.escapeHtml(b.tipoAlvo)}</span></p>
+                            <p class="text-[11px] text-slate-500 font-medium mt-0.5">Regra: ${regraTxt} ${ehBloqueioDaLoja ? '<span class="text-red-600 font-bold ml-1">(Definido pela Empresa)</span>' : ''}</p>
                         </div>
                         <div class="flex gap-2">
-                            ${ownerBlock ? '<span class="text-xs text-slate-500">Definido pela loja</span>' : `<button onclick="abrirModalTrancarAgenda(${idx})" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded text-xs font-semibold">✏️ Editar</button>
-                            <button onclick="removerBloqueioColab(${idx})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">🔓 Liberar</button>`}
+                            ${ehBloqueioDaLoja ? 
+                                '<span class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">Sem permissão</span>' : 
+                                `<button onclick="abrirModalTrancarAgenda(${listaBloqueiosColab.indexOf(b)})" class="text-xs font-semibold bg-white border px-3 py-1.5 rounded hover:bg-slate-100 shadow-sm transition">✏️ Editar</button>
+                                 <button onclick="removerBloqueioColab(${listaBloqueiosColab.indexOf(b)})" class="text-xs font-semibold bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded hover:bg-red-100 shadow-sm transition">🗑️ Remover</button>`
+                            }
                         </div>
                     </div>
                 `;

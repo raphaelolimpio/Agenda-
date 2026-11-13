@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
     <script src="portal-menu.js" defer></script>
     <script src="api.js"></script>
 </head>
+
 <body id="booking-page" class="bg-slate-50 text-slate-800 font-sans pb-24">
 
     <!-- CABEÇALHO DO ESPAÇO + BOTÃO DE PERFIL -->
@@ -19,26 +21,34 @@
             <div class="flex items-center gap-3">
                 <span class="brand-mark" aria-hidden="true">A+</span>
                 <div>
-                    <h1 id="nomeEstabelecimento" class="font-bold text-lg text-slate-900 leading-tight">Agendamento online</h1>
+                    <h1 id="nomeEstabelecimento" class="font-bold text-lg text-slate-900 leading-tight">Agendamento
+                        online</h1>
                     <p class="text-xs text-slate-500">Reserve seu próximo momento</p>
                 </div>
             </div>
 
-            <button type="button" class="mobile-menu-toggle" data-menu-toggle aria-controls="bookingMobileMenu" aria-expanded="false" aria-label="Abrir menu">
+            <button type="button" class="mobile-menu-toggle" data-menu-toggle aria-controls="bookingMobileMenu"
+                aria-expanded="false" aria-label="Abrir menu">
                 <span></span><span></span><span></span>
             </button>
-            <nav id="bookingMobileMenu" class="booking-menu mobile-menu-panel" aria-label="Menu de agendamento">
+            <!-- Correção de z-index (z-50) e flexbox para empurrar o menu à frente -->
+            <nav id="bookingMobileMenu" class="booking-menu mobile-menu-panel relative z-50 bg-white"
+                aria-label="Menu de agendamento">
                 <div class="mobile-menu-profile">
                     <img id="bookingMenuAvatar" alt="" hidden>
                     <span id="bookingMenuAvatarFallback" class="mobile-menu-avatar" aria-hidden="true">C</span>
-                    <span class="mobile-menu-profile__text"><strong id="bookingMenuName">Agendamento</strong><small>Seu perfil</small></span>
+                    <span class="mobile-menu-profile__text"><strong id="bookingMenuName">Agendamento</strong><small>Seu
+                            perfil</small></span>
                 </div>
-                <button onclick="mostrarSecao('agenda')" id="nav-agenda" class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white">Agendar Horário</button>
-                <button onclick="mostrarSecao('perfil')" id="nav-perfil" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 flex items-center gap-2">
+                <button onclick="mostrarSecao('agenda')" id="nav-agenda"
+                    class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white">Agendar Horário</button>
+                <button onclick="mostrarSecao('perfil')" id="nav-perfil"
+                    class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 flex items-center gap-2">
                     <img id="avatarHeader" alt="" class="w-6 h-6 rounded-full object-cover" hidden>
                     <span>Meu Perfil</span>
                 </button>
-                <a id="bookingCustomerArea" class="booking-menu-link" href="entrar.html?tipo=cliente">Entrar como cliente</a>
+                <a id="bookingCustomerArea" class="booking-menu-link" href="entrar.html?tipo=cliente">Entrar como
+                    cliente</a>
                 <a id="bookingStoreLink" class="booking-menu-link" href="index.html">Voltar à vitrine</a>
             </nav>
         </div>
@@ -49,9 +59,11 @@
         <!-- =============================================================== -->
         <!-- SEÇÃO 1: PERFIL SIMPLES DO CLIENTE                              -->
         <!-- =============================================================== -->
-        <section id="secao-perfil" class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-4">
+        <section id="secao-perfil"
+            class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-4">
             <div class="flex items-center gap-4 border-b pb-4">
-                <img id="previewFotoCliente" src="https://via.placeholder.com/64" class="w-16 h-16 rounded-full object-cover border">
+                <img id="previewFotoCliente" src="https://via.placeholder.com/64"
+                    class="w-16 h-16 rounded-full object-cover border">
                 <div>
                     <h2 class="font-bold text-lg">Meu Perfil</h2>
                     <p class="text-xs text-slate-500">Seus dados serão preenchidos automaticamente ao agendar.</p>
@@ -59,11 +71,21 @@
             </div>
 
             <div class="space-y-3">
-                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">URL da Foto</label><input type="text" id="perfilFoto" placeholder="https://..." class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome Completo</label><input type="text" id="perfilNome" placeholder="Seu nome" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label><input type="email" id="perfilEmail" placeholder="seu@email.com" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Telefone / WhatsApp</label><input type="text" id="perfilTelefone" placeholder="(63) 99999-9999" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                <button onclick="salvarPerfilCliente()" class="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700">Salvar Meu Perfil</button>
+                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">URL da Foto</label><input
+                        type="text" id="perfilFoto" placeholder="https://..."
+                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome
+                        Completo</label><input type="text" id="perfilNome" placeholder="Seu nome"
+                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail</label><input
+                        type="email" id="perfilEmail" placeholder="seu@email.com"
+                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                <div><label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Telefone /
+                        WhatsApp</label><input type="text" id="perfilTelefone" placeholder="(63) 99999-9999"
+                        class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                <button onclick="salvarPerfilCliente()"
+                    class="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700">Salvar
+                    Meu Perfil</button>
             </div>
         </section>
 
@@ -84,11 +106,12 @@
 
             <!-- Coluna Esquerda (7 Colunas): Quadro Único Dinâmico -->
             <div class="lg:col-span-7 space-y-6">
-                
+
                 <!-- Seleção de Serviço -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
                     <h2 class="text-base font-bold text-slate-900">1. Selecione o Serviço Desejado</h2>
-                    <select id="selectServico" onchange="atualizarPrecoServico()" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white font-medium">
+                    <select id="selectServico" onchange="atualizarPrecoServico()"
+                        class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white font-medium">
                         <option value="">Carregando serviços...</option>
                     </select>
                     <p id="serviceAvailabilityStatus" class="status-message" role="status" aria-live="polite"></p>
@@ -96,7 +119,7 @@
 
                 <!-- QUADRO ÚNICO (Alterna entre Visão Mensal com Seletor Custom e Agenda do Dia) -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
-                    
+
                     <!-- ESTADO A: VISÃO DO CALENDÁRIO MENSAL COM SELETOR CUSTOMIZADO -->
                     <div id="painelCalendarioMensal" class="space-y-4">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -111,11 +134,13 @@
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-bold text-slate-600">Ano:</span>
-                                    <select id="selectAnoCustom" onchange="mudarAnoCustom(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white">
+                                    <select id="selectAnoCustom" onchange="mudarAnoCustom(this.value)"
+                                        class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white">
                                         <!-- Preenchido com o ano atual e os anos seguintes -->
                                     </select>
                                 </div>
-                                <button type="button" onclick="selecionarMesAtual()" class="text-xs font-semibold text-blue-600 hover:underline">Este Mês</button>
+                                <button type="button" onclick="selecionarMesAtual()"
+                                    class="text-xs font-semibold text-blue-600 hover:underline">Este Mês</button>
                             </div>
 
                             <!-- Grade de Meses (Jan - Dez) -->
@@ -124,8 +149,15 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase pt-2">
-                            <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                        <div
+                            class="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase pt-2">
+                            <div>Dom</div>
+                            <div>Seg</div>
+                            <div>Ter</div>
+                            <div>Qua</div>
+                            <div>Qui</div>
+                            <div>Sex</div>
+                            <div>Sáb</div>
                         </div>
 
                         <div id="gradeCalendarioMensal" class="grid grid-cols-7 gap-1.5">
@@ -136,20 +168,24 @@
                     <!-- ESTADO B: VISÃO DA AGENDA DO DIA (Oculto por padrão) -->
                     <div id="painelAgendaDoDia" class="hidden space-y-4">
                         <div class="flex items-center justify-between border-b pb-3">
-                            <button onclick="voltarParaCalendarioMensal()" class="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition">
+                            <button onclick="voltarParaCalendarioMensal()"
+                                class="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition">
                                 ← Voltar para o Calendário do Mês
                             </button>
-                            <span id="tituloDataAgendaDia" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full"></span>
+                            <span id="tituloDataAgendaDia"
+                                class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full"></span>
                         </div>
 
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
                                 <h3 class="font-bold text-base text-slate-900">Horários e Profissionais Disponíveis</h3>
-                                <p class="text-xs text-slate-500">Filtre por profissional ou escolha um horário livre abaixo</p>
+                                <p class="text-xs text-slate-500">Filtre por profissional ou escolha um horário livre
+                                    abaixo</p>
                             </div>
 
                             <div>
-                                <select id="selectFiltroProfissional" onchange="alterarFiltroProfissional()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white font-medium">
+                                <select id="selectFiltroProfissional" onchange="alterarFiltroProfissional()"
+                                    class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white font-medium">
                                     <option value="all">Todos os profissionais</option>
                                 </select>
                             </div>
@@ -169,34 +205,50 @@
                     <h2 class="text-base font-bold text-slate-900">3. Seus Dados & Pagamento</h2>
 
                     <div class="space-y-3">
-                        <input type="text" id="checkoutNome" placeholder="Seu Nome Completo" class="w-full border rounded-lg px-3 py-2 text-sm">
-                        <input type="email" id="checkoutEmail" placeholder="Seu E-mail" class="w-full border rounded-lg px-3 py-2 text-sm">
-                        <input type="text" id="checkoutTelefone" placeholder="WhatsApp (ex: 63999998888)" class="w-full border rounded-lg px-3 py-2 text-sm">
+                        <input type="text" id="checkoutNome" placeholder="Seu Nome Completo"
+                            class="w-full border rounded-lg px-3 py-2 text-sm">
+                        <input type="email" id="checkoutEmail" placeholder="Seu E-mail"
+                            class="w-full border rounded-lg px-3 py-2 text-sm">
+                        <input type="text" id="checkoutTelefone" placeholder="WhatsApp (ex: 63999998888)"
+                            class="w-full border rounded-lg px-3 py-2 text-sm">
                     </div>
 
                     <div class="pt-2 border-t border-slate-100 space-y-2">
                         <label class="block text-xs font-semibold uppercase text-slate-500">Forma de Pagamento</label>
                         <div class="grid grid-cols-2 gap-2">
-                            <button type="button" onclick="selecionarPagamento('local')" id="btn-pag-local" class="py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700">🏢 Pagar no Local</button>
-                            <button type="button" onclick="selecionarPagamento('pix')" id="btn-pag-pix" disabled class="py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-400 disabled:cursor-not-allowed">💠 PIX indisponível</button>
+                            <button type="button" onclick="selecionarPagamento('local')" id="btn-pag-local"
+                                class="py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700">🏢
+                                Pagar no Local</button>
+                            <button type="button" onclick="selecionarPagamento('pix')" id="btn-pag-pix" disabled
+                                class="py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-400 disabled:cursor-not-allowed">💠
+                                PIX indisponível</button>
                         </div>
-                        <div id="pixPaymentInstructions" hidden class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 space-y-2">
-                            <p>Faça o PIX para a chave da loja e aguarde a confirmação do pagamento pelo estabelecimento. A reserva do horário não confirma o pagamento.</p>
+                        <div id="pixPaymentInstructions" hidden
+                            class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 space-y-2">
+                            <p>Faça o PIX para a chave da loja e aguarde a confirmação do pagamento pelo
+                                estabelecimento. A reserva do horário não confirma o pagamento.</p>
                             <div class="flex items-center gap-2">
                                 <code id="bookingPixKey" class="min-w-0 flex-1 break-all font-semibold"></code>
-                                <button type="button" onclick="copiarChavePix()" class="shrink-0 rounded-md bg-white px-2.5 py-1.5 font-semibold text-blue-700 border border-blue-200">Copiar chave</button>
+                                <button type="button" onclick="copiarChavePix()"
+                                    class="shrink-0 rounded-md bg-white px-2.5 py-1.5 font-semibold text-blue-700 border border-blue-200">Copiar
+                                    chave</button>
                             </div>
                             <p id="pixCopyStatus" role="status" aria-live="polite"></p>
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 p-3.5 rounded-lg text-xs space-y-1.5 text-slate-600 border border-slate-100">
-                        <p><strong>Data/Hora Selecionada:</strong> <br><span id="resumoDataHora" class="text-blue-600 font-bold">Nenhum horário escolhido</span></p>
-                        <p><strong>Profissional:</strong> <span id="resumoProfissional" class="font-bold text-slate-800">-</span></p>
-                        <p><strong>Total a Pagar:</strong> <span id="resumoValor" class="text-sm font-bold text-slate-900">—</span></p>
+                    <div
+                        class="bg-slate-50 p-3.5 rounded-lg text-xs space-y-1.5 text-slate-600 border border-slate-100">
+                        <p><strong>Data/Hora Selecionada:</strong> <br><span id="resumoDataHora"
+                                class="text-blue-600 font-bold">Nenhum horário escolhido</span></p>
+                        <p><strong>Profissional:</strong> <span id="resumoProfissional"
+                                class="font-bold text-slate-800">-</span></p>
+                        <p><strong>Total a Pagar:</strong> <span id="resumoValor"
+                                class="text-sm font-bold text-slate-900">—</span></p>
                     </div>
 
-                    <button id="confirmarAgendamentoButton" onclick="finalizarAgendamento()" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg text-sm font-bold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60">
+                    <button id="confirmarAgendamentoButton" onclick="finalizarAgendamento()" disabled
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg text-sm font-bold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60">
                         Confirmar atendimento
                     </button>
                     <p id="bookingAvailabilityStatus" class="status-message" role="status" aria-live="polite">
@@ -211,27 +263,33 @@
 
     <!-- WIDGET CHATBOT IA -->
     <div class="fixed bottom-5 right-5 z-50">
-        <div id="janelaChat" class="hidden mb-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col" style="height: 450px;">
+        <div id="janelaChat"
+            class="hidden mb-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+            style="height: 450px;">
             <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
                 <h4 class="font-bold text-sm">Ajuda com agendamento</h4>
                 <button onclick="toggleChat()" class="text-white font-bold text-lg">&times;</button>
             </div>
             <div id="mensagensChat" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs bg-slate-50">
-                <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm">Olá! Selecione o mês desejado e clique em um dia para abrir a agenda.</div>
+                <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm">Olá! Selecione o mês desejado e
+                    clique em um dia para abrir a agenda.</div>
             </div>
             <div class="p-3 bg-white border-t flex gap-2">
-                <input type="text" id="inputMensagemChat" onkeypress="if(event.key==='Enter') enviarMensagemChat()" placeholder="Digite sua mensagem..." class="flex-1 border rounded-lg px-3 py-2 text-xs">
-                <button onclick="enviarMensagemChat()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Enviar</button>
+                <input type="text" id="inputMensagemChat" onkeypress="if(event.key==='Enter') enviarMensagemChat()"
+                    placeholder="Digite sua mensagem..." class="flex-1 border rounded-lg px-3 py-2 text-xs">
+                <button onclick="enviarMensagemChat()"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Enviar</button>
             </div>
         </div>
-        <button onclick="toggleChat()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3.5 rounded-full shadow-xl font-bold text-sm flex items-center gap-2 ml-auto">
+        <button onclick="toggleChat()"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3.5 rounded-full shadow-xl font-bold text-sm flex items-center gap-2 ml-auto">
             💬 Ajuda com agendamento
         </button>
     </div>
 
     <script>
         const ESPACO_ID = AppApi.getSpaceId();
-        
+
         let anoSelecionadoCustom = new Date().getFullYear();
         let mesSelecionadoCustom = new Date().getMonth() + 1; // 1 a 12
         const hojeInicial = new Date();
@@ -415,6 +473,19 @@
             profissionalSelecionado = null;
             document.getElementById('resumoDataHora').textContent = 'Nenhum horário escolhido';
             document.getElementById('resumoProfissional').textContent = '—';
+
+            // REATIVA O BOTÃO PIX COM BASE NA CHAVE DA LOJA (Resolvendo o botão cinza)
+            const pixButton = document.getElementById('btn-pag-pix');
+            if (chavePixLoja && chavePixLoja.length > 5) {
+                pixButton.disabled = false;
+                pixButton.textContent = '💠 Pagar via PIX';
+                pixButton.classList.remove('text-slate-400', 'disabled:cursor-not-allowed');
+                pixButton.classList.add('text-slate-600', 'cursor-pointer');
+            } else {
+                pixButton.disabled = true;
+                pixButton.textContent = '💠 PIX indisponível';
+            }
+
             atualizarBotaoConfirmacao();
             if (diaEscolhidoPeloUsuario && servico) abrirAgendaDoDia(dataSelecionadaGlobal);
         }
@@ -452,7 +523,7 @@
             const select = document.getElementById('selectAnoCustom');
             select.innerHTML = '';
             const anoAtual = new Date().getFullYear();
-            
+
             for (let y = anoAtual; y <= anoAtual + 5; y++) {
                 const opt = document.createElement('option');
                 opt.value = y;
@@ -481,11 +552,10 @@
                 btn.type = 'button';
                 btn.onclick = () => escolherMesCustom(numeroMes);
 
-                btn.className = `py-1.5 rounded-lg text-xs font-bold transition border ${
-                    ativo 
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                btn.className = `py-1.5 rounded-lg text-xs font-bold transition border ${ativo
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                         : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
-                }`;
+                    }`;
                 btn.textContent = nomeMes;
                 grade.appendChild(btn);
             });
@@ -523,28 +593,58 @@
                 grade.appendChild(vazio);
             }
 
+            // SIMULAÇÃO: Uma lista de bloqueios da loja viria da API
+            // Estamos criando uma simulação local baseada na lógica que aplicamos no admin
+            const bloqueiosDaLojaSimulados = [
+                { tipoAlvo: 'dia', tipoRecorrencia: 'semana_recorrente', valor: '0' } // Ex: Domingo Fechado
+            ];
+
             for (let dia = 1; dia <= ultimoDiaDoMes; dia++) {
                 const mesFormatado = String(mesSelecionadoCustom).padStart(2, '0');
                 const diaFormatado = String(dia).padStart(2, '0');
                 const iso = `${anoSelecionadoCustom}-${mesFormatado}-${diaFormatado}`;
-                const selecionado = dataSelecionadaGlobal === iso;
+                
                 const dataDoDia = new Date(`${iso}T00:00:00`);
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
+                const diaDaSemana = dataDoDia.getDay();
+
+                const selecionado = dataSelecionadaGlobal === iso;
                 const dataPassada = dataDoDia < hoje;
+
+                // Lógica de verificação de trancamento total do dia pela Loja
+                const trancadoPelaLoja = bloqueiosDaLojaSimulados.some(b => 
+                    b.tipoAlvo === 'dia' && (
+                        (b.tipoRecorrencia === 'especifico' && b.valor === iso) ||
+                        (b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaDaSemana)
+                    )
+                );
+
+                const indesejavel = dataPassada || trancadoPelaLoja;
 
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.onclick = () => abrirAgendaDoDia(iso);
-                btn.disabled = dataPassada;
+                btn.disabled = indesejavel;
 
-                let estilo = dataPassada
-                    ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                    : 'bg-white hover:border-blue-500 hover:bg-blue-50/30 text-slate-700';
-                if (selecionado) estilo = 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300 shadow-sm';
+                let estilo = '';
+                if (dataPassada) {
+                    estilo = 'bg-slate-50 text-slate-300 cursor-not-allowed opacity-50';
+                } else if (trancadoPelaLoja) {
+                    estilo = 'bg-red-50 text-red-400 cursor-not-allowed border-red-100';
+                } else if (selecionado) {
+                    estilo = 'bg-blue-600 text-white border-blue-600 shadow-sm ring-2 ring-blue-300';
+                } else {
+                    estilo = 'bg-white hover:border-blue-500 hover:bg-blue-50/30 text-slate-700 cursor-pointer';
+                }
 
                 btn.className = `p-2.5 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[50px] ${estilo}`;
-                btn.innerHTML = `<span class="text-xs font-bold">${dia}</span>`;
+                
+                let textoExtra = '';
+                if (trancadoPelaLoja) textoExtra = '<span class="text-[9px] text-red-500 font-semibold">Fechado</span>';
+                else if (!dataPassada) textoExtra = `<span class="text-[9px] ${selecionado ? 'text-blue-100' : 'text-emerald-600'} font-semibold">Vagas</span>`;
+
+                btn.innerHTML = `<span class="text-xs font-bold">${dia}</span>${textoExtra}`;
                 grade.appendChild(btn);
             }
         }
@@ -561,7 +661,7 @@
                 return;
             }
             document.getElementById('tituloDataAgendaDia').textContent = dataIso.split('-').reverse().join('/');
-            
+
             document.getElementById('painelCalendarioMensal').classList.add('hidden');
             document.getElementById('painelAgendaDoDia').classList.remove('hidden');
 
@@ -663,15 +763,21 @@
         }
 
         function selecionarPagamento(tipo) {
-            if (tipo === 'pix' && !chavePixLoja) return;
+            if (tipo === 'pix' && (!chavePixLoja || chavePixLoja.length < 5)) return;
             formaPagamento = tipo;
             document.getElementById('btn-pag-local').className = tipo === 'local'
                 ? 'py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700'
                 : 'py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600';
             document.getElementById('btn-pag-pix').className = tipo === 'pix'
                 ? 'py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700'
-                : 'py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600';
-            document.getElementById('pixPaymentInstructions').hidden = tipo !== 'pix';
+                : 'py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 cursor-pointer';
+            
+            // Força a inserção visual da chave no frontend ao clicar na aba Pix
+            if (tipo === 'pix') {
+                document.getElementById('bookingPixKey').textContent = chavePixLoja;
+                document.getElementById('pixCopyStatus').textContent = '';
+            }
+            document.getElementById('pixPaymentInstructions').hidden = (tipo !== 'pix');
         }
 
         async function copiarChavePix() {
@@ -742,4 +848,5 @@
         }
     </script>
 </body>
+
 </html>

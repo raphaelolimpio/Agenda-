@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,38 +14,53 @@
     <script src="api.js" defer></script>
     <script src="vitrine-admin.js" defer></script>
 </head>
+
 <body id="admin-page" class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12">
 
     <!-- CABEÇALHO RESPONSIVO -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div class="owner-header-layout max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div
+            class="owner-header-layout max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <a href="admin.html" class="brand-mark" aria-label="Voltar ao painel do proprietário">A+</a>
                     <div>
-                        <span id="uiNomeEspaco" class="font-bold text-lg text-slate-900 block leading-none">Carregando estabelecimento...</span>
+                        <span id="uiNomeEspaco" class="font-bold text-lg text-slate-900 block leading-none">Carregando
+                            estabelecimento...</span>
                         <span class="text-xs text-slate-500">Painel de gestão</span>
                     </div>
                 </div>
-                <button type="button" class="mobile-menu-toggle" data-menu-toggle aria-controls="ownerMobileMenu" aria-expanded="false" aria-label="Abrir menu">
+                <button type="button" class="mobile-menu-toggle" data-menu-toggle aria-controls="ownerMobileMenu"
+                    aria-expanded="false" aria-label="Abrir menu">
                     <span></span><span></span><span></span>
                 </button>
             </div>
 
-            <nav id="ownerMobileMenu" class="mobile-menu-panel flex gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar" aria-label="Navegação do proprietário">
+            <nav id="ownerMobileMenu" class="mobile-menu-panel flex gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar"
+                aria-label="Navegação do proprietário">
                 <div class="mobile-menu-profile">
                     <img id="ownerMenuAvatar" alt="" hidden>
                     <span id="ownerMenuAvatarFallback" class="mobile-menu-avatar" aria-hidden="true">A+</span>
-                    <span class="mobile-menu-profile__text"><strong id="ownerMenuName">Carregando loja...</strong><small>Perfil da loja</small></span>
+                    <span class="mobile-menu-profile__text"><strong id="ownerMenuName">Carregando
+                            loja...</strong><small>Perfil da loja</small></span>
                 </div>
-                <button onclick="irParaAba('agenda')" id="aba-btn-agenda" class="owner-nav-item is-current" aria-label="Agenda e clientes"><span aria-hidden="true">📅</span> Agenda & Clientes</button>
-                <button onclick="irParaAba('historico')" id="aba-btn-historico" class="owner-nav-item" aria-label="Histórico e categorias"><span aria-hidden="true">🕘</span> Histórico & Categorias</button>
-                <button onclick="irParaAba('receita')" id="aba-btn-receita" class="owner-nav-item" aria-label="Receita e financeiro"><span aria-hidden="true">💰</span> Receita & Financeiro</button>
-                <button onclick="irParaAba('servicos')" id="aba-btn-servicos" class="owner-nav-item" aria-label="Atividades"><span aria-hidden="true">✂️</span> Atividades</button>
-                <button onclick="irParaAba('perfil')" id="aba-btn-perfil" class="owner-nav-item" aria-label="Perfil e equipe"><span aria-hidden="true">👥</span> Perfil & Equipe</button>
-                <button onclick="irParaAba('vitrine')" id="aba-btn-vitrine" class="owner-nav-item" aria-label="Vitrine do site"><span aria-hidden="true">🪟</span> Vitrine (Site)</button>
-                <a id="menuBillingLink" href="assinatura.html" class="owner-nav-item" aria-label="Plano e cobrança"><span aria-hidden="true">💳</span> Plano e cobrança</a>
-                <button type="button" class="owner-nav-item" onclick="encerrarSessao()" aria-label="Sair da conta"><span aria-hidden="true">↪</span> Sair</button>
+                <button onclick="irParaAba('agenda')" id="aba-btn-agenda" class="owner-nav-item is-current"
+                    aria-label="Agenda e clientes"><span aria-hidden="true">📅</span> Agenda & Clientes</button>
+                <button onclick="irParaAba('historico')" id="aba-btn-historico" class="owner-nav-item"
+                    aria-label="Histórico e categorias"><span aria-hidden="true">🕘</span> Histórico &
+                    Categorias</button>
+                <button onclick="irParaAba('receita')" id="aba-btn-receita" class="owner-nav-item"
+                    aria-label="Receita e financeiro"><span aria-hidden="true">💰</span> Receita & Financeiro</button>
+                <button onclick="irParaAba('servicos')" id="aba-btn-servicos" class="owner-nav-item"
+                    aria-label="Atividades"><span aria-hidden="true">✂️</span> Atividades</button>
+                <button onclick="irParaAba('perfil')" id="aba-btn-perfil" class="owner-nav-item"
+                    aria-label="Perfil e equipe"><span aria-hidden="true">👥</span> Perfil & Equipe</button>
+                <button onclick="irParaAba('vitrine')" id="aba-btn-vitrine" class="owner-nav-item"
+                    aria-label="Vitrine do site"><span aria-hidden="true">🪟</span> Vitrine (Site)</button>
+                <a id="menuBillingLink" href="assinatura.html" class="owner-nav-item"
+                    aria-label="Plano e cobrança"><span aria-hidden="true">💳</span> Plano e cobrança</a>
+                <button type="button" class="owner-nav-item" onclick="encerrarSessao()" aria-label="Sair da conta"><span
+                        aria-hidden="true">↪</span> Sair</button>
             </nav>
         </div>
     </header>
@@ -66,10 +82,12 @@
             <section class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
                 <div>
                     <h2 class="text-sm font-bold text-slate-900">Expediente da loja</h2>
-                    <p class="text-xs text-slate-500">Apenas estes horários serão oferecidos para agendamento. Dias sem expediente ficam indisponíveis.</p>
+                    <p class="text-xs text-slate-500">Apenas estes horários serão oferecidos para agendamento. Dias sem
+                        expediente ficam indisponíveis.</p>
                 </div>
                 <div id="horariosFuncionamentoAdmin" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"></div>
-                <button type="button" onclick="salvarExpedienteAdmin()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold">Salvar expediente</button>
+                <button type="button" onclick="salvarExpedienteAdmin()"
+                    class="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold">Salvar expediente</button>
                 <p id="expedienteStatusAdmin" class="text-xs" role="status" aria-live="polite"></p>
             </section>
 
@@ -78,19 +96,27 @@
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Minha Agenda de Atendimentos</h2>
-                        <p class="text-xs text-slate-500">Dias com compromissos ou bloqueios sinalizados no calendário</p>
+                        <p class="text-xs text-slate-500">Dias com compromissos ou bloqueios sinalizados no calendário
+                        </p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <div class="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-semibold">
-                            <button type="button" onclick="navegarCalendarioAdmin(-1)" aria-label="Período anterior" class="px-3 py-1.5 bg-white text-slate-700">‹</button>
-                            <button type="button" onclick="navegarCalendarioAdmin(1)" aria-label="Próximo período" class="px-3 py-1.5 bg-white text-slate-700 border-l">›</button>
+                        <div
+                            class="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-semibold">
+                            <button type="button" onclick="navegarCalendarioAdmin(-1)" aria-label="Período anterior"
+                                class="px-3 py-1.5 bg-white text-slate-700">‹</button>
+                            <button type="button" onclick="navegarCalendarioAdmin(1)" aria-label="Próximo período"
+                                class="px-3 py-1.5 bg-white text-slate-700 border-l">›</button>
                         </div>
-                        <button onclick="abrirModalBloqueio()" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                        <button onclick="abrirModalBloqueio()"
+                            class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                             🔒 Trancar / Bloquear
                         </button>
-                        <div class="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-semibold">
-                            <button onclick="mudarModoCalendario('mes')" id="cal-btn-mes" class="px-3 py-1.5 bg-blue-600 text-white">Mês</button>
-                            <button onclick="mudarModoCalendario('semana')" id="cal-btn-semana" class="px-3 py-1.5 bg-white text-slate-700 border-l">Semana</button>
+                        <div
+                            class="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-semibold">
+                            <button onclick="mudarModoCalendario('mes')" id="cal-btn-mes"
+                                class="px-3 py-1.5 bg-blue-600 text-white">Mês</button>
+                            <button onclick="mudarModoCalendario('semana')" id="cal-btn-semana"
+                                class="px-3 py-1.5 bg-white text-slate-700 border-l">Semana</button>
                         </div>
                     </div>
                 </div>
@@ -99,12 +125,20 @@
                     <div class="flex justify-between items-center text-xs font-bold text-slate-700">
                         <span id="labelMesAnoCalendario"></span>
                         <div class="flex gap-3 text-[11px]">
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-500 rounded-full"></span> Compromisso</span>
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-red-500 rounded-full"></span> Bloqueado / Fechado</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                Compromisso</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                                Bloqueado / Fechado</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase">
-                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                        <div>Dom</div>
+                        <div>Seg</div>
+                        <div>Ter</div>
+                        <div>Qua</div>
+                        <div>Qui</div>
+                        <div>Sex</div>
+                        <div>Sáb</div>
                     </div>
                     <div id="gridCalendarioAdmin" class="grid grid-cols-7 gap-1.5">
                         <!-- Gerado via JS -->
@@ -115,28 +149,36 @@
             <!-- Painel Gerenciar Bloqueios -->
             <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
                 <div class="flex items-center justify-between border-b pb-2">
-                    <h3 class="font-bold text-sm text-slate-900">⚙️ Gerenciar Dias e Horários Trancados (Liberar Agenda)</h3>
-                    <span class="text-xs text-slate-500">Edite as regras ou remova bloqueios para liberar horários</span>
+                    <h3 class="font-bold text-sm text-slate-900">⚙️ Gerenciar Dias e Horários Trancados (Liberar Agenda)
+                    </h3>
+                    <span class="text-xs text-slate-500">Edite as regras ou remova bloqueios para liberar
+                        horários</span>
                 </div>
                 <div id="listaBloqueiosAtivosAdmin" class="space-y-2 text-xs sm:text-sm"></div>
             </div>
 
             <!-- Lista de Clientes do Dia Selecionado -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-3">
-                <div class="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div
+                    class="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h3 class="font-bold text-base text-slate-900">Compromissos do Dia: <span id="labelDataSelecionada" class="text-blue-600"></span></h3>
+                        <h3 class="font-bold text-base text-slate-900">Compromissos do Dia: <span
+                                id="labelDataSelecionada" class="text-blue-600"></span></h3>
                         <p class="text-xs text-slate-500">Gerencie o status, conclua ou exclua atendimentos</p>
                     </div>
 
                     <div class="flex gap-2">
-                        <select id="filtroHorarioAgenda" onchange="renderizarTabelaAgenda()" aria-label="Filtrar por horário" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
+                        <select id="filtroHorarioAgenda" onchange="renderizarTabelaAgenda()"
+                            aria-label="Filtrar por horário"
+                            class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
                             <option value="">Todos os Horários</option>
                         </select>
-                        <select id="filtroProfissionalAgenda" onchange="renderizarTabelaAgenda()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
+                        <select id="filtroProfissionalAgenda" onchange="renderizarTabelaAgenda()"
+                            class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
                             <option value="">Todos os Profissionais</option>
                         </select>
-                        <select id="filtroStatusAgenda" onchange="renderizarTabelaAgenda()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
+                        <select id="filtroStatusAgenda" onchange="renderizarTabelaAgenda()"
+                            class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-medium">
                             <option value="">Todos os Status</option>
                             <option value="pago">Clientes Pagos</option>
                             <option value="agendado">Clientes a Pagar</option>
@@ -171,12 +213,21 @@
                 <h3 class="font-bold text-lg mb-4">Gráfico de Categorias e Histórico Geral</h3>
                 <div class="max-w-xs mx-auto">
                     <canvas id="canvasGraficoCat"></canvas>
-                    <div id="graficoCategoriasVazio" class="empty-state" hidden>Os dados por categoria serão exibidos após os primeiros atendimentos.</div>
+                    <div id="graficoCategoriasVazio" class="empty-state" hidden>Os dados por categoria serão exibidos
+                        após os primeiros atendimentos.</div>
                 </div>
             </div>
             <div class="bg-white rounded-xl border shadow-sm p-4">
                 <table class="w-full text-left text-xs sm:text-sm">
-                    <thead><tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b"><th class="py-3 px-4">Cliente</th><th class="py-3 px-4">Data</th><th class="py-3 px-4">Serviço</th><th class="py-3 px-4">Profissional</th><th class="py-3 px-4">Valor</th></tr></thead>
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b">
+                            <th class="py-3 px-4">Cliente</th>
+                            <th class="py-3 px-4">Data</th>
+                            <th class="py-3 px-4">Serviço</th>
+                            <th class="py-3 px-4">Profissional</th>
+                            <th class="py-3 px-4">Valor</th>
+                        </tr>
+                    </thead>
                     <tbody id="tbodyHistoricoAdmin" class="divide-y"></tbody>
                 </table>
             </div>
@@ -187,14 +238,31 @@
         <!-- =============================================================== -->
         <section id="sec-receita" class="hidden space-y-6">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="bg-white p-5 rounded-xl border shadow-sm"><span class="text-xs text-slate-400 uppercase font-bold">Faturamento Bruto</span><p id="finGeral" class="text-2xl font-bold mt-1">R$ 0,00</p></div>
-                <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-200 shadow-sm"><span class="text-xs text-emerald-700 uppercase font-bold">Recebido (Pago)</span><p id="finPago" class="text-2xl font-bold text-emerald-600 mt-1">R$ 0,00</p></div>
-                <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 shadow-sm"><span class="text-xs text-blue-700 uppercase font-bold">Lucro da Empresa (Taxas)</span><p id="finLucroEmpresa" class="text-2xl font-bold text-blue-600 mt-1">R$ 0,00</p></div>
+                <div class="bg-white p-5 rounded-xl border shadow-sm"><span
+                        class="text-xs text-slate-400 uppercase font-bold">Faturamento Bruto</span>
+                    <p id="finGeral" class="text-2xl font-bold mt-1">R$ 0,00</p>
+                </div>
+                <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-200 shadow-sm"><span
+                        class="text-xs text-emerald-700 uppercase font-bold">Recebido (Pago)</span>
+                    <p id="finPago" class="text-2xl font-bold text-emerald-600 mt-1">R$ 0,00</p>
+                </div>
+                <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 shadow-sm"><span
+                        class="text-xs text-blue-700 uppercase font-bold">Lucro da Empresa (Taxas)</span>
+                    <p id="finLucroEmpresa" class="text-2xl font-bold text-blue-600 mt-1">R$ 0,00</p>
+                </div>
             </div>
             <div class="bg-white rounded-xl border overflow-hidden">
                 <div class="p-4 border-b font-bold text-base">Extrato e Repasse por Profissional</div>
                 <table class="w-full text-left text-xs sm:text-sm">
-                    <thead><tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b"><th class="py-3 px-4">Profissional</th><th class="py-3 px-4">Giro Total</th><th class="py-3 px-4">Taxa Loja</th><th class="py-3 px-4">Lucro Loja</th><th class="py-3 px-4 text-emerald-600">Líquido Prof.</th></tr></thead>
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase border-b">
+                            <th class="py-3 px-4">Profissional</th>
+                            <th class="py-3 px-4">Giro Total</th>
+                            <th class="py-3 px-4">Taxa Loja</th>
+                            <th class="py-3 px-4">Lucro Loja</th>
+                            <th class="py-3 px-4 text-emerald-600">Líquido Prof.</th>
+                        </tr>
+                    </thead>
                     <tbody id="tbodyFinanceiroAdmin" class="divide-y"></tbody>
                 </table>
             </div>
@@ -208,9 +276,12 @@
                 <div class="flex justify-between items-center border-b pb-4">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Cadastro de Atividades</h2>
-                        <p class="text-xs text-slate-500">Cadastre serviços e atribua aos profissionais que os realizam</p>
+                        <p class="text-xs text-slate-500">Cadastre serviços e atribua aos profissionais que os realizam
+                        </p>
                     </div>
-                    <button onclick="abrirModalServico()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow">+ Nova Atividade</button>
+                    <button onclick="abrirModalServico()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow">+ Nova
+                        Atividade</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs sm:text-sm min-w-[700px]">
@@ -236,33 +307,54 @@
         <!-- =============================================================== -->
         <section id="sec-perfil" class="hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
+
                 <div class="bg-white p-6 rounded-xl border shadow-sm space-y-4">
                     <h3 class="font-bold text-lg">Perfil do Estabelecimento</h3>
-                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between mb-4">
+                    <div
+                        class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between mb-4">
                         <div>
-                            <span class="text-xs font-bold text-blue-800 uppercase block mb-1">Código Único da Loja</span>
-                            <span id="codigoLojaPerfil" class="text-sm font-semibold text-slate-500">Gere um código para compartilhar com sua equipe.</span>
+                            <span class="text-xs font-bold text-blue-800 uppercase block mb-1">Código Único da
+                                Loja</span>
+                            <span id="codigoLojaPerfil" class="text-sm font-semibold text-slate-500">Gere um código para
+                                compartilhar com sua equipe.</span>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <button id="generateEmployeeCode" onclick="gerarCodigoFuncionario()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow transition">Gerar código</button>
-                            <button id="copyEmployeeCode" onclick="copiarCodigoFuncionario()" class="hidden bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg text-xs font-semibold transition">Copiar</button>
+                            <button id="generateEmployeeCode" onclick="gerarCodigoFuncionario()"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow transition">Gerar
+                                código</button>
+                            <button id="copyEmployeeCode" onclick="copiarCodigoFuncionario()"
+                                class="hidden bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg text-xs font-semibold transition">Copiar</button>
                         </div>
                     </div>
                     <p id="employeeCodeStatus" class="status-message" role="status" aria-live="polite"></p>
-                    <div><label class="block text-xs font-semibold mb-1">Nome da Loja</label><input type="text" id="perfilNomeLoja" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                    <div><label class="block text-xs font-semibold mb-1">Logo URL</label><input type="text" id="perfilLogo" placeholder="https://..." class="w-full border rounded-lg px-3 py-2 text-sm"></div>
-                    <div><label class="block text-xs font-semibold mb-1">Chave PIX da Empresa (Recebedor Padrão)</label><input type="text" id="perfilPix" maxlength="200" class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
-                    <button type="button" onclick="salvarChavePix()" class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold">Salvar chave PIX</button>
+                    <div><label class="block text-xs font-semibold mb-1">Nome da Loja</label><input type="text"
+                            id="perfilNomeLoja" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="block text-xs font-semibold mb-1">Logo URL</label><input type="text"
+                            id="perfilLogo" placeholder="https://..."
+                            class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+                    <div><label class="block text-xs font-semibold mb-1">Chave PIX da Empresa (Recebedor
+                            Padrão)</label><input type="text" id="perfilPix" maxlength="200"
+                            class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>
+                    <button type="button" onclick="salvarChavePix()"
+                        class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold">Salvar chave
+                        PIX</button>
                     <p id="pixSettingsStatus" class="status-message" role="status" aria-live="polite"></p>
                 </div>
 
                 <div class="bg-white p-6 rounded-xl border shadow-sm space-y-4">
                     <h3 class="font-bold text-lg">Equipe Vinculada</h3>
-                    <p class="text-xs text-slate-500">Defina quanto de cada atendimento fica para a empresa. O percentual pode ser ajustado por funcionário.</p>
+                    <p class="text-xs text-slate-500">Defina quanto de cada atendimento fica para a empresa. O
+                        percentual pode ser ajustado por funcionário.</p>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs sm:text-sm">
-                            <thead><tr class="bg-slate-50 border-b text-[11px] uppercase text-slate-500"><th class="py-2 px-2">Funcionário</th><th class="py-2 px-2">E-mail</th><th class="py-2 px-2">Vinculado em</th><th class="py-2 px-2">Repasse por atendimento</th></tr></thead>
+                            <thead>
+                                <tr class="bg-slate-50 border-b text-[11px] uppercase text-slate-500">
+                                    <th class="py-2 px-2">Funcionário</th>
+                                    <th class="py-2 px-2">E-mail</th>
+                                    <th class="py-2 px-2">Vinculado em</th>
+                                    <th class="py-2 px-2">Repasse por atendimento</th>
+                                </tr>
+                            </thead>
                             <tbody id="tbodyEquipeAdmin" class="divide-y"></tbody>
                         </table>
                     </div>
@@ -276,105 +368,147 @@
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6 max-w-5xl mx-auto">
                 <div>
                     <h2 class="text-xl font-bold text-slate-900">Configure sua Página de Apresentação (Vitrine)</h2>
-                    <p class="text-xs text-slate-500">Dê personalidade à sua página: use as cores da sua empresa e veja uma prévia enquanto edita.</p>
+                    <p class="text-xs text-slate-500">Dê personalidade à sua página: use as cores da sua empresa e veja
+                        uma prévia enquanto edita.</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div class="space-y-4">
-                    <div class="border-b border-slate-200 pb-4">
-                        <label for="vitrineSlug" class="block text-xs font-semibold uppercase text-slate-500 mb-1">Endereço exclusivo da loja</label>
-                        <div class="flex items-center gap-2">
-                            <span id="vitrineUrlPrefixo" class="text-sm text-slate-500 whitespace-nowrap"></span>
-                            <input type="text" id="vitrineSlug" maxlength="60" autocomplete="off" placeholder="nome-da-loja" class="min-w-0 flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <div class="space-y-4">
+                        <div class="border-b border-slate-200 pb-4">
+                            <label for="vitrineSlug"
+                                class="block text-xs font-semibold uppercase text-slate-500 mb-1">Endereço exclusivo da
+                                loja</label>
+                            <div class="flex items-center gap-2">
+                                <span id="vitrineUrlPrefixo" class="text-sm text-slate-500 whitespace-nowrap"></span>
+                                <input type="text" id="vitrineSlug" maxlength="60" autocomplete="off"
+                                    placeholder="nome-da-loja"
+                                    class="min-w-0 flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Use letras minúsculas, números e hífens. O
+                                endereço fica público depois de salvar.</p>
+                            <input type="text" id="vitrineUrlPublica" readonly aria-label="URL pública da loja"
+                                class="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 bg-slate-50">
+                            <a id="linkUrlPublica" href="#" target="_blank" rel="noopener"
+                                class="inline-block mt-2 text-xs font-semibold text-blue-600 hover:underline">Salvar
+                                para publicar o endereço</a>
                         </div>
-                        <p class="text-[10px] text-slate-500 mt-1">Use letras minúsculas, números e hífens. O endereço fica público depois de salvar.</p>
-                        <input type="text" id="vitrineUrlPublica" readonly aria-label="URL pública da loja" class="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 bg-slate-50">
-                        <a id="linkUrlPublica" href="#" target="_blank" rel="noopener" class="inline-block mt-2 text-xs font-semibold text-blue-600 hover:underline">Salvar para publicar o endereço</a>
-                    </div>
 
-                    <!-- Segmento de Atuação -->
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Segmento da Loja (Para aparecer nos filtros)</label>
-                        <select id="vitrineSegmento" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="salao">Salão de Beleza</option>
-                            <option value="barbearia">Barbearia</option>
-                            <option value="estetica">Estética Facial e Corporal</option>
-                            <option value="saude">Saúde, Fisioterapia & Bem-estar</option>
-                            <option value="tatuagem">Estúdio de Tatuagem</option>
-                            <option value="outros">Outro segmento</option>
-                        </select>
-                    </div>
-
-                    <!-- Imagem do Banner de Capa -->
+                        <!-- Segmento de Atuação -->
                         <div>
-                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Imagem de Capa (Banner)</label>
-                            <input type="url" id="vitrineBanner" placeholder="Cole o link público da imagem" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <p class="text-[10px] text-slate-500 mt-1">Pode colar um link do Google Drive. No Drive, configure “Acesso geral” como “Qualquer pessoa com o link”. Recomendado: 1200x400 pixels.</p>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Segmento da Loja
+                                (Para aparecer nos filtros)</label>
+                            <select id="vitrineSegmento"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="salao">Salão de Beleza</option>
+                                <option value="barbearia">Barbearia</option>
+                                <option value="estetica">Estética Facial e Corporal</option>
+                                <option value="saude">Saúde, Fisioterapia & Bem-estar</option>
+                                <option value="tatuagem">Estúdio de Tatuagem</option>
+                                <option value="outros">Outro segmento</option>
+                            </select>
+                        </div>
+
+                        <!-- Imagem do Banner de Capa -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Imagem de Capa
+                                (Banner)</label>
+                            <input type="url" id="vitrineBanner" placeholder="Cole o link público da imagem"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <p class="text-[10px] text-slate-500 mt-1">Pode colar um link do Google Drive. No Drive,
+                                configure “Acesso geral” como “Qualquer pessoa com o link”. Recomendado: 1200x400
+                                pixels.</p>
                         </div>
 
                         <div>
                             <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Logo</label>
-                            <input type="url" id="vitrineLogo" placeholder="Cole o link público da logo" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <p class="text-[10px] text-slate-500 mt-1">Links compartilhados do Google Drive são aceitos; deixe o arquivo acessível para qualquer pessoa com o link.</p>
+                            <input type="url" id="vitrineLogo" placeholder="Cole o link público da logo"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <p class="text-[10px] text-slate-500 mt-1">Links compartilhados do Google Drive são aceitos;
+                                deixe o arquivo acessível para qualquer pessoa com o link.</p>
                         </div>
 
                         <!-- Descrição Sobre a Loja -->
                         <div>
-                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Descrição / Sobre a Loja</label>
-                            <textarea id="vitrineDesc" rows="4" placeholder="Fale um pouco sobre o espaço, especialidades e diferenciais..." class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Descrição / Sobre a
+                                Loja</label>
+                            <textarea id="vitrineDesc" rows="4"
+                                placeholder="Fale um pouco sobre o espaço, especialidades e diferenciais..."
+                                class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                         </div>
 
                         <div class="space-y-3 border-t border-slate-200 pt-4">
                             <div>
                                 <h3 class="font-bold text-sm text-slate-900">Redes sociais</h3>
-                                <p class="text-xs text-slate-500 mt-1">Os links informados serão exibidos na sua página pública.</p>
+                                <p class="text-xs text-slate-500 mt-1">Os links informados serão exibidos na sua página
+                                    pública.</p>
                             </div>
                             <div>
-                                <label for="vitrineInstagram" class="block text-xs font-semibold uppercase text-slate-500 mb-1">Instagram (@usuário)</label>
-                                <input type="text" id="vitrineInstagram" maxlength="31" autocomplete="off" placeholder="@sua.loja" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <label for="vitrineInstagram"
+                                    class="block text-xs font-semibold uppercase text-slate-500 mb-1">Instagram
+                                    (@usuário)</label>
+                                <input type="text" id="vitrineInstagram" maxlength="31" autocomplete="off"
+                                    placeholder="@sua.loja"
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <div>
-                                <label for="vitrineFacebook" class="block text-xs font-semibold uppercase text-slate-500 mb-1">Facebook</label>
-                                <input type="url" id="vitrineFacebook" placeholder="https://facebook.com/sua-loja" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <label for="vitrineFacebook"
+                                    class="block text-xs font-semibold uppercase text-slate-500 mb-1">Facebook</label>
+                                <input type="url" id="vitrineFacebook" placeholder="https://facebook.com/sua-loja"
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <div>
-                                <label for="vitrineTikTok" class="block text-xs font-semibold uppercase text-slate-500 mb-1">TikTok</label>
-                                <input type="url" id="vitrineTikTok" placeholder="https://tiktok.com/@sua-loja" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <label for="vitrineTikTok"
+                                    class="block text-xs font-semibold uppercase text-slate-500 mb-1">TikTok</label>
+                                <input type="url" id="vitrineTikTok" placeholder="https://tiktok.com/@sua-loja"
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <div>
-                                <label for="vitrineYouTube" class="block text-xs font-semibold uppercase text-slate-500 mb-1">YouTube</label>
-                                <input type="url" id="vitrineYouTube" placeholder="https://youtube.com/@sua-loja" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <label for="vitrineYouTube"
+                                    class="block text-xs font-semibold uppercase text-slate-500 mb-1">YouTube</label>
+                                <input type="url" id="vitrineYouTube" placeholder="https://youtube.com/@sua-loja"
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                         </div>
 
                         <div class="space-y-3 border-t border-slate-200 pt-4">
                             <div>
                                 <h3 class="font-bold text-sm text-slate-900">Identidade visual</h3>
-                                <p class="text-xs text-slate-500 mt-1">Escolha qualquer cor da sua marca pelo seletor ou informe o código hexadecimal.</p>
+                                <p class="text-xs text-slate-500 mt-1">Escolha qualquer cor da sua marca pelo seletor ou
+                                    informe o código hexadecimal.</p>
                             </div>
                             <label class="block text-xs font-semibold text-slate-600">Cor principal</label>
                             <div class="color-field">
                                 <input type="color" id="vitrineCorPrimariaPicker" aria-label="Selecionar cor principal">
-                                <input type="text" id="vitrineCorPrimaria" value="#1246A0" maxlength="7" aria-label="Código hexadecimal da cor principal" class="w-full border px-3 py-2 text-sm">
+                                <input type="text" id="vitrineCorPrimaria" value="#1246A0" maxlength="7"
+                                    aria-label="Código hexadecimal da cor principal"
+                                    class="w-full border px-3 py-2 text-sm">
                             </div>
                             <label class="block text-xs font-semibold text-slate-600">Cor de destaque</label>
                             <div class="color-field">
-                                <input type="color" id="vitrineCorDestaquePicker" aria-label="Selecionar cor de destaque">
-                                <input type="text" id="vitrineCorDestaque" value="#F97316" maxlength="7" aria-label="Código hexadecimal da cor de destaque" class="w-full border px-3 py-2 text-sm">
+                                <input type="color" id="vitrineCorDestaquePicker"
+                                    aria-label="Selecionar cor de destaque">
+                                <input type="text" id="vitrineCorDestaque" value="#F97316" maxlength="7"
+                                    aria-label="Código hexadecimal da cor de destaque"
+                                    class="w-full border px-3 py-2 text-sm">
                             </div>
                             <label class="block text-xs font-semibold text-slate-600">Cor de fundo</label>
                             <div class="color-field">
                                 <input type="color" id="vitrineCorFundoPicker" aria-label="Selecionar cor de fundo">
-                                <input type="text" id="vitrineCorFundo" value="#F3F6FB" maxlength="7" aria-label="Código hexadecimal da cor de fundo" class="w-full border px-3 py-2 text-sm">
+                                <input type="text" id="vitrineCorFundo" value="#F3F6FB" maxlength="7"
+                                    aria-label="Código hexadecimal da cor de fundo"
+                                    class="w-full border px-3 py-2 text-sm">
                             </div>
                         </div>
 
                         <!-- Botão de Ação -->
-                        <div class="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3 justify-end">
-                            <a id="linkVisualizarVitrine" href="vitrine.html?loja=1" target="_blank" rel="noopener" class="px-5 py-2.5 rounded-lg text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition w-full sm:w-auto text-center border border-blue-200">
+                        <div
+                            class="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3 justify-end">
+                            <a id="linkVisualizarVitrine" href="vitrine.html?loja=1" target="_blank" rel="noopener"
+                                class="px-5 py-2.5 rounded-lg text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition w-full sm:w-auto text-center border border-blue-200">
                                 👁️ Visualizar minha Vitrine
                             </a>
-                            <button type="button" id="salvarVitrineBtn" class="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition w-full sm:w-auto shadow-md shadow-blue-600/20">
+                            <button type="button" id="salvarVitrineBtn"
+                                class="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition w-full sm:w-auto shadow-md shadow-blue-600/20">
                                 Salvar Configurações
                             </button>
                         </div>
@@ -386,24 +520,34 @@
                         <div class="theme-preview">
                             <img id="previewBanner" alt="" class="hidden w-full h-24 object-cover">
                             <div class="theme-preview__header px-5 py-4">
-                                <img id="previewLogo" alt="" class="hidden w-12 h-12 rounded-lg object-cover mb-2 border border-white/40">
+                                <img id="previewLogo" alt=""
+                                    class="hidden w-12 h-12 rounded-lg object-cover mb-2 border border-white/40">
                                 <span id="previewNomeLoja" class="font-bold">Seu estabelecimento</span>
-                                <p class="text-xs text-white/75 mt-1">Uma experiência com a identidade da sua empresa</p>
+                                <p class="text-xs text-white/75 mt-1">Uma experiência com a identidade da sua empresa
+                                </p>
                             </div>
                             <div class="p-5">
                                 <div class="rounded-xl p-4 bg-white shadow-sm">
-                                    <span id="previewSegmento" class="text-xs font-semibold uppercase tracking-wide text-blue-600">Salão de Beleza</span>
-                                    <p id="previewDescricao" class="text-sm text-slate-600 mt-2">Sua descrição aparece aqui para apresentar seu negócio aos clientes.</p>
-                                    <button type="button" class="theme-preview__button mt-4 px-4 py-2 rounded-lg text-sm">Agendar atendimento</button>
-                                    <span class="theme-preview__accent inline-block w-3 h-3 rounded-full ml-2 align-middle" aria-label="Cor de destaque"></span>
+                                    <span id="previewSegmento"
+                                        class="text-xs font-semibold uppercase tracking-wide text-blue-600">Salão de
+                                        Beleza</span>
+                                    <p id="previewDescricao" class="text-sm text-slate-600 mt-2">Sua descrição aparece
+                                        aqui para apresentar seu negócio aos clientes.</p>
+                                    <button type="button"
+                                        class="theme-preview__button mt-4 px-4 py-2 rounded-lg text-sm">Agendar
+                                        atendimento</button>
+                                    <span
+                                        class="theme-preview__accent inline-block w-3 h-3 rounded-full ml-2 align-middle"
+                                        aria-label="Cor de destaque"></span>
                                 </div>
                             </div>
                         </div>
                         <p id="previewImagemAviso" class="hidden text-xs text-amber-700 mt-2" role="status"></p>
-                        <p class="text-xs text-slate-500 mt-3">As alterações serão aplicadas à sua página pública depois de salvar.</p>
+                        <p class="text-xs text-slate-500 mt-3">As alterações serão aplicadas à sua página pública depois
+                            de salvar.</p>
                     </aside>
-                    </div>
                 </div>
+            </div>
             </div>
         </section>
 
@@ -432,28 +576,43 @@
                 </div>
                 <div>
                     <label class="font-semibold mb-1 block">Regra de Recorrência</label>
-                    <select id="bloqTipoRecorrencia" onchange="alternarCamposBloqueio()" class="w-full border rounded p-2">
+                    <select id="bloqTipoRecorrencia" onchange="alternarCamposBloqueio()"
+                        class="w-full border rounded p-2">
                         <option value="especifico">Data Específica</option>
                         <option value="semana_recorrente">Toda semana (Ex: Domingos)</option>
                         <option value="diario_recorrente">Diariamente (Ex: Almoço)</option>
                     </select>
                 </div>
-                
-                <div id="divBloqDataEspecifica"><label class="font-semibold mb-1 block">Data</label><input type="date" id="bloqDataInput" class="w-full border rounded p-2"></div>
-                
-                <div id="divBloqDiaSemana" class="hidden"><label class="font-semibold mb-1 block">Dia da Semana</label><select id="bloqDiaSemanaSelect" class="w-full border rounded p-2"><option value="0">Domingo</option><option value="1">Segunda</option><option value="2">Terça</option><option value="3">Quarta</option><option value="4">Quinta</option><option value="5">Sexta</option><option value="6">Sábado</option></select></div>
-                
+
+                <div id="divBloqDataEspecifica"><label class="font-semibold mb-1 block">Data</label><input type="date"
+                        id="bloqDataInput" class="w-full border rounded p-2"></div>
+
+                <div id="divBloqDiaSemana" class="hidden"><label class="font-semibold mb-1 block">Dia da
+                        Semana</label><select id="bloqDiaSemanaSelect" class="w-full border rounded p-2">
+                        <option value="0">Domingo</option>
+                        <option value="1">Segunda</option>
+                        <option value="2">Terça</option>
+                        <option value="3">Quarta</option>
+                        <option value="4">Quinta</option>
+                        <option value="5">Sexta</option>
+                        <option value="6">Sábado</option>
+                    </select></div>
+
                 <div id="divBloqHorarios" class="hidden grid grid-cols-2 gap-2">
-                    <div><label class="font-semibold mb-1 block">Hora Início</label><input type="time" id="bloqHoraInicio" value="18:00" class="w-full border rounded p-2"></div>
-                    <div><label class="font-semibold mb-1 block">Hora Fim</label><input type="time" id="bloqHoraFim" value="07:00" class="w-full border rounded p-2"></div>
+                    <div><label class="font-semibold mb-1 block">Hora Início</label><input type="time"
+                            id="bloqHoraInicio" value="18:00" class="w-full border rounded p-2"></div>
+                    <div><label class="font-semibold mb-1 block">Hora Fim</label><input type="time" id="bloqHoraFim"
+                            value="07:00" class="w-full border rounded p-2"></div>
                 </div>
-                
-                <div><label class="font-semibold mb-1 block">Motivo</label><input type="text" id="bloqMotivoInput" placeholder="Ex: Folga, Manutenção..." class="w-full border rounded p-2"></div>
+
+                <div><label class="font-semibold mb-1 block">Motivo</label><input type="text" id="bloqMotivoInput"
+                        placeholder="Ex: Folga, Manutenção..." class="w-full border rounded p-2"></div>
             </div>
 
             <div class="flex justify-end gap-2 pt-3 border-t">
                 <button onclick="fecharModais()" class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button>
-                <button onclick="salvarBloqueio()" class="px-4 py-2 rounded bg-red-600 text-white text-xs font-bold">Salvar Bloqueio</button>
+                <button onclick="salvarBloqueio()"
+                    class="px-4 py-2 rounded bg-red-600 text-white text-xs font-bold">Salvar Bloqueio</button>
             </div>
         </div>
     </div>
@@ -464,19 +623,27 @@
             <h3 class="font-bold text-lg" id="tituloModalServico">Nova Atividade</h3>
             <input type="hidden" id="servicoEditIndex" value="-1">
             <div class="space-y-3 text-xs sm:text-sm">
-                <div><label class="font-semibold mb-1 block">Nome do Serviço</label><input type="text" id="servNome" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold mb-1 block">Nome do Serviço</label><input type="text" id="servNome"
+                        class="w-full border rounded p-2"></div>
                 <div class="grid grid-cols-2 gap-2">
-                    <div><label class="font-semibold mb-1 block">Categoria</label><input type="text" id="servCat" class="w-full border rounded p-2"></div>
-                    <div><label class="font-semibold mb-1 block">Duração (Min)</label><input type="number" id="servDur" class="w-full border rounded p-2"></div>
+                    <div><label class="font-semibold mb-1 block">Categoria</label><input type="text" id="servCat"
+                            class="w-full border rounded p-2"></div>
+                    <div><label class="font-semibold mb-1 block">Duração (Min)</label><input type="number" id="servDur"
+                            class="w-full border rounded p-2"></div>
                 </div>
-                <div><label class="font-semibold mb-1 block">Preço (R$)</label><input type="number" step="0.01" id="servPreco" class="w-full border rounded p-2"></div>
+                <div><label class="font-semibold mb-1 block">Preço (R$)</label><input type="number" step="0.01"
+                        id="servPreco" class="w-full border rounded p-2"></div>
                 <div>
                     <label class="font-semibold mb-1 block">Atribuir a Profissionais</label>
-                    <div id="listaCheckboxProfissionais" class="space-y-1.5 border p-2 rounded max-h-32 overflow-y-auto"></div>
+                    <div id="listaCheckboxProfissionais"
+                        class="space-y-1.5 border p-2 rounded max-h-32 overflow-y-auto"></div>
                 </div>
             </div>
             <p id="serviceModalStatus" class="status-message" role="status" aria-live="polite"></p>
-            <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="fecharModais()" class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button><button id="saveServiceButton" onclick="salvarServico()" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold">Salvar Atividade</button></div>
+            <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="fecharModais()"
+                    class="px-4 py-2 rounded bg-slate-100 text-xs">Cancelar</button><button id="saveServiceButton"
+                    onclick="salvarServico()" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold">Salvar
+                    Atividade</button></div>
         </div>
     </div>
 
@@ -637,7 +804,7 @@
                 d.setDate(dataInicio.getDate() + i);
                 const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 const diaSemana = d.getDay();
-                
+
                 const bloqueado = listaBloqueiosAdmin.some(b => b.tipoAlvo === 'dia'
                     && ((b.tipoRecorrencia === 'especifico' && b.valor === iso)
                         || (b.tipoRecorrencia === 'semana_recorrente' && Number(b.valor) === diaSemana)
@@ -661,10 +828,26 @@
             renderizarPainelBloqueiosAtivos();
         }
 
+        async function alterarStatusPagamentoAdmin(id) {
+            const appointment = agendamentosAdmin.find((item) => item.id === id);
+            if (!appointment) return;
+            const newStatus = appointment.status === 'pago' ? 'agendado' : 'pago';
+            try {
+                await AppApi.request(`/api/saas/spaces/${accountAtual.space_id}/appointments/${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status: newStatus })
+                });
+                appointment.status = newStatus;
+                renderizarTabelaAgenda();
+            } catch (error) {
+                alert(`Não foi possível alterar o status de pagamento: ${error.message}`);
+            }
+        }
+
         function renderizarTabelaAgenda() {
             const tbody = document.getElementById('tbodyAgendaAdmin');
             tbody.innerHTML = '';
-            
+
             const filtroStatus = document.getElementById('filtroStatusAgenda').value;
             const filtroProf = document.getElementById('filtroProfissionalAgenda').value;
             const horariosDoDia = [...new Set(agendamentosAdmin
@@ -678,11 +861,11 @@
             if (horariosDoDia.includes(selectedHour)) horarioSelect.value = selectedHour;
             const filtroHorario = horarioSelect.value;
 
-            // Filtro centralizado que puxa APENAS a data clicada no calendário (dataFiltroSelecionada)
+            // Filtro centralizado
             const filtrados = agendamentosAdmin.filter(a => {
                 if (a.data !== dataFiltroSelecionada) return false;
                 if (filtroStatus && a.status !== filtroStatus) return false;
-                if (filtroProf && a.prof_id != filtroProf) return false;
+                if (filtroProf && String(a.prof_id) !== String(filtroProf)) return false;
                 if (filtroHorario && a.hora !== filtroHorario) return false;
                 return true;
             });
@@ -694,9 +877,9 @@
 
             filtrados.forEach(c => {
                 const prof = getProfissional(c.prof_id);
-                const badge = c.status === 'pago' ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✅ Pago</span>` : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ Confirmado · Pendente</span>`;
+                const isPaid = c.status === 'pago';
+                const badge = isPaid ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✅ Pago</span>` : `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ A Pagar</span>`;
                 const paymentMethod = c.forma_pagamento === 'pix' ? 'PIX' : 'No local';
-                const paymentStatus = c.status === 'pago' ? 'Pagamento confirmado' : 'Pagamento a confirmar';
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 border-b">
@@ -705,7 +888,12 @@
                         <td class="py-3 px-4">${AppApi.escapeHtml(c.servico_nome)}<div class="text-[10px] text-slate-500">R$ ${Number(c.valor).toFixed(2)} · ${paymentMethod}</div></td>
                         <td class="py-3 px-4 text-slate-600">${AppApi.escapeHtml(prof?.nome || c.prof_nome || 'N/A')}</td>
                         <td class="py-3 px-4">${badge}</td>
-                        <td class="py-3 px-4 text-right text-xs ${c.status === 'pago' ? 'text-emerald-700' : 'text-slate-400'}">${paymentStatus}</td>
+                        <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                            <button onclick="alterarStatusPagamentoAdmin(${c.id})" class="px-2 py-1.5 rounded bg-blue-50 text-blue-600 text-xs font-semibold"
+                                aria-label="Marcar como ${isPaid ? 'A Pagar' : 'Pago'}">${isPaid ? 'Estornar' : 'Receber'}</button>
+                            <button onclick="concluirDaAgenda(${c.id})" class="px-2 py-1.5 rounded bg-emerald-50 text-emerald-700 text-xs font-semibold">✔ Concluir</button>
+                            <button onclick="excluirDaAgenda(${c.id})" class="px-2 py-1.5 rounded bg-red-50 text-red-600 text-xs font-semibold">Excluir</button>
+                        </td>
                     </tr>
                 `;
             });
@@ -762,9 +950,9 @@
             const tipoAlvo = document.getElementById('bloqTipoAlvo').value;
             const tipoRec = document.getElementById('bloqTipoRecorrencia').value;
             const motivo = document.getElementById('bloqMotivoInput').value || 'Fechado';
-            
+
             let valor = tipoRec === 'especifico' ? document.getElementById('bloqDataInput').value : (tipoRec === 'semana_recorrente' ? document.getElementById('bloqDiaSemanaSelect').value : 'todos');
-            
+
             const block = { tipoAlvo, tipoRecorrencia: tipoRec, valor, motivo, horaInicio: tipoAlvo === 'horario' ? document.getElementById('bloqHoraInicio').value : null, horaFim: tipoAlvo === 'horario' ? document.getElementById('bloqHoraFim').value : null };
             const spaceId = accountAtual.space_id;
             const endpoint = `/api/saas/spaces/${spaceId}/schedule/blocks`;
@@ -801,7 +989,7 @@
             listaBloqueiosAdmin.forEach((b, i) => {
                 let regra = b.tipoRecorrencia === 'especifico' ? `Data: ${b.valor.split('-').reverse().join('/')}` : (b.tipoRecorrencia === 'semana_recorrente' ? `Toda semana (Dia ${b.valor})` : 'Diário');
                 if (b.tipoAlvo === 'horario') regra += ` | Horário: ${b.horaInicio} às ${b.horaFim}`;
-                
+
                 div.innerHTML += `
                     <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50/70 shadow-sm">
                         <div>
@@ -904,7 +1092,7 @@
             divProfs.innerHTML = '';
             document.getElementById('serviceModalStatus').textContent = '';
             document.getElementById('serviceModalStatus').dataset.state = '';
-            
+
             let pIds = [];
             if (index >= 0) {
                 const s = atividades[index];
@@ -1018,16 +1206,19 @@
         function renderizarAbaPerfil() {
             const tbody = document.getElementById('tbodyEquipeAdmin');
             tbody.innerHTML = '';
-            const selFiltroProf = document.getElementById('filtroProfissionalAgenda');
-            selFiltroProf.innerHTML = '<option value="">Todos os Profissionais</option>';
+
+            // Popula os dois selects de profissionais (Aba Agenda e Aba Perfil)
+            const selFiltroProfAgenda = document.getElementById('filtroProfissionalAgenda');
+            selFiltroProfAgenda.innerHTML = '<option value="">Todos os Profissionais</option>';
 
             const profissionaisFiltro = new Map();
             [...equipe, ...equipeAtividades].forEach((professional) => {
                 profissionaisFiltro.set(String(professional.id), professional);
             });
             profissionaisFiltro.forEach((professional) => {
-                selFiltroProf.innerHTML += `<option value="${AppApi.escapeHtml(professional.id)}">${AppApi.escapeHtml(professional.nome)}</option>`;
+                selFiltroProfAgenda.innerHTML += `<option value="${AppApi.escapeHtml(professional.id)}">${AppApi.escapeHtml(professional.nome)}</option>`;
             });
+
             equipeContas.forEach((employee) => {
                 const linkedAt = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(employee.linked_at));
                 tbody.innerHTML += `
@@ -1037,9 +1228,9 @@
                         <td class="py-3 px-2 text-slate-500">${linkedAt}</td>
                         <td class="py-3 px-2">
                             <div class="flex items-center gap-2">
-                                <label class="sr-only" for="employeeCommission_${AppApi.escapeHtml(employee.id)}">Percentual para a empresa por atendimento de ${AppApi.escapeHtml(employee.full_name)}</label>
+                                <label class="sr-only" for="employeeCommission_${AppApi.escapeHtml(employee.id)}">Percentual</label>
                                 <input id="employeeCommission_${AppApi.escapeHtml(employee.id)}" type="number" min="0" max="100" step="0.01"
-                                    value="${Number(employee.company_percentage) || 0}" class="w-24 rounded-lg border px-2 py-1.5" aria-label="Percentual para a empresa por atendimento">
+                                    value="${Number(employee.company_percentage) || 0}" class="w-24 rounded-lg border px-2 py-1.5" aria-label="Percentual">
                                 <span>%</span>
                                 <button type="button" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white"
                                     onclick="salvarPercentualFuncionario('${AppApi.escapeHtml(employee.id)}')">Salvar</button>
@@ -1190,7 +1381,7 @@
                         if (a.status === 'pago') pago += s.preco;
                     }
                 });
-                
+
                 const taxaCalc = giroProf * (e.taxa / 100);
                 lucroLoja += taxaCalc;
                 const liqProf = giroProf - taxaCalc;
@@ -1288,4 +1479,5 @@
         });
     </script>
 </body>
+
 </html>
