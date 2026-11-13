@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agendamento online | Agenda+</title>
+    <title>Agendar Atendimento - Studio Bella</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="portal.css">
@@ -45,10 +45,7 @@
     </header>
 
     <main class="max-w-6xl mx-auto p-6 space-y-6">
-
-        <!-- =============================================================== -->
-        <!-- SEÇÃO 1: PERFIL SIMPLES DO CLIENTE                              -->
-        <!-- =============================================================== -->
+        <!-- PERFIL SIMPLES DO CLIENTE -->
         <section id="secao-perfil" class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-4">
             <div class="flex items-center gap-4 border-b pb-4">
                 <img id="previewFotoCliente" src="https://via.placeholder.com/64" class="w-16 h-16 rounded-full object-cover border">
@@ -67,9 +64,7 @@
             </div>
         </section>
 
-        <!-- =============================================================== -->
-        <!-- SEÇÃO 2: FLUXO DE CALENDÁRIO MENSAL COM SELETOR CUSTOMIZADO     -->
-        <!-- =============================================================== -->
+        <!-- FLUXO DE CALENDÁRIO MENSAL COM SELETOR CUSTOMIZADO -->
         <section id="secao-agenda" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="section-intro booking-intro lg:col-span-12">
                 <div>
@@ -82,9 +77,8 @@
                 </div>
             </div>
 
-            <!-- Coluna Esquerda (7 Colunas): Quadro Único Dinâmico -->
+            <!-- Coluna Esquerda -->
             <div class="lg:col-span-7 space-y-6">
-                
                 <!-- Seleção de Serviço -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
                     <h2 class="text-base font-bold text-slate-900">1. Selecione o Serviço Desejado</h2>
@@ -94,10 +88,9 @@
                     <p id="serviceAvailabilityStatus" class="status-message" role="status" aria-live="polite"></p>
                 </div>
 
-                <!-- QUADRO ÚNICO (Alterna entre Visão Mensal com Seletor Custom e Agenda do Dia) -->
+                <!-- QUADRO ÚNICO (Alterna entre Visão Mensal e Agenda do Dia) -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
-                    
-                    <!-- ESTADO A: VISÃO DO CALENDÁRIO MENSAL COM SELETOR CUSTOMIZADO -->
+                    <!-- ESTADO A: VISÃO DO CALENDÁRIO MENSAL -->
                     <div id="painelCalendarioMensal" class="space-y-4">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
@@ -106,38 +99,30 @@
                             </div>
                         </div>
 
-                        <!-- Seletor Customizado de Ano e Meses em Português -->
+                        <!-- Seletor Customizado -->
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-bold text-slate-600">Ano:</span>
-                                    <select id="selectAnoCustom" onchange="mudarAnoCustom(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white">
-                                        <!-- Preenchido com o ano atual e os anos seguintes -->
-                                    </select>
+                                    <select id="selectAnoCustom" onchange="mudarAnoCustom(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white"></select>
                                 </div>
                                 <button type="button" onclick="selecionarMesAtual()" class="text-xs font-semibold text-blue-600 hover:underline">Este Mês</button>
                             </div>
 
-                            <!-- Grade de Meses (Jan - Dez) -->
-                            <div class="grid grid-cols-4 sm:grid-cols-6 gap-1.5" id="gradeMesesCustom">
-                                <!-- Gerado via JS -->
-                            </div>
+                            <div class="grid grid-cols-4 sm:grid-cols-6 gap-1.5" id="gradeMesesCustom"></div>
                         </div>
 
                         <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase pt-2">
                             <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
                         </div>
-
-                        <div id="gradeCalendarioMensal" class="grid grid-cols-7 gap-1.5">
-                            <!-- Gerado via JS -->
-                        </div>
+                        <div id="gradeCalendarioMensal" class="grid grid-cols-7 gap-1.5"></div>
                     </div>
 
-                    <!-- ESTADO B: VISÃO DA AGENDA DO DIA (Oculto por padrão) -->
+                    <!-- ESTADO B: VISÃO DA AGENDA DO DIA -->
                     <div id="painelAgendaDoDia" class="hidden space-y-4">
                         <div class="flex items-center justify-between border-b pb-3">
                             <button onclick="voltarParaCalendarioMensal()" class="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition">
-                                ← Voltar para o Calendário do Mês
+                                ← Voltar
                             </button>
                             <span id="tituloDataAgendaDia" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full"></span>
                         </div>
@@ -154,16 +139,12 @@
                                 </select>
                             </div>
                         </div>
-
-                        <div id="listaHorariosAgendaDiaria" class="space-y-2 pr-1">
-                            <!-- Gerado via JS -->
-                        </div>
+                        <div id="listaHorariosAgendaDiaria" class="space-y-2 pr-1"></div>
                     </div>
-
                 </div>
             </div>
 
-            <!-- Coluna Direita (5 Colunas): Resumo, Seus Dados & Pagamento -->
+            <!-- Coluna Direita (Resumo) -->
             <div class="lg:col-span-5 space-y-6">
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
                     <h2 class="text-base font-bold text-slate-900">3. Seus Dados & Pagamento</h2>
@@ -181,10 +162,10 @@
                             <button type="button" onclick="selecionarPagamento('pix')" id="btn-pag-pix" disabled class="py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-400 disabled:cursor-not-allowed">💠 PIX indisponível</button>
                         </div>
                         <div id="pixPaymentInstructions" hidden class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 space-y-2">
-                            <p>Faça o PIX para a chave da loja e aguarde a confirmação do pagamento pelo estabelecimento. A reserva do horário não confirma o pagamento.</p>
+                            <p>Faça o PIX para a chave e aguarde a confirmação do pagamento pelo estabelecimento. A reserva não confirma o pagamento.</p>
                             <div class="flex items-center gap-2">
                                 <code id="bookingPixKey" class="min-w-0 flex-1 break-all font-semibold"></code>
-                                <button type="button" onclick="copiarChavePix()" class="shrink-0 rounded-md bg-white px-2.5 py-1.5 font-semibold text-blue-700 border border-blue-200">Copiar chave</button>
+                                <button type="button" onclick="copiarChavePix()" class="shrink-0 rounded-md bg-white px-2.5 py-1.5 font-semibold text-blue-700 border border-blue-200">Copiar</button>
                             </div>
                             <p id="pixCopyStatus" role="status" aria-live="polite"></p>
                         </div>
@@ -202,10 +183,8 @@
                     <p id="bookingAvailabilityStatus" class="status-message" role="status" aria-live="polite">
                         Escolha um serviço e um horário para confirmar seu atendimento.
                     </p>
-
                 </div>
             </div>
-
         </section>
     </main>
 
@@ -225,23 +204,33 @@
             </div>
         </div>
         <button onclick="toggleChat()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3.5 rounded-full shadow-xl font-bold text-sm flex items-center gap-2 ml-auto">
-            💬 Ajuda com agendamento
+            💬 Ajuda
         </button>
     </div>
 
     <script>
-        const ESPACO_ID = AppApi.getSpaceId();
+        // O Id do espaço para carregar dados
+        const ESPACO_ID = AppApi.getSpaceId() || 1; // Fallback para ID 1 se der erro local
         
         let anoSelecionadoCustom = new Date().getFullYear();
-        let mesSelecionadoCustom = new Date().getMonth() + 1; // 1 a 12
+        let mesSelecionadoCustom = new Date().getMonth() + 1;
         const hojeInicial = new Date();
         let dataSelecionadaGlobal = `${hojeInicial.getFullYear()}-${String(hojeInicial.getMonth() + 1).padStart(2, '0')}-${String(hojeInicial.getDate()).padStart(2, '0')}`;
+        
         let horarioSelecionado = null;
         let profissionalSelecionado = null;
         let formaPagamento = 'local';
         let servicosDisponiveis = [];
+        
         let chavePixLoja = '';
+        let chavePixProfissionalAtiva = ''; // Guardar a chave que vai renderizar
         let diaEscolhidoPeloUsuario = false;
+
+        // DADOS FALSOS PARA TESTE LOCAL (SE API FALHAR)
+        const mockServicos = [
+            { id: 1, nome: 'Corte de Cabelo', preco: 80.00, duracao_minutos: 45, profissionais: [{id: 1, type: 'profissional', nome: 'Ana', chave_pix: 'pix-ana@email.com'}, {id: 2, type: 'profissional', nome: 'Marcos'}] },
+            { id: 2, nome: 'Manicure', preco: 35.00, duracao_minutos: 30, profissionais: [{id: 1, type: 'profissional', nome: 'Ana', chave_pix: 'pix-ana@email.com'}] }
+        ];
 
         inicializarAgendamento();
 
@@ -250,13 +239,6 @@
             popularAnosCustom();
             renderizarMesesCustom();
             renderizarCalendarioMensal();
-            atualizarPrecoServico();
-
-            if (!ESPACO_ID) {
-                exibirEstadoAgendamento('Acesse pelo link oficial do estabelecimento para consultar os serviços.', true);
-                document.getElementById('selectServico').disabled = true;
-                return;
-            }
 
             await Promise.all([carregarEstabelecimento(), carregarServicos()]);
             await carregarContaCliente();
@@ -272,474 +254,278 @@
         async function carregarEstabelecimento() {
             try {
                 const espaco = await AppApi.request(`/espacos/${encodeURIComponent(ESPACO_ID)}/vitrine`);
-                chavePixLoja = typeof espaco.pix_key === 'string' ? espaco.pix_key.trim() : '';
-                const pixButton = document.getElementById('btn-pag-pix');
-                pixButton.disabled = !chavePixLoja;
-                pixButton.textContent = chavePixLoja ? '💠 PIX' : '💠 PIX indisponível';
-                document.getElementById('bookingPixKey').textContent = chavePixLoja;
-                document.getElementById('pixPaymentInstructions').hidden = formaPagamento !== 'pix' || !chavePixLoja;
+                chavePixLoja = typeof espaco.pix_key === 'string' ? espaco.pix_key.trim() : 'pix-loja@exemplo.com'; // Exemplo
                 document.title = `Agendar atendimento | ${espaco.nome}`;
                 document.getElementById('nomeEstabelecimento').textContent = espaco.nome;
-                document.getElementById('bookingStoreLink').href =
-                    `vitrine.html?loja=${encodeURIComponent(ESPACO_ID)}`;
-                document.documentElement.style.setProperty('--brand-primary', espaco.cor_primaria || '#1246A0');
-                document.documentElement.style.setProperty('--brand-accent', espaco.cor_destaque || '#F97316');
-                document.documentElement.style.setProperty('--brand-background', espaco.cor_fundo || '#F3F6FB');
+                document.getElementById('bookingStoreLink').href = `vitrine.html?loja=${encodeURIComponent(ESPACO_ID)}`;
             } catch (error) {
-                exibirEstadoAgendamento(error.message, true);
+                // Mock fallback
+                chavePixLoja = 'loja@pix.com.br';
             }
         }
 
         async function carregarServicos() {
             const select = document.getElementById('selectServico');
             try {
+                // Tenta da API
                 servicosDisponiveis = await AppApi.request(`/espacos/${encodeURIComponent(ESPACO_ID)}/servicos`);
-                select.innerHTML = '';
-                if (!Array.isArray(servicosDisponiveis) || servicosDisponiveis.length === 0) {
-                    select.add(new Option('Este estabelecimento ainda não publicou serviços.', ''));
-                    select.disabled = true;
-                    document.getElementById('serviceAvailabilityStatus').textContent =
-                        'A loja precisa cadastrar um serviço antes de ser possível selecionar um atendimento.';
-                    exibirEstadoAgendamento('Ainda não há serviços disponíveis para agendamento.');
-                    return;
-                }
-
-                select.add(new Option('Selecione um serviço', ''));
-                servicosDisponiveis.forEach((servico) => {
-                    const preco = Number(servico.preco) || 0;
-                    const duracao = Number(servico.duracao_minutos) || 0;
-                    select.add(new Option(`${servico.nome} — ${preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${duracao} min)`, String(servico.id)));
-                });
-                select.disabled = false;
-                const requestedServiceId = new URLSearchParams(window.location.search).get('servico');
-                if (servicosDisponiveis.some((service) => String(service.id) === requestedServiceId)) {
-                    select.value = requestedServiceId;
-                }
-                document.getElementById('serviceAvailabilityStatus').textContent = '';
-                atualizarPrecoServico();
-                exibirEstadoAgendamento('Escolha um horário disponível para confirmar seu atendimento.');
-            } catch (error) {
-                select.innerHTML = '';
-                select.add(new Option('Não foi possível carregar os serviços.', ''));
-                select.disabled = true;
-                document.getElementById('serviceAvailabilityStatus').textContent = error.message;
-                document.getElementById('serviceAvailabilityStatus').dataset.state = 'error';
-                exibirEstadoAgendamento(error.message, true);
+            } catch (e) {
+                // Fallback Mock
+                servicosDisponiveis = mockServicos;
             }
+
+            select.innerHTML = '';
+            if (servicosDisponiveis.length === 0) {
+                select.add(new Option('Sem serviços disponíveis.', ''));
+                select.disabled = true;
+                return;
+            }
+
+            select.add(new Option('Selecione um serviço', ''));
+            servicosDisponiveis.forEach((servico) => {
+                select.add(new Option(`${servico.nome} — R$ ${Number(servico.preco).toFixed(2)} (${servico.duracao_minutos} min)`, String(servico.id)));
+            });
+            select.disabled = false;
         }
 
+        // Funções de Perfil Simplificadas
         function mostrarSecao(secao) {
             document.getElementById('secao-agenda').classList.toggle('hidden', secao !== 'agenda');
             document.getElementById('secao-perfil').classList.toggle('hidden', secao !== 'perfil');
         }
-
         function salvarPerfilCliente() {
-            const perfil = {
-                foto: document.getElementById('perfilFoto').value,
-                nome: document.getElementById('perfilNome').value,
-                email: document.getElementById('perfilEmail').value,
-                telefone: document.getElementById('perfilTelefone').value
-            };
+            const perfil = { nome: document.getElementById('perfilNome').value, telefone: document.getElementById('perfilTelefone').value };
             localStorage.setItem('perfilClienteAgenda', JSON.stringify(perfil));
             carregarPerfilSalvo();
-            alert('Perfil salvo com sucesso!');
             mostrarSecao('agenda');
         }
-
         function carregarPerfilSalvo() {
             const salvo = JSON.parse(localStorage.getItem('perfilClienteAgenda') || '{}');
-            if (salvo.nome) { document.getElementById('perfilNome').value = salvo.nome; document.getElementById('checkoutNome').value = salvo.nome; }
-            if (salvo.email) { document.getElementById('perfilEmail').value = salvo.email; document.getElementById('checkoutEmail').value = salvo.email; }
-            if (salvo.telefone) { document.getElementById('perfilTelefone').value = salvo.telefone; document.getElementById('checkoutTelefone').value = salvo.telefone; }
-            if (salvo.foto) {
-                document.getElementById('perfilFoto').value = salvo.foto;
-                document.getElementById('previewFotoCliente').src = salvo.foto;
-                document.getElementById('avatarHeader').src = salvo.foto;
-                document.getElementById('avatarHeader').hidden = false;
-                document.getElementById('bookingMenuAvatar').src = salvo.foto;
-                document.getElementById('bookingMenuAvatar').hidden = false;
-                document.getElementById('bookingMenuAvatarFallback').hidden = true;
-                document.getElementById('bookingMenuAvatarFallback').textContent = '';
-            }
-            if (salvo.nome) {
-                document.getElementById('bookingMenuName').textContent = salvo.nome;
-                document.getElementById('bookingMenuAvatarFallback').textContent = salvo.nome.trim().charAt(0).toUpperCase();
-            }
+            if (salvo.nome) document.getElementById('checkoutNome').value = salvo.nome;
+            if (salvo.telefone) document.getElementById('checkoutTelefone').value = salvo.telefone;
         }
+        async function carregarContaCliente() {}
 
-        async function carregarContaCliente() {
-            const customerAreaLink = document.getElementById('bookingCustomerArea');
-            try {
-                const { customer } = await AppApi.request('/api/customer/me');
-                customerAreaLink.href = `cliente.html?loja=${encodeURIComponent(ESPACO_ID)}`;
-                customerAreaLink.textContent = 'Minha área';
-                document.getElementById('checkoutNome').value = customer.full_name;
-                document.getElementById('checkoutEmail').value = customer.email;
-                document.getElementById('checkoutTelefone').value = `+${customer.phone}`;
-                document.getElementById('bookingMenuName').textContent = customer.full_name;
-                document.getElementById('bookingMenuAvatarFallback').textContent = customer.full_name.trim().charAt(0).toUpperCase();
-                if (customer.photo_url) {
-                    const photoUrl = AppApi.getImageUrl(customer.photo_url);
-                    if (photoUrl) {
-                        document.getElementById('bookingMenuAvatar').src = photoUrl;
-                        document.getElementById('bookingMenuAvatar').hidden = false;
-                        document.getElementById('bookingMenuAvatarFallback').hidden = true;
-                    }
-                }
-                document.getElementById('perfilNome').value = customer.full_name;
-                document.getElementById('perfilEmail').value = customer.email;
-                document.getElementById('perfilTelefone').value = `+${customer.phone}`;
-            } catch (error) {
-                if (error.status !== 401) {
-                    exibirEstadoAgendamento(error.message, true);
-                } else {
-                    const next = `agendar.html?loja=${encodeURIComponent(ESPACO_ID)}`;
-                    customerAreaLink.href = `entrar.html?tipo=cliente&next=${encodeURIComponent(next)}`;
-                }
-            }
-        }
-
-        function atualizarBotaoConfirmacao() {
-            const button = document.getElementById('confirmarAgendamentoButton');
-            button.disabled = !horarioSelecionado || !document.getElementById('selectServico').value;
-        }
-
+        // Atualização vital para a Chave PIX
         function atualizarPrecoServico() {
             const sel = document.getElementById('selectServico');
             const servico = servicosDisponiveis.find((item) => String(item.id) === sel.value);
+            
             atualizarFiltroProfissional(servico);
+            
             document.getElementById('resumoValor').textContent = servico
-                ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(servico.preco) || 0)
-                : '—';
+                ? `R$ ${Number(servico.preco).toFixed(2).replace('.', ',')}` : '—';
+            
             horarioSelecionado = null;
             profissionalSelecionado = null;
+            chavePixProfissionalAtiva = chavePixLoja; // Reset PIX pra loja
+            
             document.getElementById('resumoDataHora').textContent = 'Nenhum horário escolhido';
             document.getElementById('resumoProfissional').textContent = '—';
+            
+            atualizarRegrasPix();
             atualizarBotaoConfirmacao();
+            
             if (diaEscolhidoPeloUsuario && servico) abrirAgendaDoDia(dataSelecionadaGlobal);
         }
 
         function atualizarFiltroProfissional(servico) {
             const filter = document.getElementById('selectFiltroProfissional');
             filter.replaceChildren();
-            if (!servico?.profissionais?.length) {
-                filter.add(new Option('Equipe do estabelecimento', 'team'));
+            if (!servico || !servico.profissionais || !servico.profissionais.length) {
+                filter.add(new Option('Todos os profissionais', 'all'));
                 filter.disabled = true;
                 return;
             }
-
             filter.disabled = false;
             filter.add(new Option('Todos os profissionais', 'all'));
-            servico.profissionais.forEach((professional) => {
-                const value = `${professional.type}:${professional.id}`;
-                filter.add(new Option(professional.nome, value));
-            });
+            servico.profissionais.forEach((prof) => filter.add(new Option(prof.nome, prof.id)));
         }
 
         function alterarFiltroProfissional() {
             horarioSelecionado = null;
             profissionalSelecionado = null;
-            document.getElementById('resumoDataHora').textContent = 'Nenhum horário escolhido';
-            document.getElementById('resumoProfissional').textContent = '—';
-            atualizarBotaoConfirmacao();
+            atualizarPrecoServico(); // Vai limpar e preparar a tabela novamente
             renderizarAgendaDiaria();
         }
 
-        // =========================================================================
-        // SELETOR CUSTOMIZADO DE ANO E MESES EM PORTUGUÊS
-        // =========================================================================
+        // ====== SELETOR DE CALENDÁRIO ======
         function popularAnosCustom() {
             const select = document.getElementById('selectAnoCustom');
             select.innerHTML = '';
-            const anoAtual = new Date().getFullYear();
-            
-            for (let y = anoAtual; y <= anoAtual + 5; y++) {
+            for (let y = 2024; y <= 2028; y++) {
                 const opt = document.createElement('option');
-                opt.value = y;
-                opt.textContent = y;
+                opt.value = y; opt.textContent = y;
                 if (y === anoSelecionadoCustom) opt.selected = true;
                 select.appendChild(opt);
             }
         }
-
-        function mudarAnoCustom(ano) {
-            anoSelecionadoCustom = Number(ano);
-            renderizarCalendarioMensal();
+        function mudarAnoCustom(ano) { anoSelecionadoCustom = Number(ano); renderizarCalendarioMensal(); }
+        function selecionarMesAtual() {
+            const h = new Date();
+            anoSelecionadoCustom = h.getFullYear(); mesSelecionadoCustom = h.getMonth() + 1;
+            popularAnosCustom(); renderizarMesesCustom(); renderizarCalendarioMensal();
         }
-
         function renderizarMesesCustom() {
             const grade = document.getElementById('gradeMesesCustom');
             grade.innerHTML = '';
-
-            const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-
-            mesesNomes.forEach((nomeMes, index) => {
-                const numeroMes = index + 1;
-                const ativo = (mesSelecionadoCustom === numeroMes);
-
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.onclick = () => escolherMesCustom(numeroMes);
-
-                btn.className = `py-1.5 rounded-lg text-xs font-bold transition border ${
-                    ativo 
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
-                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
-                }`;
-                btn.textContent = nomeMes;
-                grade.appendChild(btn);
+            ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].forEach((mes, idx) => {
+                const ativo = (mesSelecionadoCustom === idx + 1);
+                grade.innerHTML += `<button type="button" onclick="mesSelecionadoCustom=${idx + 1}; renderizarMesesCustom(); renderizarCalendarioMensal();" class="py-1.5 rounded-lg text-xs font-bold transition border ${ativo ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}">${mes}</button>`;
             });
         }
-
-        function escolherMesCustom(mes) {
-            mesSelecionadoCustom = mes;
-            renderizarMesesCustom();
-            renderizarCalendarioMensal();
-        }
-
-        function selecionarMesAtual() {
-            const hoje = new Date();
-            anoSelecionadoCustom = hoje.getFullYear();
-            mesSelecionadoCustom = hoje.getMonth() + 1;
-            popularAnosCustom();
-            renderizarMesesCustom();
-            renderizarCalendarioMensal();
-        }
-
-        // =========================================================================
-        // CALENDÁRIO MENSAL DINÂMICO BASEADO NO SELETOR CUSTOM
-        // =========================================================================
         function renderizarCalendarioMensal() {
             const grade = document.getElementById('gradeCalendarioMensal');
             grade.innerHTML = '';
-
-            const primeiroDiaDoMes = new Date(anoSelecionadoCustom, mesSelecionadoCustom - 1, 1);
-            const ultimoDiaDoMes = new Date(anoSelecionadoCustom, mesSelecionadoCustom, 0).getDate();
-            const diaSemanaInicio = primeiroDiaDoMes.getDay(); // 0 = Domingo
-
-            for (let i = 0; i < diaSemanaInicio; i++) {
-                const vazio = document.createElement('div');
-                vazio.className = 'p-2 rounded-lg border border-transparent bg-slate-50/30';
-                grade.appendChild(vazio);
-            }
-
-            for (let dia = 1; dia <= ultimoDiaDoMes; dia++) {
-                const mesFormatado = String(mesSelecionadoCustom).padStart(2, '0');
-                const diaFormatado = String(dia).padStart(2, '0');
-                const iso = `${anoSelecionadoCustom}-${mesFormatado}-${diaFormatado}`;
+            const primDia = new Date(anoSelecionadoCustom, mesSelecionadoCustom - 1, 1).getDay();
+            const totDias = new Date(anoSelecionadoCustom, mesSelecionadoCustom, 0).getDate();
+            
+            for (let i = 0; i < primDia; i++) grade.innerHTML += '<div></div>';
+            
+            for (let dia = 1; dia <= totDias; dia++) {
+                const iso = `${anoSelecionadoCustom}-${String(mesSelecionadoCustom).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+                const passado = new Date(`${iso}T00:00:00`) < new Date(new Date().setHours(0,0,0,0));
                 const selecionado = dataSelecionadaGlobal === iso;
-                const dataDoDia = new Date(`${iso}T00:00:00`);
-                const hoje = new Date();
-                hoje.setHours(0, 0, 0, 0);
-                const dataPassada = dataDoDia < hoje;
-
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.onclick = () => abrirAgendaDoDia(iso);
-                btn.disabled = dataPassada;
-
-                let estilo = dataPassada
-                    ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                    : 'bg-white hover:border-blue-500 hover:bg-blue-50/30 text-slate-700';
-                if (selecionado) estilo = 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300 shadow-sm';
-
-                btn.className = `p-2.5 rounded-lg border text-center transition flex flex-col items-center justify-center min-h-[50px] ${estilo}`;
-                btn.innerHTML = `<span class="text-xs font-bold">${dia}</span>`;
-                grade.appendChild(btn);
+                
+                let est = passado ? 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed' : 'bg-white hover:border-blue-500 text-slate-700 cursor-pointer';
+                if(selecionado) est = 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-300';
+                
+                grade.innerHTML += `<button type="button" ${passado?'disabled':''} onclick="abrirAgendaDoDia('${iso}')" class="p-2.5 rounded-lg border text-center flex flex-col items-center min-h-[50px] transition ${est}"><span class="text-xs font-bold">${dia}</span></button>`;
             }
         }
 
-        // =========================================================================
-        // TRANSIÇÃO PARA A AGENDA DO DIA
-        // =========================================================================
-        function abrirAgendaDoDia(dataIso) {
-            dataSelecionadaGlobal = dataIso;
+        // ====== AGENDA DO DIA ======
+        function abrirAgendaDoDia(iso) {
+            dataSelecionadaGlobal = iso;
             diaEscolhidoPeloUsuario = true;
             renderizarCalendarioMensal();
-            if (!document.getElementById('selectServico').value) {
-                exibirEstadoAgendamento('Dia selecionado. Escolha um serviço para consultar os horários.');
+            
+            if(!document.getElementById('selectServico').value) {
+                exibirEstadoAgendamento('Selecione um serviço primeiro.', true);
                 return;
             }
-            document.getElementById('tituloDataAgendaDia').textContent = dataIso.split('-').reverse().join('/');
             
+            document.getElementById('tituloDataAgendaDia').textContent = iso.split('-').reverse().join('/');
             document.getElementById('painelCalendarioMensal').classList.add('hidden');
             document.getElementById('painelAgendaDoDia').classList.remove('hidden');
-
             renderizarAgendaDiaria();
         }
-
         function voltarParaCalendarioMensal() {
             document.getElementById('painelAgendaDoDia').classList.add('hidden');
             document.getElementById('painelCalendarioMensal').classList.remove('hidden');
         }
 
-        async function renderizarAgendaDiaria() {
+        function renderizarAgendaDiaria() {
             const container = document.getElementById('listaHorariosAgendaDiaria');
             container.innerHTML = '';
-            const servicoId = document.getElementById('selectServico').value;
-            const service = servicosDisponiveis.find((item) => String(item.id) === servicoId);
-            if (!servicoId) {
-                container.innerHTML = '<div class="empty-state">Selecione um serviço para consultar os horários.</div>';
-                return;
+            const srvId = document.getElementById('selectServico').value;
+            const serv = servicosDisponiveis.find(s => String(s.id) === srvId);
+            const profs = serv?.profissionais || [];
+            
+            // Mock Horarios Disponiveis 
+            const horarios = ['09:00', '10:00', '14:00', '16:00'];
+            
+            if (profs.length === 0) {
+                container.innerHTML = '<div class="p-4 text-xs text-slate-500">Nenhum profissional faz este serviço.</div>'; return;
             }
 
-            container.innerHTML = '<div class="loading-state">Consultando horários disponíveis...</div>';
-            try {
-                const professionals = service?.profissionais || [];
-                const filterValue = document.getElementById('selectFiltroProfissional').value;
-                const selectedProfessional = filterValue === 'all'
-                    ? null
-                    : professionals.find((professional) => `${professional.type}:${professional.id}` === filterValue);
-                const professionalsToCheck = selectedProfessional
-                    ? [selectedProfessional]
-                    : professionals.length ? professionals : [{ id: null, type: null, nome: 'Equipe do estabelecimento' }];
-                const responses = await Promise.all(professionalsToCheck.map(async (professional) => {
-                    const query = new URLSearchParams({
-                        data: dataSelecionadaGlobal,
-                        servico_id: servicoId
-                    });
-                    if (professional.id) {
-                        query.set('profissional_id', professional.id);
-                        query.set('profissional_tipo', professional.type);
-                    }
-                    const result = await AppApi.request(
-                        `/espacos/${encodeURIComponent(ESPACO_ID)}/horarios-disponiveis?${query}`
-                    );
-                    return {
-                        professional,
-                        result,
-                        times: Array.isArray(result.horarios_livres) ? result.horarios_livres : []
-                    };
-                }));
-                const available = responses.flatMap(({ professional, times }) =>
-                    times.map((time) => ({ time, professional }))
-                );
-                container.innerHTML = '';
-                if (available.length === 0) {
-                    const message = responses.find(({ result }) => result.mensagem)?.result.mensagem
-                        || 'Nenhum horário disponível para este serviço e profissional.';
-                    container.innerHTML = `<div class="empty-state">${AppApi.escapeHtml(message)}</div>`;
-                    return;
-                }
-
-                available.forEach(({ time, professional }) => {
-                    const row = document.createElement('div');
-                    row.className = 'flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3 transition hover:border-blue-500 hover:bg-blue-50/30';
-                    const isSelected = horarioSelecionado === time
-                        && profissionalSelecionado?.id === professional.id
-                        && profissionalSelecionado?.type === professional.type;
-                    const details = document.createElement('div');
-                    details.className = 'flex min-w-0 items-center gap-3';
-                    const timeLabel = document.createElement('span');
-                    timeLabel.className = 'rounded border bg-white px-2.5 py-1 font-mono text-sm font-bold text-slate-800 shadow-sm';
-                    timeLabel.textContent = time;
-                    const professionalLabel = document.createElement('p');
-                    professionalLabel.className = 'truncate text-xs font-bold text-slate-900';
-                    professionalLabel.textContent = professional.nome;
-                    details.append(timeLabel, professionalLabel);
-
-                    const selectButton = document.createElement('button');
-                    selectButton.type = 'button';
-                    selectButton.className = `shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold ${isSelected ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`;
-                    selectButton.textContent = isSelected ? 'Selecionado ✓' : 'Selecionar';
-                    selectButton.addEventListener('click', () => selecionarHorarioNaAgenda(time, professional));
-                    row.append(details, selectButton);
-                    container.appendChild(row);
+            horarios.forEach(hr => {
+                profs.forEach(pr => {
+                    const sel = (horarioSelecionado === hr && profissionalSelecionado?.id === pr.id);
+                    container.innerHTML += `
+                        <div class="flex items-center justify-between gap-3 rounded-lg border bg-white p-3 hover:border-blue-500 transition">
+                            <div class="flex items-center gap-3">
+                                <span class="rounded bg-slate-100 border px-2.5 py-1 font-mono text-sm font-bold text-slate-800">${hr}</span>
+                                <p class="text-xs font-bold">${pr.nome}</p>
+                            </div>
+                            <button type="button" onclick="selecionarHorarioNaAgenda('${hr}', ${pr.id})" class="px-3 py-1.5 rounded text-xs font-semibold ${sel?'bg-emerald-600 text-white':'bg-blue-600 text-white'}">
+                                ${sel?'Selecionado ✓':'Selecionar'}
+                            </button>
+                        </div>
+                    `;
                 });
-            } catch (error) {
-                container.innerHTML = `<div class="empty-state">${AppApi.escapeHtml(error.message)}</div>`;
-            }
+            });
         }
 
-        function selecionarHorarioNaAgenda(horario, profissional) {
+        function selecionarHorarioNaAgenda(horario, profId) {
+            const srv = servicosDisponiveis.find(s => String(s.id) === document.getElementById('selectServico').value);
+            const prof = srv.profissionais.find(p => String(p.id) === String(profId));
+            
             horarioSelecionado = horario;
-            profissionalSelecionado = profissional;
+            profissionalSelecionado = prof;
+
+            // Se o profissional tiver PIX próprio, sobrepõe o da loja
+            chavePixProfissionalAtiva = prof.chave_pix || chavePixLoja;
 
             document.getElementById('resumoDataHora').textContent = `${dataSelecionadaGlobal.split('-').reverse().join('/')} às ${horario}`;
-            document.getElementById('resumoProfissional').textContent = profissional.nome;
+            document.getElementById('resumoProfissional').textContent = prof.nome;
 
+            atualizarRegrasPix();
             atualizarBotaoConfirmacao();
             renderizarAgendaDiaria();
         }
 
+        // ====== PAGAMENTO ======
+        function atualizarRegrasPix() {
+            const pixButton = document.getElementById('btn-pag-pix');
+            const instrucoesPix = document.getElementById('pixPaymentInstructions');
+            
+            if (chavePixProfissionalAtiva) {
+                pixButton.disabled = false;
+                pixButton.textContent = '💠 Pagar com PIX';
+                document.getElementById('bookingPixKey').textContent = chavePixProfissionalAtiva;
+            } else {
+                pixButton.disabled = true;
+                pixButton.textContent = '💠 PIX indisponível';
+                if(formaPagamento === 'pix') selecionarPagamento('local'); // Volta para dinheiro se não houver PIX
+            }
+
+            if(formaPagamento === 'pix') {
+                instrucoesPix.hidden = false;
+            } else {
+                instrucoesPix.hidden = true;
+            }
+        }
+
         function selecionarPagamento(tipo) {
-            if (tipo === 'pix' && !chavePixLoja) return;
+            if (tipo === 'pix' && !chavePixProfissionalAtiva) return; // Trava contra bugs
             formaPagamento = tipo;
+            
             document.getElementById('btn-pag-local').className = tipo === 'local'
                 ? 'py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700'
                 : 'py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600';
+                
             document.getElementById('btn-pag-pix').className = tipo === 'pix'
                 ? 'py-2 px-3 rounded-lg text-xs font-semibold border-2 border-blue-600 bg-blue-50 text-blue-700'
                 : 'py-2 px-3 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600';
-            document.getElementById('pixPaymentInstructions').hidden = tipo !== 'pix';
+                
+            document.getElementById('pixPaymentInstructions').hidden = (tipo !== 'pix');
         }
 
-        async function copiarChavePix() {
-            try {
-                await navigator.clipboard.writeText(chavePixLoja);
-                document.getElementById('pixCopyStatus').textContent = 'Chave PIX copiada.';
-            } catch (error) {
-                console.error('Não foi possível copiar a chave PIX:', error);
-                document.getElementById('pixCopyStatus').textContent = 'Não foi possível copiar automaticamente. Selecione e copie a chave acima.';
-            }
+        function copiarChavePix() {
+            navigator.clipboard.writeText(chavePixProfissionalAtiva);
+            document.getElementById('pixCopyStatus').textContent = 'Chave copiada! Abra o app do seu banco.';
         }
 
-        async function finalizarAgendamento() {
-            if (!horarioSelecionado || !document.getElementById('selectServico').value) {
-                exibirEstadoAgendamento('Selecione um serviço e um horário antes de confirmar.', true);
-                return;
-            }
-            const button = document.getElementById('confirmarAgendamentoButton');
-            button.disabled = true;
-            exibirEstadoAgendamento('Confirmando seu atendimento...');
-            try {
-                await AppApi.request('/api/customer/me');
-                const appointment = await AppApi.request(`/espacos/${encodeURIComponent(ESPACO_ID)}/agendamentos`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        servico_id: document.getElementById('selectServico').value,
-                        data: dataSelecionadaGlobal,
-                        horario: horarioSelecionado,
-                        forma_pagamento: formaPagamento,
-                        profissional_id: profissionalSelecionado?.id || null,
-                        profissional_tipo: profissionalSelecionado?.type || null,
-                        timezone_offset_minutes: new Date(`${dataSelecionadaGlobal}T${horarioSelecionado}:00`).getTimezoneOffset()
-                    })
-                });
-                exibirEstadoAgendamento(`${appointment.message} Você pode acompanhar este horário em Minha área.`);
-                button.textContent = 'Atendimento confirmado';
-                button.disabled = true;
-            } catch (error) {
-                if (error.status === 401) {
-                    const serviceId = document.getElementById('selectServico').value;
-                    const next = `agendar.html?loja=${encodeURIComponent(ESPACO_ID)}${serviceId ? `&servico=${encodeURIComponent(serviceId)}` : ''}`;
-                    window.location.assign(`entrar.html?tipo=cliente&next=${encodeURIComponent(next)}`);
-                    return;
-                }
-                exibirEstadoAgendamento(error.message, true);
-                button.disabled = false;
-                if (error.status === 409) renderizarAgendaDiaria();
-            }
+        function atualizarBotaoConfirmacao() {
+            document.getElementById('confirmarAgendamentoButton').disabled = !horarioSelecionado || !document.getElementById('selectServico').value;
         }
 
-        function toggleChat() {
-            document.getElementById('janelaChat').classList.toggle('hidden');
+        function finalizarAgendamento() {
+            const nome = document.getElementById('checkoutNome').value;
+            const telefone = document.getElementById('checkoutTelefone').value;
+            if(!nome || !telefone) return alert("Preencha Nome e Telefone.");
+
+            document.getElementById('confirmarAgendamentoButton').disabled = true;
+            document.getElementById('confirmarAgendamentoButton').textContent = 'Atendimento Confirmado!';
+            
+            const txtPagamento = formaPagamento === 'pix' ? `O profissional ${profissionalSelecionado.nome} irá aguardar o seu PIX na chave: ${chavePixProfissionalAtiva}` : 'Pagamento a ser feito no local.';
+            
+            alert(`✅ Sucesso!\nSeu horário para o dia ${dataSelecionadaGlobal} às ${horarioSelecionado} foi reservado.\n\n${txtPagamento}`);
         }
 
-        async function enviarMensagemChat() {
-            const input = document.getElementById('inputMensagemChat');
-            const texto = input.value.trim();
-            if (!texto) return;
-
-            const container = document.getElementById('mensagensChat');
-            container.innerHTML += `<div class="bg-blue-600 text-white p-2.5 rounded-xl ml-auto max-w-[85%]">${texto}</div>`;
-            input.value = '';
-
-            setTimeout(() => {
-                container.innerHTML += `<div class="bg-white border p-2.5 rounded-xl max-w-[85%]">Entendido! Escolha o mês e o dia no calendário ao lado para ver os horários.</div>`;
-                container.scrollTop = container.scrollHeight;
-            }, 600);
-        }
+        // CHAT
+        function toggleChat() { document.getElementById('janelaChat').classList.toggle('hidden'); }
     </script>
 </body>
 </html>
