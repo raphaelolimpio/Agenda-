@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda+ | Encontre seu próximo atendimento</title>
+    <title>Vitrina+ | Encontre seu próximo atendimento</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="portal.css">
@@ -24,7 +24,7 @@
     <main class="max-w-6xl mx-auto p-6 space-y-8">
         <!-- Busca e Filtros -->
         <section class="store-hero rounded-3xl p-7 sm:p-10 text-white shadow-xl">
-            <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Agenda+</p>
+            <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Vitrina+</p>
             <h2 class="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">Seu próximo momento começa aqui.</h2>
             <p class="mt-3 max-w-2xl text-sm sm:text-base text-white/75">Descubra espaços, conheça os serviços e reserve um horário com quem combina com você.</p>
             <label class="mt-6 block max-w-xl">
@@ -115,7 +115,7 @@
                 const logo = AppApi.getImageUrl(loja.logo_url);
                 const logoMarkup = logo
                     ? `<img src="${AppApi.escapeHtml(logo)}" alt="" class="store-card__logo absolute -top-8">`
-                    : '<span class="store-card__logo absolute -top-8 grid place-items-center text-xl font-bold text-blue-600">A+</span>';
+                    : '<span class="store-card__logo absolute -top-8 grid place-items-center text-xl font-bold text-blue-600">V+</span>';
                 const isFavorite = favoritosCliente.has(String(loja.id));
                 grade.innerHTML += `
                     <article class="store-card flex flex-col">

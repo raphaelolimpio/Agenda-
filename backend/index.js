@@ -7,6 +7,7 @@ const dotenv = require('dotenv');
 const { createSaasBilling, effectiveSubscription } = require('./saas-billing');
 const { isAllowedOrigin } = require('./origin-policy');
 const { getUtcWeekday } = require('./date-utils');
+const { createAtomicAppointment } = require('./booking-service');
 const {
     appointmentBlocksProfessional,
     appointmentOverlaps,
@@ -770,12 +771,19 @@ app.post('/espacos/:id/agendamentos', async (req, res) => {
 // 2. ROTA DO CHATBOT INTELIGENTE E REGISTRO DE AGENDAMENTO (POST)
 app.post('/espacos/:id/chat', async (req, res) => {
     const { id } = req.params;
-    const { historicoMensagens, mensagemCliente } = req.body;
+    if (!isValidSpaceId(id)) return res.status(400).json({ error: 'ID de estabelecimento inválido.' });
+
+    const { historicoMensagens, mensagemCliente } = req.body || {};
+    if (typeof mensagemCliente !== 'string' || !mensagemCliente.trim() || mensagemCliente.length > 1000) {
+        return res.status(400).json({ error: 'Mensagem inválida.' });
+    }
 
     try {
-        const configBotRes = await pool.query('SELECT * FROM configuracoes_chatbot WHERE espaco_id = $1', [id]);
-        const servicosRes = await pool.query('SELECT id, nome, duracao_minutos, preco FROM servicos WHERE espaco_id = $1', [id]);
-        const espacoRes = await pool.query('SELECT nome, nicho FROM espacos WHERE id = $1', [id]);
+        const [configBotRes, servicosRes, espacoRes] = await Promise.all([
+            pool.query('SELECT * FROM configuracoes_chatbot WHERE espaco_id = $1', [id]),
+            pool.query('SELECT id, nome, duracao_minutos, preco FROM servicos WHERE espaco_id = $1', [id]),
+            pool.query('SELECT nome, nicho FROM espacos WHERE id = $1', [id])
+        ]);
 
         if (espacoRes.rows.length === 0) {
             return res.status(404).json({ error: 'Espaço não encontrado' });
@@ -784,89 +792,54 @@ app.post('/espacos/:id/chat', async (req, res) => {
         const espaco = espacoRes.rows[0];
         const configBot = configBotRes.rows[0] || {
             tom_voz: 'amigável',
-            instrucoes_extras: 'Seja prestativo.',
-            mensagem_boas_vindas: 'Olá! Como posso ajudar no seu agendamento?'
+            instrucoes_extras: 'Seja prestativo.'
         };
-        const servicosDisponiveis = servicosRes.rows;
 
         const systemInstruction = `
-      Você é o assistente virtual de agendamentos do estabelecimento "${espaco.nome}" (Nicho: ${espaco.nicho}).
-      Seu objetivo é conversar com o cliente de forma natural, descobrir qual serviço ele deseja, qual a data e horário pretendidos, além do nome e telefone do cliente para fechar o agendamento.
-      
-      Diretrizes de comportamento:
-      - Tom de voz: ${configBot.tom_voz}.
-      - Instruções adicionais do dono: ${configBot.instrucoes_extras}
-      
-      Serviços oferecidos por este estabelecimento:
-      ${JSON.stringify(servicosDisponiveis, null, 2)}
+Você é o assistente virtual de agendamentos do estabelecimento "${espaco.nome}" (Nicho: ${espaco.nicho}) na plataforma Vitrina+.
+Descubra o serviço desejado, a data (AAAA-MM-DD) e o horário (HH:MM).
+Tom de voz: ${configBot.tom_voz}.
+Instruções adicionais: ${configBot.instrucoes_extras}
 
-      REGRA CRÍTICA PARA FINALIZAÇÃO:
-      Assim que o cliente tiver escolhido o serviço, a data, o horário exato, informado o NOME dele e o TELEFONE, você DEVE retornar a resposta final para o cliente confirmando o agendamento e, no final da sua resposta, incluir estritamente um bloco JSON oculto ou formatado exatamente neste padrão para que o sistema consiga salvar no banco:
-      [AGENDAMENTO_JSON: {"servico_id": ID_DO_SERVICO, "cliente_nome": "NOME", "cliente_telefone": "TELEFONE", "data_hora_inicio": "AAAA-MM-DD HH:MM:SS"}]
-    `;
+Serviços disponíveis:
+${JSON.stringify(servicosRes.rows, null, 2)}
+
+Quando o cliente confirmar serviço, data e horário exatos, finalize a resposta incluindo no final exatamente:
+[AGENDAMENTO_JSON: {"servico_id": ID_NUMERICO, "data": "AAAA-MM-DD", "horario": "HH:MM"}]
+        `.trim();
 
         const contents = [
-            ...(historicoMensagens || []),
-            { role: 'user', parts: [{ text: mensagemCliente }] }
+            ...(Array.isArray(historicoMensagens) ? historicoMensagens.slice(-12) : []),
+            { role: 'user', parts: [{ text: mensagemCliente.trim() }] }
         ];
 
         const ai = new GoogleGenAI();
         const response = await ai.models.generateContent({
-            model: 'gemini-3.8-flash',
-            contents: contents,
-            config: {
-                systemInstruction: systemInstruction,
-                temperature: 0.7,
-            }
+            model: 'gemini-2.5-flash',
+            contents,
+            config: { systemInstruction, temperature: 0.5 }
         });
 
-        let respostaTexto = response.text;
-
-        // Verificar se a IA decidiu concluir e gerou a tag de agendamento
-        const regexAgendamento = /\[AGENDAMENTO_JSON:\s*({.*?})\]/;
+        let respostaTexto = response.text || '';
+        const regexAgendamento = /\[AGENDAMENTO_JSON:\s*(\{.*?\})\]/;
         const match = respostaTexto.match(regexAgendamento);
 
         if (match) {
+            respostaTexto = respostaTexto.replace(regexAgendamento, '').trim();
             try {
-                const dadosAgendamento = JSON.parse(match[1]);
-                const cliente = await saasBilling.getCustomerForRequest(req);
-                
-                // 1. Buscar duração do serviço para calcular o horário de fim
-                const servRes = await pool.query(
-                    'SELECT duracao_minutos FROM servicos WHERE id = $1 AND espaco_id = $2',
-                    [dadosAgendamento.servico_id, id]
-                );
-                if (servRes.rows.length === 0) throw new Error('Serviço não encontrado para este estabelecimento.');
-                const duracao = servRes.rows[0].duracao_minutos;
-
-                const inicioDate = new Date(dadosAgendamento.data_hora_inicio);
-                const fimDate = new Date(inicioDate.getTime() + duracao * 60000);
-                const dataHoraFimStr = fimDate.toISOString().slice(0, 19).replace('T', ' ');
-
-                // 2. Salvar no Banco de Dados
-                await pool.query(
-                    `INSERT INTO agendamentos
-                        (espaco_id, servico_id, cliente_nome, cliente_telefone, data_hora_inicio, data_hora_fim, status, saas_cliente_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, 'confirmado', $7)`,
-                    [
-                        id,
-                        dadosAgendamento.servico_id,
-                        dadosAgendamento.cliente_nome,
-                        dadosAgendamento.cliente_telefone,
-                        dadosAgendamento.data_hora_inicio,
-                        dataHoraFimStr,
-                        cliente?.id || null
-                    ]
-                );
-
-                // Remover o JSON técnico da resposta que vai aparecer para o usuário
-                respostaTexto = respostaTexto.replace(regexAgendamento, '').trim();
-                respostaTexto += "\n\n✅ *Agendamento confirmado e salvo com sucesso em nosso sistema!*";
-
-                // (Opcional Futuro): Aqui você poderá disparar a função de envio de WhatsApp/E-mail
-
-            } catch (errDb) {
-                console.error("Erro ao salvar agendamento gerado pela IA:", errDb);
+                const dados = JSON.parse(match[1]);
+                const customer = await saasBilling.getCustomerForRequest(req);
+                await createAtomicAppointment(pool, saasBilling, {
+                    spaceId: id,
+                    serviceId: dados.servico_id,
+                    data: dados.data,
+                    horario: dados.horario,
+                    paymentMethod: 'local',
+                    customer
+                });
+                respostaTexto += '\n\n✅ *Agendamento confirmado e reservado com sucesso na Vitrina+!*';
+            } catch (errBooking) {
+                respostaTexto += `\n\n⚠️ Não foi possível concluir a reserva automática: ${errBooking.message}`;
             }
         }
 
@@ -877,7 +850,6 @@ app.post('/espacos/:id/chat', async (req, res) => {
                 { role: 'model', parts: [{ text: respostaTexto }] }
             ]
         });
-
     } catch (err) {
         console.error('Erro no chatbot:', err);
         res.status(500).json({ error: 'Erro ao processar a mensagem no chatbot.' });

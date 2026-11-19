@@ -1962,7 +1962,7 @@ function createSaasBilling(app, pool, frontendDirectory) {
                     'X-Idempotency-Key': idempotencyKey
                 },
                 body: JSON.stringify({
-                    reason: `Agenda+ - Plano mensal ${plan.monthlyPrice.toFixed(2)} BRL`,
+                    reason: `Vitrina+ - Plano mensal ${plan.monthlyPrice.toFixed(2)} BRL`,
                     external_reference: req.saasAccount.id,
                     payer_email: req.saasAccount.email,
                     back_url: new URL('/assinatura.html?retorno=mercadopago', appBaseUrl).toString(),
